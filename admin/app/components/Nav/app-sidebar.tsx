@@ -1,0 +1,42 @@
+import { ComponentProps } from "react";
+import { NavMain } from "~/components/Nav/nav-main";
+import {
+	Sidebar,
+	SidebarContent,
+	SidebarFooter,
+	SidebarHeader,
+	SidebarMenu,
+	SidebarMenuButton,
+	SidebarMenuItem,
+} from "~/components/ui/sidebar";
+import { Link } from "react-router";
+import { BuildingIcon, LogOut } from "lucide-react";
+import { Button } from "~/components/ui/button";
+
+export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
+	return (
+		<Sidebar collapsible="offcanvas" {...props}>
+			<SidebarHeader className="mb-2">
+				<SidebarMenu>
+					<SidebarMenuItem>
+						<SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:p-1.5!">
+							<Link to="/" prefetch="intent" viewTransition>
+								<BuildingIcon className="size-5!" />
+								<span className="text-lg">Logo</span>
+							</Link>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+				</SidebarMenu>
+			</SidebarHeader>
+			<SidebarContent>
+				<NavMain />
+			</SidebarContent>
+			<SidebarFooter className="mt-6">
+				<Button className="w-full" variant={"outline"}>
+					<LogOut className="size-4" />
+					<span className="my-auto">Logout</span>
+				</Button>
+			</SidebarFooter>
+		</Sidebar>
+	);
+}

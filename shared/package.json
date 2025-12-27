@@ -1,0 +1,16 @@
+{
+	"name": "@workspace/shared",
+	"description": "This package contains shared code between the admin and front panel.",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "tsc -p tsconfig.json"
+	},
+	"exports": {
+		"./*": {
+			"import": "./src/*",
+			"require": "./src/*"
+		}
+	},
+	"types": "./src/*"
+}

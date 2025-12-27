@@ -1,0 +1,25 @@
+{
+	"extends": "../tsconfig.base.json",
+	"compilerOptions": {
+		"declaration": true,
+		"composite": true,
+		"declarationMap": true,
+		"outDir": "dist",
+		"rootDir": "src",
+		"module": "ESNext",
+		"target": "ES2020",
+		"moduleResolution": "bundler",
+		"jsx": "react-jsx",
+		"isolatedModules": false,
+		"skipLibCheck": true,
+		"baseUrl": ".",
+		"paths": {
+			"@workspace/shared/*": ["./src/*"],
+			"~/*": ["./src/*"]
+		},
+		"noUnusedLocals": true, // Report errors on unused locals
+		"noUnusedParameters": true // Report errors on unused parameters
+	},
+	"include": ["src"],
+	"exclude": ["dist", "node_modules"]
+}

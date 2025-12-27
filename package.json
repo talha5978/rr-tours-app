@@ -1,0 +1,40 @@
+{
+	"name": "tours_web_app",
+	"version": "1.0.0",
+	"description": "Tours agency web application monorepo consisting of admin and front panel",
+	"private": true,
+	"type": "module",
+	"license": "ISC",
+	"workspaces": [
+		"admin",
+		"front-panel",
+		"shared"
+	],
+	"scripts": {
+		"bootstrap": "npm install",
+		"dev:admin": "npm run dev -w admin",
+		"dev:front": "npm run dev -w front-panel",
+		"dev": "concurrently -n admin,front -c auto \"npm:dev:admin\" \"npm:dev:front\"",
+		"build:shared": "npm run build -w shared",
+		"build:admin": "npm run build -w admin",
+		"build:front": "npm run build -w front-panel",
+		"build:all": "npm run build:shared && npm run build:admin && npm run build:front",
+		"typecheck": "npm -ws --if-present run typecheck",
+		"check-format": "prettier --check \"**/*.{js,ts,tsx,jsx,json,md,css,scss}\"",
+		"format": "prettier --write \"**/*.{js,ts,tsx,jsx,json,md,css,scss}\""
+	},
+	"lint-staged": {
+		"**/*.{js,ts,tsx,jsx,json,md,css,scss}": [
+			"prettier --write"
+		]
+	},
+	"devDependencies": {
+		"concurrently": "^9.2.1",
+		"husky": "^9.1.7",
+		"lint-staged": "^16.2.7",
+		"prettier": "^3.7.4"
+	},
+	"dependencies": {
+		"@tanstack/react-query": "^5.90.12"
+	}
+}

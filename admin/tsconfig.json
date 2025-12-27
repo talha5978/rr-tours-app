@@ -1,0 +1,37 @@
+{
+	"extends": "../tsconfig.base.json",
+	"references": [{ "path": "../shared" }],
+	"include": [
+		"**/*",
+		"**/.server/**/*",
+		"**/.client/**/*",
+		".react-router/types/**/*",
+		"app",
+		"../shared/src"
+	],
+	"exclude": ["node_modules", "build", "dist", "../shared/dist", ".react-router"],
+	"compilerOptions": {
+		"lib": ["DOM", "DOM.Iterable", "ES2022"],
+		"types": ["node", "vite/client"],
+		"target": "ES2022",
+		"module": "ES2022",
+		"moduleResolution": "bundler",
+		"jsx": "react-jsx",
+		"rootDirs": [".", "./.react-router/types"],
+		"baseUrl": ".",
+		"paths": {
+			"~/*": ["./app/*"],
+			"@workspace/shared/*": ["../shared/src/*"]
+		},
+		"esModuleInterop": true,
+		"verbatimModuleSyntax": false,
+		"rootDir": ".",
+		"outDir": "dist",
+		"noEmit": false,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"strict": true,
+		"noUnusedLocals": true, // Report errors on unused locals
+		"noUnusedParameters": true // Report errors on unused parameters
+	}
+}
