@@ -36,7 +36,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 		if (authId) {
 			// console.log("authId in the root in first check::: " , authId);
-			
+
 			const resp: GetCurrentUser = await queryClient.fetchQuery(currentUserQuery({ request, authId }));
 			if (resp?.user) return redirect("/");
 		}
@@ -48,7 +48,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 	// const { authId, headers } = genAuthSecurity(request);
 	const authId = extractAuthId(request);
 	// console.log("Auth id in root: ", authId);
-	
+
 	const headers = genAuthSecurity(request).headers;
 	const resp: GetCurrentUser = await queryClient.fetchQuery(currentUserQuery({ request, authId }));
 

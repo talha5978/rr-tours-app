@@ -510,6 +510,7 @@ export type Database = {
 					image: string;
 					meta_details_id: string;
 					name: string;
+					sort_order: number;
 				};
 				Insert: {
 					created_at?: string | null;
@@ -517,6 +518,7 @@ export type Database = {
 					image: string;
 					meta_details_id: string;
 					name: string;
+					sort_order?: number;
 				};
 				Update: {
 					created_at?: string | null;
@@ -524,6 +526,7 @@ export type Database = {
 					image?: string;
 					meta_details_id?: string;
 					name?: string;
+					sort_order?: number;
 				};
 				Relationships: [
 					{

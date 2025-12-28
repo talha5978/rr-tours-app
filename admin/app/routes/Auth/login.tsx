@@ -112,7 +112,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
 export async function loader({ request }: LoaderFunctionArgs) {
 	const authId = extractAuthId(request);
-	
+
 	if (authId) {
 		const resp = await queryClient.fetchQuery(currentUserQuery({ request, authId }));
 		if (resp?.user?.id) return redirect("/");
