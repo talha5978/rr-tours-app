@@ -7,14 +7,14 @@ import { extractAuthId } from "@workspace/shared/utils/auth-utils.server";
 import { queryClient } from "@workspace/shared/utils/query-client";
 
 export async function action({ request }: ActionFunctionArgs) {
-	if(request.method.toUpperCase() !== "POST") {
+	if (request.method.toUpperCase() !== "POST") {
 		return new Response("Method Not Allowed", { status: 405 });
 	}
 
 	const authId = extractAuthId(request);
 	let resp: GetCurrentUser | null = null;
 	// console.log("AUth id before check in logout", authId);
-	
+
 	if (authId) {
 		resp = await queryClient.fetchQuery(currentUserQuery({ request, authId }));
 		if (!resp?.user?.id) return redirect("/login");
