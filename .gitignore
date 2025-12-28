@@ -17,7 +17,7 @@ shared/tsconfig.tsbuildinfo
 dist/
 *.tsbuildinfo
 
-test.sql
+*.sql
 
 /dist/
 admin/dist/

@@ -12,13 +12,13 @@
 		"jsx": "react-jsx",
 		"isolatedModules": false,
 		"skipLibCheck": true,
-		"baseUrl": ".",
+		"baseUrl": "./src",
 		"paths": {
-			"@workspace/shared/*": ["./src/*"],
-			"~/*": ["./src/*"]
+			"@workspace/shared": ["./"],
+			"@workspace/shared/*": ["./*"]
 		},
-		"noUnusedLocals": true, // Report errors on unused locals
-		"noUnusedParameters": true // Report errors on unused parameters
+		"noUnusedLocals": true,
+		"noUnusedParameters": true
 	},
 	"include": ["src"],
 	"exclude": ["dist", "node_modules"]

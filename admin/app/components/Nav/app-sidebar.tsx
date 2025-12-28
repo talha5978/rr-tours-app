@@ -12,6 +12,7 @@ import {
 import { Link } from "react-router";
 import { BuildingIcon, LogOut } from "lucide-react";
 import { Button } from "~/components/ui/button";
+import LogoutButton from "~/components/Auth/logout-button";
 
 export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
 	return (
@@ -32,10 +33,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
 				<NavMain />
 			</SidebarContent>
 			<SidebarFooter className="mt-6">
-				<Button className="w-full" variant={"outline"}>
-					<LogOut className="size-4" />
-					<span className="my-auto">Logout</span>
-				</Button>
+				<LogoutButton />
 			</SidebarFooter>
 		</Sidebar>
 	);

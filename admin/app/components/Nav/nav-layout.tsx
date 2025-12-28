@@ -34,9 +34,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
 			<AppSidebar variant="inset" />
 			<SidebarInset>
 				<SiteHeader />
-				<section className="flex flex-1 flex-col @container/main p-4">
-					{children}
-				</section>
+				<section className="flex flex-1 flex-col @container/main p-4">{children}</section>
 				<WarningBarForMobile />
 			</SidebarInset>
 		</SidebarProvider>
