@@ -1,16 +1,20 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CATEGORY_IMG_DIMENSIONS, MAX_META_KEYWORDS } from "@workspace/shared/constants/constants";
 import {
-	type UpdateCategoryActionData,
-	UpdateCategoryActionSchema,
-	type UpdateCategoryInput,
-	UpdateCategorySchema,
-} from "@workspace/shared/schemas/category.schema";
-import { CategoryService } from "@workspace/shared/services/categories.service";
-import { ActionResponse } from "@workspace/shared/types/action-data";
+	CITY_CARD_IMG_DIMENSTIONS,
+	CITY_FULL_IMG_DIMENSTIONS,
+	MAX_META_KEYWORDS,
+} from "@workspace/shared/constants/constants";
+import {
+	type UpdateCityActionData,
+	UpdateCityActionSchema,
+	type UpdateCityInput,
+	UpdateCitySchema,
+} from "@workspace/shared/schemas/city.schema";
+import { CityService } from "@workspace/shared/services/cities.service";
+import type { ActionResponse } from "@workspace/shared/types/action-data";
 import { ApiError } from "@workspace/shared/utils/ApiError";
 import { queryClient } from "@workspace/shared/utils/query-client";
-import { Loader2 } from "lucide-react";
+import { Info, Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import {
@@ -39,40 +43,42 @@ import {
 	TagsInputList,
 } from "~/components/ui/tags-input";
 import { Textarea } from "~/components/ui/textarea";
-import { categoryDetailsUpdateQuery } from "~/queries/categories.q";
+import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
+import { cityDetailsUpdateQuery } from "~/queries/cities.q";
 import {
 	getSanitizedMetaDetailsForAction,
 	getSanitizedMetaDetailsForForm,
 } from "~/utils/getSanitizedMetaDetails";
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
-	const categoryId = (params.categoryId as string) || "";
-	if (!categoryId || categoryId == "") {
+	const cityId = (params.cityId as string) || "";
+	if (!cityId || cityId == "") {
 		throw new Response("Category ID is required", { status: 400 });
 	}
 
 	const formData = await request.formData();
 	// console.log("Form data: ", formData);
 
-	const data: Partial<UpdateCategoryActionData> = {};
+	const data: Partial<UpdateCityActionData> = {};
 
 	if (formData.has("name")) {
 		data.name = (formData.get("name") as string).trim();
 	}
 
-	if (formData.has("sort_order")) {
-		data.sort_order = (formData.get("sort_order") as string).trim();
+	if (formData.has("card_image") && formData.has("removed_card_image")) {
+		data.card_image = formData.get("card_image") as File;
+		data.removed_card_image = formData.get("removed_card_image") as string;
 	}
 
-	if (formData.has("image") && formData.has("removed_image")) {
-		data.image = formData.get("image") as File;
-		data.removed_image = formData.get("removed_image") as string;
+	if (formData.has("full_image") && formData.has("removed_full_image")) {
+		data.full_image = formData.get("full_image") as File;
+		data.removed_full_image = formData.get("removed_full_image") as string;
 	}
 
 	// Parse meta_details fields
 	getSanitizedMetaDetailsForAction({ formData, data });
 
-	const parseResult = UpdateCategoryActionSchema.safeParse(data);
+	const parseResult = UpdateCityActionSchema.safeParse(data);
 	// console.log("Parse result: ", parseResult?.error);
 
 	if (!parseResult.success) {
@@ -82,29 +88,29 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 		});
 	}
 
-	const svc = new CategoryService(request);
+	const svc = new CityService(request);
 	// return;
 	try {
-		await svc.updateCategory(categoryId, parseResult.data);
-		await queryClient.invalidateQueries({ queryKey: ["highLvlCategories"] });
-		await queryClient.invalidateQueries({ queryKey: ["categoryDetailsForUpdate", Number(categoryId)] });
+		await svc.updateCity(cityId, parseResult.data);
+		await queryClient.invalidateQueries({ queryKey: ["highLvlCities"] });
+		await queryClient.invalidateQueries({ queryKey: ["cityDetailsForUpdate", Number(cityId)] });
 
 		return { success: true };
 	} catch (error: any) {
 		return {
 			success: false,
-			error: error instanceof ApiError ? error.message : error.message || "Failed to update category",
+			error: error instanceof ApiError ? error.message : error.message || "Failed to update city",
 		};
 	}
 };
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
-	const categoryId = params.categoryId as string;
-	if (!categoryId) {
-		throw new Response("Category ID is required", { status: 400 });
+	const cityId = params.cityId as string;
+	if (!cityId) {
+		throw new Response("City ID is required", { status: 400 });
 	}
 
-	const response = await queryClient.fetchQuery(categoryDetailsUpdateQuery(request, Number(categoryId)));
+	const response = await queryClient.fetchQuery(cityDetailsUpdateQuery(request, Number(cityId)));
 	return response;
 };
 
@@ -120,19 +126,19 @@ export default function UpdateCategory() {
 			description: error.message,
 		});
 
-		navigate("/categories");
+		navigate("/cities");
 		return null;
 	}
 
 	const actionData: ActionResponse = useActionData();
 
-	const form = useForm<UpdateCategoryInput>({
-		resolver: zodResolver(UpdateCategorySchema),
+	const form = useForm<UpdateCityInput>({
+		resolver: zodResolver(UpdateCitySchema),
 		mode: "onSubmit",
 		defaultValues: {
 			name: data?.name || "",
-			image: data?.image || undefined,
-			sort_order: String(data?.sort_order) || "1",
+			card_image: data?.card_image || undefined,
+			full_image: data?.full_image || undefined,
 			meta_details: {
 				meta_title: data?.meta_details?.meta_title || "",
 				meta_description: data?.meta_details?.meta_description || "",
@@ -152,34 +158,39 @@ export default function UpdateCategory() {
 	useEffect(() => {
 		if (actionData) {
 			if (actionData.success) {
-				toast.success("Category updated successfully");
-				navigate(`/categories`);
+				toast.success("City updated successfully");
+				navigate(`/cities`);
 			} else if (actionData.error) {
 				toast.error(actionData.error);
 			} else if (actionData.validationErrors) {
 				toast.error("Invalid form data. Please check your inputs.");
 				Object.entries(actionData.validationErrors).forEach(([field, errors]) => {
-					setError(field as keyof UpdateCategoryInput, { message: errors[0] });
+					setError(field as keyof UpdateCityInput, { message: errors[0] });
 				});
 			}
 		}
 	}, [actionData, navigate, setError]);
 
-	async function onFormSubmit(values: UpdateCategoryInput) {
+	async function onFormSubmit(values: UpdateCityInput) {
 		if (data == null) {
-			toast.error("Category data not found. Please try again.");
+			toast.error("City data not found. Please try again.");
 			return;
 		}
 
-		if (!values.image) {
-			toast.error("Please upload an image.");
+		if (!values.card_image) {
+			toast.error("Please upload card image.");
+			return;
+		}
+
+		if (!values.full_image) {
+			toast.error("Please upload full image.");
 			return;
 		}
 
 		const normalizedValues = {
 			name: values.name.trim(),
-			image: values.image,
-			sort_order: values.sort_order?.toString() || "1",
+			card_image: values.card_image,
+			full_image: values.full_image,
 			meta_details: {
 				meta_title: values.meta_details.meta_title.trim(),
 				meta_description: values.meta_details.meta_description.trim(),
@@ -199,15 +210,16 @@ export default function UpdateCategory() {
 			hasChanges = true;
 		}
 
-		if (normalizedValues.sort_order !== data.sort_order.toString()) {
-			formData.set("sort_order", normalizedValues.sort_order);
+		// Separate image check..
+		if (normalizedValues.card_image && typeof normalizedValues.card_image !== "string") {
+			formData.set("card_image", normalizedValues.card_image as File);
+			formData.set("removed_card_image", data.card_image as string);
 			hasChanges = true;
 		}
 
-		// Separate image check..
-		if (normalizedValues.image && typeof normalizedValues.image !== "string") {
-			formData.set("image", normalizedValues.image as File);
-			formData.set("removed_image", data.image as string);
+		if (normalizedValues.full_image && typeof normalizedValues.full_image !== "string") {
+			formData.set("full_image", normalizedValues.full_image as File);
+			formData.set("removed_full_image", data.full_image as string);
 			hasChanges = true;
 		}
 
@@ -225,11 +237,11 @@ export default function UpdateCategory() {
 			return;
 		}
 
-		toast.info("Updating category...");
+		toast.info(`Updating ${data.name} city...`);
 
 		submit(formData, {
 			method: "POST",
-			action: `/categories/${data.id}/update`,
+			action: `/cities/${data.id}/update`,
 			encType: "multipart/form-data",
 		});
 	}
@@ -237,80 +249,114 @@ export default function UpdateCategory() {
 	return (
 		<>
 			<MetaDetails
-				metaTitle="Update Category | Admin Panel"
-				metaDescription="Update category"
-				metaKeywords="Update Category, category"
+				metaTitle="Update City | Admin Panel"
+				metaDescription="Update city"
+				metaKeywords="Update City, City"
 			/>
 			<section className="flex flex-col gap-4">
 				<div className="flex gap-4 items-center">
-					<BackButton href="/categories" />
-					<h1 className="text-2xl font-semibold">Update Category</h1>
+					<BackButton href="/cities" />
+					<h1 className="text-2xl font-semibold">Update City</h1>
 				</div>
 				<form className="space-y-4" onSubmit={handleSubmit(onFormSubmit)}>
 					<Form {...form}>
-						{/* Left Side: General and Meta Details */}
-						<div className="grid md:grid-cols-2 gap-4">
+						<div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-4">
 							{/* General Card */}
-							<Card className="col-span-4 md:col-span-1">
+
+							<Card>
 								<CardHeader>
 									<CardTitle className="text-lg">General</CardTitle>
 								</CardHeader>
 								<CardContent className="space-y-4">
-									{/* Category Name */}
+									{/* City Name */}
 									<FormField
 										control={control}
 										name="name"
 										render={({ field }) => (
 											<FormItem>
-												<FormLabel>Category Name</FormLabel>
+												<FormLabel>City Name</FormLabel>
 												<FormControl>
-													<Input
-														placeholder="e.g. Cultural and Heritage"
-														{...field}
-													/>
+													<Input placeholder="e.g. Dubai" {...field} />
 												</FormControl>
 												<FormMessage />
 											</FormItem>
 										)}
 									/>
 
-									{/* Image Upload */}
-									<FormField
-										control={control}
-										name="image"
-										render={() => (
-											<FormItem>
-												<FormLabel>Image</FormLabel>
-												<FormControl>
-													<ImageInput
-														name="image"
-														dimensions={CATEGORY_IMG_DIMENSIONS}
-													/>
-												</FormControl>
-												<FormMessage />
-											</FormItem>
-										)}
-									/>
+									<div className="flex gap-4 w-full *:flex-1 lg:flex-row flex-col mt-4">
+										{/* Card Image Upload */}
 
-									{/* sort_order */}
-									<FormField
-										control={control}
-										name="sort_order"
-										render={({ field }) => (
-											<FormItem>
-												<FormLabel>Sort Order</FormLabel>
-												<FormControl>
-													<Input type="number" placeholder="0" {...field} />
-												</FormControl>
-												<FormMessage />
-											</FormItem>
-										)}
-									/>
+										<FormField
+											control={control}
+											name="card_image"
+											render={() => (
+												<FormItem>
+													<FormLabel className="flex gap-2 items-center">
+														<span>Card Image</span>
+														<div className="md:inline hidden">
+															<Tooltip>
+																<TooltipTrigger asChild>
+																	<Info className="size-4" />
+																</TooltipTrigger>
+																<TooltipContent>
+																	<p>
+																		This image will be shown in the city
+																		card on the home page and categories
+																		page.
+																	</p>
+																</TooltipContent>
+															</Tooltip>
+														</div>
+													</FormLabel>
+													<FormControl>
+														<ImageInput
+															name="card_image"
+															dimensions={CITY_CARD_IMG_DIMENSTIONS}
+														/>
+													</FormControl>
+													<FormMessage />
+												</FormItem>
+											)}
+										/>
+
+										{/* Full Image Upload */}
+										<FormField
+											control={control}
+											name="full_image"
+											render={() => (
+												<FormItem>
+													<FormLabel className="flex gap-2 items-center">
+														<span>Full Image</span>
+														<div className="md:inline hidden">
+															<Tooltip>
+																<TooltipTrigger asChild>
+																	<Info className="size-4" />
+																</TooltipTrigger>
+																<TooltipContent>
+																	<p>
+																		This image will be shown in the
+																		hero-section of city page.
+																	</p>
+																</TooltipContent>
+															</Tooltip>
+														</div>
+													</FormLabel>{" "}
+													<FormControl>
+														<ImageInput
+															name="full_image"
+															dimensions={CITY_FULL_IMG_DIMENSTIONS}
+														/>
+													</FormControl>
+													<FormMessage />
+												</FormItem>
+											)}
+										/>
+									</div>
 								</CardContent>
 							</Card>
 
 							{/* Meta Details Card */}
-							<Card className="col-span-4 md:col-span-1">
+							<Card>
 								<CardHeader>
 									<CardTitle className="text-lg">SEO & Meta Attributes</CardTitle>
 								</CardHeader>
@@ -323,10 +369,7 @@ export default function UpdateCategory() {
 											<FormItem>
 												<FormLabel>Meta Title</FormLabel>
 												<FormControl>
-													<Input
-														placeholder="e.g. Cultural and Heritage Tours"
-														{...field}
-													/>
+													<Input placeholder="e.g. Dubai" {...field} />
 												</FormControl>
 												<FormMessage />
 											</FormItem>
@@ -404,10 +447,7 @@ export default function UpdateCategory() {
 													</span>
 												</div>
 												<FormControl>
-													<Input
-														placeholder="e.g. cultural-and-heritage-tours"
-														{...field}
-													/>
+													<Input placeholder="e.g. dubai" {...field} />
 												</FormControl>
 												<FormMessage />
 											</FormItem>
@@ -419,7 +459,7 @@ export default function UpdateCategory() {
 
 						{/* Submit Button */}
 						<div className="flex gap-4 justify-end md:col-span-3">
-							<Link to={"/categories"} viewTransition prefetch="intent">
+							<Link to={"/cities"} viewTransition prefetch="intent">
 								<Button variant={"outline"}>Back</Button>
 							</Link>
 							<Button type="submit" disabled={isSubmitting}>

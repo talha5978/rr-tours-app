@@ -13,6 +13,12 @@ export default [
 			...prefix(":categoryId", [route("update", "./routes/Categories/update-category.tsx")]),
 		]),
 
+		...prefix("cities", [
+			index("./routes/Cities/cities.tsx"),
+			route("add", "./routes/Cities/add-city.tsx"),
+			...prefix(":cityId", [route("update", "./routes/Cities/update-city.tsx")]),
+		]),
+
 		...prefix("tours", [route("add", "./routes/Tours/add-tour.tsx")]),
 
 		route("*", "./routes/Error/404.tsx"),

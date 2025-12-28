@@ -15,6 +15,16 @@ export const getSimpleImgFormats = () => {
 export const CATEGORY_IMG_DIMENSIONS = {
 	min: { width: 500, height: 600 },
 	max: { width: 1200, height: 1200 },
-};
+} as const;
+
+export const CITY_CARD_IMG_DIMENSTIONS = {
+	min: { width: 500, height: 600 },
+	max: { width: 1700, height: 1700 },
+} as const;
+
+export const CITY_FULL_IMG_DIMENSTIONS = {
+	min: { width: 700, height: 700 },
+	max: { width: 1700, height: 1700 },
+} as const;
 
 export const MAX_META_KEYWORDS = 25;

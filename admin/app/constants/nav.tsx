@@ -2,15 +2,14 @@ import { IconSettings } from "@tabler/icons-react";
 import {
 	Archive,
 	Blocks,
-	Box,
-	Boxes,
+	CalendarCheck2,
 	FerrisWheel,
 	Gift,
 	House,
-	LinkIcon,
+	MapPin,
 	Megaphone,
 	RectangleHorizontal,
-	TableProperties,
+	Siren,
 	Tag,
 	Users,
 } from "lucide-react";
@@ -27,7 +26,22 @@ export const mainNavItems: NavItem[] = [
 			},
 			{
 				title: "New Tour",
-				url: "/tours/create",
+				url: "/tours/add",
+				icon: <FerrisWheel />,
+			},
+			{
+				title: "Bookings",
+				url: "/bookings",
+				icon: <CalendarCheck2 />,
+			},
+		],
+	},
+	{
+		title: "Tours",
+		items: [
+			{
+				title: "All Tours",
+				url: "/tours",
 				icon: <FerrisWheel />,
 			},
 			{
@@ -35,45 +49,25 @@ export const mainNavItems: NavItem[] = [
 				url: "/categories",
 				icon: <Blocks />,
 			},
-		],
-	},
-	{
-		title: "Catalog",
-		items: [
 			{
-				title: "Products",
-				url: "/products",
-				icon: <Archive />,
-			},
-			{
-				title: "All Units",
-				url: "/all-product-units",
-				icon: <Boxes />,
-			},
-			{
-				title: "Categories",
-				url: "/categories",
-				icon: <LinkIcon />,
-			},
-			{
-				title: "Collections",
-				url: "/collections",
+				title: "Tour Tags",
+				url: "/tour-tags",
 				icon: <Tag />,
 			},
 			{
-				title: "Product Attributes",
-				url: "/product-attributes",
-				icon: <TableProperties />,
+				title: "Cities",
+				url: "/cities",
+				icon: <MapPin />,
 			},
 		],
 	},
 	{
-		title: "Sales",
+		title: "Bookings",
 		items: [
 			{
-				title: "Orders",
-				url: "/orders",
-				icon: <Box />,
+				title: "All Bookings",
+				url: "/bookings",
+				icon: <Archive />,
 			},
 			{
 				title: "Customers",
@@ -104,6 +98,11 @@ export const mainNavItems: NavItem[] = [
 				title: "Hero Sections",
 				url: "/hero-sections",
 				icon: <RectangleHorizontal />,
+			},
+			{
+				title: "Cancellation Policies",
+				url: "/cancellation-policies",
+				icon: <Siren />,
 			},
 		],
 	},
