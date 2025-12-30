@@ -22,7 +22,7 @@
 		"typecheck": "npm -ws --if-present run typecheck",
 		"check-format": "prettier --check \"**/*.{js,ts,tsx,jsx,json,md,css,scss}\"",
 		"format": "prettier --write \"**/*.{js,ts,tsx,jsx,json,md,css,scss}\"",
-		"prepare": "husky"
+		"prepare": "if [ \"$CI\" != \"true\" ]; then husky install; fi"
 	},
 	"lint-staged": {
 		"**/*.{js,ts,tsx,jsx,json,md,css,scss}": [
