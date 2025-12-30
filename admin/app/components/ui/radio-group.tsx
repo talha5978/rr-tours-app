@@ -7,7 +7,7 @@ function RadioGroup({ className, ...props }: React.ComponentProps<typeof RadioGr
 	return (
 		<RadioGroupPrimitive.Root
 			data-slot="radio-group"
-			className={cn("grid gap-3", className)}
+			className={cn("grid gap-3 **:cursor-pointer", className)}
 			{...props}
 		/>
 	);

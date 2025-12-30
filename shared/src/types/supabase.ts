@@ -228,20 +228,23 @@ export type Database = {
 			tour_availability_slots: {
 				Row: {
 					availability_id: number;
-					available_seats: number;
+					available_seats: number | null;
 					id: number;
+					seat_type: Database["public"]["Enums"]["timeslot_seat_type"];
 					time_slot_id: number;
 				};
 				Insert: {
 					availability_id: number;
-					available_seats?: number;
+					available_seats?: number | null;
 					id?: number;
+					seat_type: Database["public"]["Enums"]["timeslot_seat_type"];
 					time_slot_id: number;
 				};
 				Update: {
 					availability_id?: number;
-					available_seats?: number;
+					available_seats?: number | null;
 					id?: number;
+					seat_type?: Database["public"]["Enums"]["timeslot_seat_type"];
 					time_slot_id?: number;
 				};
 				Relationships: [
@@ -402,7 +405,7 @@ export type Database = {
 					images: string[] | null;
 					isActive: boolean;
 					isFeatured: boolean;
-					isweelchairaccessible: boolean | null;
+					isWeelChairAccessible: boolean | null;
 					know_before_you_go: string | null;
 					live_tour_guide: boolean | null;
 					live_tour_guide_langs: string | null;
@@ -428,7 +431,7 @@ export type Database = {
 					images?: string[] | null;
 					isActive?: boolean;
 					isFeatured?: boolean;
-					isweelchairaccessible?: boolean | null;
+					isWeelChairAccessible?: boolean | null;
 					know_before_you_go?: string | null;
 					live_tour_guide?: boolean | null;
 					live_tour_guide_langs?: string | null;
@@ -454,7 +457,7 @@ export type Database = {
 					images?: string[] | null;
 					isActive?: boolean;
 					isFeatured?: boolean;
-					isweelchairaccessible?: boolean | null;
+					isWeelChairAccessible?: boolean | null;
 					know_before_you_go?: string | null;
 					live_tour_guide?: boolean | null;
 					live_tour_guide_langs?: string | null;
@@ -597,7 +600,7 @@ export type Database = {
 			[_ in never]: never;
 		};
 		Enums: {
-			[_ in never]: never;
+			timeslot_seat_type: "UNLIMITED" | "LIMITED";
 		};
 		CompositeTypes: {
 			[_ in never]: never;
@@ -725,6 +728,8 @@ export const Constants = {
 		Enums: {},
 	},
 	public: {
-		Enums: {},
+		Enums: {
+			timeslot_seat_type: ["UNLIMITED", "LIMITED"],
+		},
 	},
 } as const;

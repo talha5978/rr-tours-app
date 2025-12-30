@@ -1,3 +1,5 @@
+import { Constants } from "@workspace/shared/types/supabase";
+
 export const STORAGE_BUCKETS = {
 	images: "images",
 } as const;
@@ -28,3 +30,5 @@ export const CITY_FULL_IMG_DIMENSTIONS = {
 } as const;
 
 export const MAX_META_KEYWORDS = 25;
+
+export const TIMESLOT_SEAT_TYPE = Constants.public.Enums.timeslot_seat_type;

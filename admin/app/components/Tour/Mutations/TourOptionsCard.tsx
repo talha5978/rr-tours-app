@@ -1,0 +1,886 @@
+import { XCircleIcon } from "lucide-react";
+import { useFieldArray, useFormContext, useWatch } from "react-hook-form";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "~/components/ui/accordion";
+import { Button } from "~/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/components/ui/form";
+import { Input } from "~/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
+import { Switch } from "~/components/ui/switch";
+import { Textarea } from "~/components/ui/textarea";
+import type { AddTourInput } from "@workspace/shared/schemas/tour.schema";
+import { Label } from "~/components/ui/label";
+import { Checkbox } from "~/components/ui/checkbox";
+import { Fragment, useEffect, useState } from "react";
+import DatePicker from "~/components/Custom-Inputs/date-picker";
+import DateRangePicker from "~/components/Custom-Inputs/date-range-picker";
+import { Separator } from "~/components/ui/separator";
+import { startOfToday } from "date-fns";
+import { IconCurrencyDirham } from "@tabler/icons-react";
+import { Badge } from "~/components/ui/badge";
+import { type FormControlType } from "~/routes/Tours/add-tour";
+import type { SeatType } from "@workspace/shared/types/tours";
+
+export const TourOptionsCard = ({
+	control,
+	participants,
+}: {
+	control: FormControlType;
+	participants: { id: number; name: string }[];
+}) => {
+	const { getValues } = useFormContext<AddTourInput>();
+
+	const { fields, append, remove } = useFieldArray({
+		control,
+		name: "tour_options",
+	});
+
+	const addNewOption = () => {
+		const newOptionSortOrder =
+			fields.length > 0 ? (Number(fields[fields.length - 1].sort_order) + 1).toString() : "1";
+
+		append({
+			name: "",
+			inclusions: "",
+			exclusions: "",
+			note: "",
+			sort_order: newOptionSortOrder,
+			seat_type: "LIMITED",
+			prices: [
+				{
+					price: "",
+					participant: participants[0].id.toString(),
+				},
+			],
+			availablities: [],
+		});
+	};
+
+	return (
+		<Card>
+			<CardHeader className="flex gap-4 place-items-center">
+				<div className="h-fit">
+					<Badge>{getValues("tour_options").length}</Badge>
+				</div>
+
+				<div className="grid gap-2">
+					<CardTitle>Tour Options</CardTitle>
+					<CardDescription>
+						Available packages/options in this tour are listed here.
+					</CardDescription>
+				</div>
+			</CardHeader>
+			<Separator />
+			<CardContent>
+				<Fragment>
+					<Accordion type="single" collapsible className="space-y-2">
+						{fields.map((option, optionIndex) => (
+							<Card key={option.id}>
+								<AccordionItem value={`option-${optionIndex}`} key={option.id}>
+									<CardHeader>
+										<CardTitle>
+											<AccordionTrigger className="flex justify-between text-base font-semibold py-0">
+												Option {optionIndex + 1}
+											</AccordionTrigger>
+										</CardTitle>
+									</CardHeader>
+									<AccordionContent className="*:data-[slot=card-content]:space-y-4 mt-2">
+										<CardContent className="pb-4">
+											{/* Option Fields */}
+											<FormField
+												control={control}
+												name={`tour_options.${optionIndex}.name`}
+												render={({ field }) => (
+													<FormItem>
+														<FormLabel>Name</FormLabel>
+														<FormControl>
+															<Input
+																placeholder="e.g. Tickets To Ferrari World"
+																{...field}
+															/>
+														</FormControl>
+														<FormMessage />
+													</FormItem>
+												)}
+											/>
+											<FormField
+												control={control}
+												name={`tour_options.${optionIndex}.inclusions`}
+												render={({ field }) => (
+													<FormItem>
+														<FormLabel>Inclusions</FormLabel>
+														<FormControl>
+															<Textarea
+																placeholder="Inclusions of the option"
+																{...field}
+															/>
+														</FormControl>
+														<FormMessage />
+													</FormItem>
+												)}
+											/>
+											<FormField
+												control={control}
+												name={`tour_options.${optionIndex}.exclusions`}
+												render={({ field }) => (
+													<FormItem>
+														<FormLabel>Exclusions</FormLabel>
+														<FormControl>
+															<Textarea
+																placeholder="Exclusions of the option"
+																{...field}
+															/>
+														</FormControl>
+														<FormMessage />
+													</FormItem>
+												)}
+											/>
+											<FormField
+												control={control}
+												name={`tour_options.${optionIndex}.note`}
+												render={({ field }) => (
+													<FormItem>
+														<FormLabel>Note</FormLabel>
+														<FormControl>
+															<Textarea
+																placeholder="Special note or instructions (if any)"
+																{...field}
+															/>
+														</FormControl>
+														<FormMessage />
+													</FormItem>
+												)}
+											/>
+											<FormField
+												control={control}
+												name={`tour_options.${optionIndex}.sort_order`}
+												render={({ field }) => (
+													<FormItem>
+														<FormLabel>Sort Order</FormLabel>
+														<FormControl>
+															<Input
+																min={0}
+																placeholder="Sort Order"
+																type="number"
+																{...field}
+															/>
+														</FormControl>
+														<FormMessage />
+													</FormItem>
+												)}
+											/>
+										</CardContent>
+
+										<Separator className="my-5" />
+
+										{/* Prices Subsection */}
+										<CardContent>
+											<PricesSubSection
+												control={control}
+												optionIndex={optionIndex}
+												participants={participants}
+											/>
+										</CardContent>
+
+										<Separator className="my-5" />
+
+										{/* Availabilities Subsection */}
+										<CardContent>
+											<AvailabilitiesSubSection
+												control={control}
+												optionIndex={optionIndex}
+											/>
+										</CardContent>
+
+										<CardContent className="mt-5 w-fit ml-auto">
+											<Button
+												type="button"
+												size={"sm"}
+												variant="destructive"
+												onClick={() => remove(optionIndex)}
+											>
+												Remove Option
+											</Button>
+										</CardContent>
+									</AccordionContent>
+								</AccordionItem>
+							</Card>
+						))}
+					</Accordion>
+					<div className="w-fit ml-auto mt-4">
+						<Button type="button" size={"sm"} onClick={addNewOption}>
+							Add Option
+						</Button>
+					</div>
+				</Fragment>
+			</CardContent>
+		</Card>
+	);
+};
+
+// Prices SubSection Component
+const PricesSubSection = ({
+	control,
+	optionIndex,
+	participants,
+}: {
+	control: FormControlType;
+	optionIndex: number;
+	participants: { id: number; name: string }[];
+}) => {
+	const { fields, append, remove } = useFieldArray({
+		control,
+		name: `tour_options.${optionIndex}.prices`,
+		rules: {
+			minLength: 1,
+			required: true,
+		},
+	});
+
+	const addPrice = () => {
+		append({ price: "", participant: participants[0].id.toString() });
+	};
+
+	const gridCols =
+		participants.length === 1
+			? "lg:grid-cols-1"
+			: participants.length === 2
+				? "lg:grid-cols-2"
+				: "lg:grid-cols-3";
+
+	const formErrors = useFormContext<AddTourInput>().formState.errors;
+
+	return (
+		<div className="space-y-4">
+			<Label className="font-bold text-lg">Prices</Label>
+			{fields.length === 0 && <div className="text-sm text-muted-foreground">No prices found.</div>}
+			{formErrors.tour_options?.[optionIndex]?.prices && (
+				<div className="text-sm text-destructive">
+					{formErrors.tour_options[optionIndex].prices.message}
+				</div>
+			)}
+			<div className={`grid ${gridCols} pr-4 gap-4`}>
+				{fields.map((price, priceIndex) => (
+					<div
+						key={price.id}
+						className="flex flex-col space-y-4 bg-background shadow-lg p-4 rounded-lg relative col-span-1"
+					>
+						<button
+							className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-pointer"
+							type="button"
+							onClick={() => remove(priceIndex)}
+						>
+							<XCircleIcon className="h-6 w-6 fill-destructive text-destructive-foreground" />
+						</button>
+
+						<FormField
+							control={control}
+							name={`tour_options.${optionIndex}.prices.${priceIndex}.price`}
+							render={({ field }) => (
+								<FormItem className="flex-1">
+									<FormLabel>Price</FormLabel>
+									<FormControl>
+										<div className="flex gap-2 relative">
+											<Input
+												type="number"
+												placeholder="e.g. 250"
+												className="pl-10"
+												step={0.1}
+												min={0}
+												{...field}
+											/>
+											<IconCurrencyDirham className="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2" />
+										</div>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+
+						<FormField
+							control={control}
+							name={`tour_options.${optionIndex}.prices.${priceIndex}.participant`}
+							render={({ field }) => (
+								<FormItem className="flex-1">
+									<FormLabel>Participant Type</FormLabel>
+									<FormControl>
+										<div>
+											<Select value={field.value} onValueChange={field.onChange}>
+												<SelectTrigger className="w-full">
+													<SelectValue placeholder="Select participant" />
+												</SelectTrigger>
+												<SelectContent>
+													{participants.map((p) => (
+														<SelectItem key={p.id} value={p.id.toString()}>
+															{p.name}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</div>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+					</div>
+				))}
+			</div>
+			<div className="ml-auto w-fit">
+				<Button
+					type="button"
+					size={"sm"}
+					onClick={addPrice}
+					disabled={fields.length >= participants.length}
+				>
+					Add Price
+				</Button>
+			</div>
+		</div>
+	);
+};
+
+// Availabilities SubSection Component
+const AvailabilitiesSubSection = ({
+	control,
+	optionIndex,
+}: {
+	control: FormControlType;
+	optionIndex: number;
+}) => {
+	const { fields, append, remove } = useFieldArray({
+		control,
+		name: `tour_options.${optionIndex}.availablities`,
+	});
+
+	const { setValue } = useFormContext();
+
+	// Temporary state for new availability form (single or range)
+	const [newTimeslots, setNewTimeslots] = useState<
+		{
+			time: string;
+			label: string;
+			sort_order: string;
+			available_seats: string | null;
+		}[]
+	>([{ time: "", label: "", sort_order: "1", available_seats: "" }]);
+
+	const [isRange, setIsRange] = useState(true);
+	const [singleDate, setSingleDate] = useState("");
+	const [range, setRange] = useState({ from: "", to: "" });
+	const [cardCollapsed, setCardsCollapsed] = useState(false);
+
+	const optionSeatType = useWatch({ control, name: `tour_options.${optionIndex}.seat_type` }) as SeatType;
+
+	const addTimeslot = () => {
+		const newTimeSlotSortOrder =
+			newTimeslots.length > 0
+				? (Number(newTimeslots[newTimeslots.length - 1].sort_order) + 1).toString()
+				: "1";
+
+		setNewTimeslots([
+			...newTimeslots,
+			{
+				time: "",
+				label: "",
+				sort_order: newTimeSlotSortOrder,
+				available_seats: optionSeatType === "UNLIMITED" ? null : "0",
+			},
+		]);
+	};
+
+	const updateTimeslot = (index: number, field: string, value: string) => {
+		const updated = [...newTimeslots];
+		updated[index][field as keyof (typeof updated)[0]] = value;
+		setNewTimeslots(updated);
+	};
+
+	const removeTimeslot = (index: number) => {
+		setNewTimeslots(newTimeslots.filter((_, i) => i !== index));
+	};
+
+	const handleAddAvailabilities = () => {
+		const existingDates = fields.map((f) => f.date);
+		// console.log(fields.map(f => f.date));
+
+		const processedTimeslots = newTimeslots.map((ts) => ({
+			...ts,
+			available_seats: optionSeatType === "UNLIMITED" ? null : ts.available_seats || "0",
+		}));
+
+		if (isRange && range.from && range.to) {
+			const start = new Date(range.from);
+			const end = new Date(range.to);
+
+			for (let d = start; d <= end; d.setDate(d.getDate() + 1)) {
+				const dateStr = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+					.toISOString()
+					.split("T")[0];
+
+				if (!existingDates.includes(dateStr)) {
+					append({ date: dateStr, isActive: "true", timeslots: processedTimeslots });
+				}
+			}
+		} else if (!isRange && singleDate) {
+			const singleDateStr = new Date(
+				new Date(singleDate).getTime() - new Date(singleDate).getTimezoneOffset() * 60000,
+			)
+				.toISOString()
+				.split("T")[0];
+			if (!existingDates.includes(singleDateStr)) {
+				append({ date: singleDateStr, isActive: "true", timeslots: processedTimeslots });
+			}
+		}
+		// console.log(fields.map(f => f.date));
+		// Reset form
+
+		setNewTimeslots([{ time: "", label: "", sort_order: "1", available_seats: "" }]);
+		setSingleDate("");
+		setRange({ from: "", to: "" });
+	};
+
+	useEffect(() => {
+		if (optionSeatType === "UNLIMITED") {
+			if (fields) {
+				fields.forEach((avail: any, availIdx: number) => {
+					if (avail.timeslots && avail.timeslots.length > 0) {
+						avail.timeslots.forEach((_: any, tsIdx: number) => {
+							setValue(
+								`tour_options.${optionIndex}.availablities.${availIdx}.timeslots.${tsIdx}.available_seats`,
+								null,
+								{ shouldValidate: true },
+							);
+						});
+					}
+				});
+			}
+		}
+	}, [optionSeatType]);
+
+	return (
+		<div className="space-y-6">
+			<div className="flex items-center gap-2 justify-between flex-wrap">
+				<Label className="font-bold text-lg">Availabilities{` (${fields.length ?? 0})`}</Label>
+				{fields.length > 0 && (
+					<div className="flex gap-2 ml-auto">
+						<div className="md:inline">
+							<Button
+								type="button"
+								size="sm"
+								variant="outline"
+								onClick={() => setCardsCollapsed(!cardCollapsed)}
+							>
+								{cardCollapsed ? "Expand " : "Collapse "}All
+							</Button>
+						</div>
+						<Button
+							type="button"
+							size="sm"
+							variant="destructive"
+							onClick={() => remove(fields.map((_, i) => i))}
+						>
+							Remove All
+						</Button>
+					</div>
+				)}
+			</div>
+
+			{fields.length === 0 && (
+				<div className="text-sm text-muted-foreground">No available dates added yet.</div>
+			)}
+
+			{/* Existing Availabilities - Card Grid */}
+			<div className="grid grid-cols-1 min-[890px]:grid-cols-2 min-[1280px]:grid-cols-3 gap-4 mr-4">
+				{fields.map((avail, availIndex) => (
+					<div
+						key={avail.id}
+						className="flex flex-col bg-background shadow-lg p-5 rounded-lg relative col-span-1 h-fit"
+					>
+						<button
+							className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-pointer"
+							type="button"
+							onClick={() => remove(availIndex)}
+						>
+							<XCircleIcon className="h-6 w-6 fill-destructive text-destructive-foreground" />
+						</button>
+
+						<div className={!cardCollapsed ? "space-y-4" : ""}>
+							{/* Date */}
+							<FormField
+								control={control}
+								name={`tour_options.${optionIndex}.availablities.${availIndex}.date`}
+								render={({ field }) => (
+									<FormItem>
+										<FormControl>
+											<div className="w-full">
+												<DatePicker
+													value={field.value ? new Date(field.value) : null}
+													onDateChange={field.onChange}
+													date_disabled={{ before: startOfToday() }}
+													className={`${cardCollapsed ? "pointer-events-none disabled" : ""}`}
+												/>
+											</div>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+
+							<div hidden={cardCollapsed} className="space-y-4">
+								{/* Active Switch */}
+								<FormField
+									control={control}
+									name={`tour_options.${optionIndex}.availablities.${availIndex}.isActive`}
+									render={({ field }) => (
+										<FormItem className="flex items-center space-x-3">
+											<FormLabel> Toggle Status</FormLabel>
+											<FormControl>
+												<Switch
+													checked={field.value === "true"}
+													onCheckedChange={(checked) =>
+														field.onChange(checked ? "true" : "false")
+													}
+												/>
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+								{/* Timeslots for this date */}
+								<TimeslotsSubSection
+									control={control}
+									optionIndex={optionIndex}
+									availIndex={availIndex}
+								/>
+							</div>
+						</div>
+					</div>
+				))}
+			</div>
+
+			{/* ------------------------- */}
+			{/* Add New Availability Card */}
+			<Card>
+				<CardHeader>
+					<CardTitle className="text-base">Add New Availability</CardTitle>
+				</CardHeader>
+				<CardContent className="space-y-5">
+					{/* Seats Type for this option */}
+					<FormField
+						control={control}
+						name={`tour_options.${optionIndex}.seat_type`}
+						render={({ field }) => (
+							<FormItem className="flex items-center space-x-3">
+								<FormControl>
+									<Label className="cursor-pointer space-x-2">
+										<Checkbox
+											checked={field.value === "UNLIMITED"}
+											onCheckedChange={(checked) =>
+												field.onChange(checked ? "UNLIMITED" : "LIMITED")
+											}
+										/>
+										<span>Unlimited Seats/Tickets for this tour option</span>
+									</Label>
+								</FormControl>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+
+					{/* Range Toggle */}
+					<Label className="cursor-pointer space-x-2">
+						<Checkbox checked={isRange} onCheckedChange={() => setIsRange(!isRange)} />
+						<span>Use Date Range</span>
+					</Label>
+
+					{/* Date Picker */}
+					{isRange ? (
+						<DateRangePicker
+							value={{
+								from: range.from ? new Date(range.from) : undefined,
+								to: range.to ? new Date(range.to) : undefined,
+							}}
+							onDateRangeChange={(r) =>
+								setRange({
+									from: r?.from ? r.from.toISOString() : "",
+									to: r?.to ? r.to.toISOString() : "",
+								})
+							}
+							date_disabled={{ before: startOfToday() }}
+						/>
+					) : (
+						<DatePicker
+							value={singleDate ? new Date(singleDate) : undefined}
+							onDateChange={(date) => setSingleDate(date ? date.toISOString() : "")}
+							date_disabled={{ before: startOfToday() }}
+						/>
+					)}
+
+					{/* Timeslots Input */}
+					<div className="space-y-3">
+						<Label className="text-base">Timeslots</Label>
+						{newTimeslots.length === 0 && (
+							<div className="text-sm text-muted-foreground">
+								No timeslots found. Please add atleast one timeslot.
+							</div>
+						)}
+						<div className="space-y-2">
+							{newTimeslots.map((ts, tsIndex) => (
+								<div key={tsIndex} className="*:flex *:gap-2 space-y-2">
+									<div>
+										<Input
+											type="time"
+											step="1"
+											placeholder="Time"
+											className="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+											value={ts.time}
+											onChange={(e) => {
+												updateTimeslot(tsIndex, "time", e.target.value);
+												const formatted = formatTimeLabel(e.target.value);
+												updateTimeslot(tsIndex, "label", formatted);
+											}}
+										/>
+										<Input
+											placeholder="Label"
+											value={ts.label}
+											className="disabled pointer-events-none"
+											onChange={(e) => updateTimeslot(tsIndex, "label", e.target.value)}
+										/>
+									</div>
+									<div>
+										<Input
+											type="number"
+											placeholder="Sort Order"
+											min={0}
+											value={ts.sort_order}
+											onChange={(e) =>
+												updateTimeslot(tsIndex, "sort_order", e.target.value)
+											}
+										/>
+										{optionSeatType !== "UNLIMITED" && (
+											<Input
+												type="number"
+												placeholder="Seats"
+												min={0}
+												value={ts.available_seats ?? ""}
+												onChange={(e) =>
+													updateTimeslot(tsIndex, "available_seats", e.target.value)
+												}
+											/>
+										)}
+									</div>
+									<div className="ml-auto w-fit">
+										<Button
+											type="button"
+											variant="destructive"
+											size="sm"
+											onClick={() => removeTimeslot(tsIndex)}
+										>
+											Remove Timeslot
+										</Button>
+									</div>
+								</div>
+							))}
+						</div>
+						<div className="w-fit ml-auto">
+							<Button type="button" variant="outline" size="sm" onClick={addTimeslot}>
+								Add Timeslot
+							</Button>
+						</div>
+					</div>
+
+					{/* Submit Add */}
+					<div className="w-fit">
+						<Button
+							type="button"
+							size="sm"
+							onClick={handleAddAvailabilities}
+							disabled={
+								(!isRange && !singleDate) ||
+								(isRange && (!range.from || !range.to)) ||
+								newTimeslots.length === 0 ||
+								newTimeslots.every((ts) => !ts.time)
+							}
+						>
+							Add {isRange ? "Availabilities" : "Availability"}
+						</Button>
+					</div>
+				</CardContent>
+			</Card>
+		</div>
+	);
+};
+
+const formatTimeLabel = (time: string) => {
+	if (!time) return "";
+
+	try {
+		const [hours, minutes] = time.split(":");
+		let hour = parseInt(hours, 10);
+		const period = hour >= 12 ? "PM" : "AM";
+		if (hour === 0) hour = 12;
+		if (hour > 12) hour -= 12;
+		return `${hour}:${minutes} ${period}`;
+	} catch {
+		return time;
+	}
+};
+
+// Timeslots SubSection for existing availability
+const TimeslotsSubSection = ({
+	control,
+	optionIndex,
+	availIndex,
+}: {
+	control: FormControlType;
+	optionIndex: number;
+	availIndex: number;
+}) => {
+	const { fields, append, remove } = useFieldArray({
+		control,
+		name: `tour_options.${optionIndex}.availablities.${availIndex}.timeslots`,
+	});
+
+	const { setValue } = useFormContext();
+	const optionSeatType = useWatch({ control, name: `tour_options.${optionIndex}.seat_type` }) as SeatType;
+
+	const addTimeslot = () => {
+		const newSlotSortOrder =
+			fields.length > 0 ? (Number(fields[fields.length - 1].sort_order) + 1).toString() : "1";
+
+		append({ time: "", label: "", sort_order: newSlotSortOrder, available_seats: "0" });
+	};
+
+	return (
+		<div className="space-y-4">
+			<div className="space-y-2">
+				<Label className="text-base">Timeslots</Label>
+				{fields.length === 0 && (
+					<div className="text-sm text-muted-foreground">
+						No timeslots found. Please add atleast one timeslot.
+					</div>
+				)}
+				<div className="space-y-4">
+					{fields.map((ts, tsIndex) => {
+						const currentTime = control._getWatch(
+							`tour_options.${optionIndex}.availablities.${availIndex}.timeslots.${tsIndex}.time`,
+						) as string;
+
+						return (
+							<div key={ts.id} className="*:flex *:gap-2 space-y-2">
+								<div>
+									<FormField
+										control={control}
+										name={`tour_options.${optionIndex}.availablities.${availIndex}.timeslots.${tsIndex}.time`}
+										render={({ field }) => (
+											<FormItem className="flex-1">
+												<FormControl>
+													<Input
+														type="time"
+														step="1"
+														placeholder="Time (HH:MM:SS)"
+														className="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+														{...field}
+														onChange={(e) => {
+															field.onChange(e);
+															const formatted = formatTimeLabel(e.target.value);
+															setValue(
+																`tour_options.${optionIndex}.availablities.${availIndex}.timeslots.${tsIndex}.label`,
+																formatted,
+																{ shouldValidate: true },
+															);
+														}}
+													/>
+												</FormControl>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+									<FormField
+										control={control}
+										name={`tour_options.${optionIndex}.availablities.${availIndex}.timeslots.${tsIndex}.label`}
+										render={({ field }) => (
+											<FormItem className="flex-1">
+												<FormControl>
+													<Input
+														placeholder="Label"
+														className="disabled pointer-events-none"
+														{...field}
+														value={
+															field.value || formatTimeLabel(currentTime || "")
+														}
+													/>
+												</FormControl>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+								</div>
+								<div>
+									<FormField
+										control={control}
+										name={`tour_options.${optionIndex}.availablities.${availIndex}.timeslots.${tsIndex}.sort_order`}
+										render={({ field }) => (
+											<FormItem className="flex-1">
+												<FormControl>
+													<Input
+														type="number"
+														min={0}
+														placeholder="Sort Order"
+														{...field}
+													/>
+												</FormControl>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+
+									{optionSeatType !== "UNLIMITED" && (
+										<FormField
+											control={control}
+											name={`tour_options.${optionIndex}.availablities.${availIndex}.timeslots.${tsIndex}.available_seats`}
+											render={({ field }) => (
+												<FormItem className="flex-1">
+													<FormControl>
+														<Input
+															type="number"
+															placeholder="Seats"
+															min={0}
+															{...field}
+															value={field.value ?? ""}
+														/>
+													</FormControl>
+													<FormMessage />
+												</FormItem>
+											)}
+										/>
+									)}
+								</div>
+								<Button
+									type="button"
+									variant="destructive"
+									size={"sm"}
+									onClick={() => remove(tsIndex)}
+									className="ml-auto"
+								>
+									Remove Timeslot
+								</Button>
+							</div>
+						);
+					})}
+				</div>
+			</div>
+			<div className="w-fit ml-auto">
+				<Button
+					type="button"
+					size={"sm"}
+					variant={"outline"}
+					className="ml-auto"
+					onClick={addTimeslot}
+				>
+					Add Timeslot
+				</Button>
+			</div>
+		</div>
+	);
+};
