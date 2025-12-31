@@ -185,11 +185,13 @@ export default function AddTourPage() {
 
 	const watchedTags = useWatch({ control, name: "tags" }) ?? [];
 
-	async function onFormSubmit(values: AddTourInput) {}
+	async function onFormSubmit(values: AddTourInput) {
+		console.log(values);
+	}
 
 	useEffect(() => {
 		if (form.formState.errors) {
-			console.log(form.formState.errors);
+			console.log("Errors: ", form.formState.errors);
 		}
 	}, [form.formState.errors]);
 

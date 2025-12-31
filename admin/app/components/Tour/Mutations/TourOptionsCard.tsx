@@ -28,7 +28,10 @@ export const TourOptionsCard = ({
 	control: FormControlType;
 	participants: { id: number; name: string }[];
 }) => {
-	const { getValues } = useFormContext<AddTourInput>();
+	const {
+		getValues,
+		formState: { errors },
+	} = useFormContext<AddTourInput>();
 
 	const { fields, append, remove } = useFieldArray({
 		control,
@@ -74,6 +77,10 @@ export const TourOptionsCard = ({
 			<CardContent>
 				<Fragment>
 					<Accordion type="single" collapsible className="space-y-2">
+						{errors.tour_options && (
+							<div className="text-sm text-destructive">{errors.tour_options.message}</div>
+						)}
+
 						{fields.map((option, optionIndex) => (
 							<Card key={option.id}>
 								<AccordionItem value={`option-${optionIndex}`} key={option.id}>
@@ -575,9 +582,9 @@ const AvailabilitiesSubSection = ({
 									<Label className="cursor-pointer space-x-2">
 										<Checkbox
 											checked={field.value === "UNLIMITED"}
-											onCheckedChange={(checked) =>
-												field.onChange(checked ? "UNLIMITED" : "LIMITED")
-											}
+											onCheckedChange={(checked) => {
+												field.onChange(checked ? "UNLIMITED" : "LIMITED");
+											}}
 										/>
 										<span>Unlimited Seats/Tickets for this tour option</span>
 									</Label>
@@ -682,7 +689,15 @@ const AvailabilitiesSubSection = ({
 								</div>
 							))}
 						</div>
-						<div className="w-fit ml-auto">
+						{optionSeatType === "LIMITED" &&
+							newTimeslots.some(
+								(ts) => !ts.available_seats || Number(ts.available_seats) <= 0,
+							) && (
+								<div className="text-sm text-muted-foreground">
+									All timeslots must have at least 1 seat when Limited is selected.
+								</div>
+							)}
+						<div className="w-fit ml-auto mt-4">
 							<Button type="button" variant="outline" size="sm" onClick={addTimeslot}>
 								Add Timeslot
 							</Button>
@@ -748,7 +763,12 @@ const TimeslotsSubSection = ({
 		const newSlotSortOrder =
 			fields.length > 0 ? (Number(fields[fields.length - 1].sort_order) + 1).toString() : "1";
 
-		append({ time: "", label: "", sort_order: newSlotSortOrder, available_seats: "0" });
+		append({
+			time: "",
+			label: "",
+			sort_order: newSlotSortOrder,
+			available_seats: optionSeatType === "UNLIMITED" ? null : "0",
+		});
 	};
 
 	return (
@@ -870,7 +890,7 @@ const TimeslotsSubSection = ({
 					})}
 				</div>
 			</div>
-			<div className="w-fit ml-auto">
+			<div className="w-fit ml-auto mt-4">
 				<Button
 					type="button"
 					size={"sm"}
