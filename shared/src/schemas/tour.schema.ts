@@ -35,16 +35,26 @@ export const AddTourSchema = z.object({
 	free_cancelation_avilable: z.enum(["true", "false"]).default("false"),
 	highlights: z.string().optional(),
 
-	images: z.array(
-		z
-			.instanceof(File, { message: "Image is required." })
-			.refine((file) => file.size <= MAX_IMAGE_SIZE, "Image must be less than 1MB.")
-			.refine(
-				(file) => ALLOWED_IMAGE_FORMATS.includes(file.type),
-				"Only JPEG, PNG, or WebP image formats are allowed.",
-			)
-			.nullable(),
-	),
+	images: z
+		.array(
+			z
+				.instanceof(File)
+				.refine((file) => file.size <= MAX_IMAGE_SIZE, "Image must be less than 1MB.")
+				.refine(
+					(file) => ALLOWED_IMAGE_FORMATS.includes(file.type),
+					"Only JPEG, PNG, or WebP image formats are allowed.",
+				)
+				.optional()
+				.nullable(),
+		)
+		.refine(
+			(arr) =>
+				arr.filter((file) => Boolean(file)).length >= 1 &&
+				arr.filter((file) => Boolean(file)).length <= 4,
+			{
+				message: "At least one secondary image is required.",
+			},
+		),
 
 	isActive: z.enum(["true", "false"]).default("true"),
 	isFeatured: z.enum(["true", "false"]).default("false"),

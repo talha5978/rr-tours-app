@@ -1,21 +1,26 @@
-import { CITY_CARD_IMG_DIMENSTIONS } from "@workspace/shared/constants/constants";
+import { TOUR_IMG_DIMENSTIONS } from "@workspace/shared/constants/constants";
 import { type FormControlType } from "~/routes/Tours/add-tour";
 import ImageInput from "~/components/Custom-Inputs/image-input";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/components/ui/form";
+import { useFormContext } from "react-hook-form";
 
 type Props = {
 	control: FormControlType;
 };
 
 export const ImagesInputCard = ({ control }: Props) => {
+	const {
+		formState: { errors },
+	} = useFormContext();
+
 	return (
 		<Card>
 			<CardHeader>
 				<CardTitle className="text-lg">Images</CardTitle>
 			</CardHeader>
 			<CardContent>
-				<div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_3fr] w-full">
+				<div className="grid grid-cols-1 gap-10 lg:grid-cols-[2fr_3fr] w-full">
 					<div>
 						<FormField
 							control={control}
@@ -26,7 +31,8 @@ export const ImagesInputCard = ({ control }: Props) => {
 									<FormControl>
 										<ImageInput
 											name="cover_image"
-											dimensions={CITY_CARD_IMG_DIMENSTIONS}
+											className="max-w-250 max-h-250"
+											dimensions={TOUR_IMG_DIMENSTIONS}
 										/>
 									</FormControl>
 									<FormMessage />
@@ -34,7 +40,7 @@ export const ImagesInputCard = ({ control }: Props) => {
 							)}
 						/>
 					</div>
-					<div className="grid grid-cols-2 grid-rows-2 gap-x-4 gap-y-5">
+					<div className="grid grid-rows-1 grid-cols-1 min-[500px]:grid-cols-2 min-[500px]:grid-rows-2 gap-x-4 gap-y-5 ">
 						{Array(4)
 							.fill(null)
 							.map((_, index) => (
@@ -48,7 +54,8 @@ export const ImagesInputCard = ({ control }: Props) => {
 												<FormControl>
 													<ImageInput
 														name={`images.${index}`}
-														dimensions={CITY_CARD_IMG_DIMENSTIONS}
+														dimensions={TOUR_IMG_DIMENSTIONS}
+														className="max-w-250 max-h-250"
 													/>
 												</FormControl>
 												<FormMessage />
@@ -59,6 +66,11 @@ export const ImagesInputCard = ({ control }: Props) => {
 							))}
 					</div>
 				</div>
+				{errors?.images?.root && (
+					<div className="mt-4">
+						<p className="text-destructive">{errors?.images?.root?.message?.toString()}</p>
+					</div>
+				)}
 			</CardContent>
 		</Card>
 	);
