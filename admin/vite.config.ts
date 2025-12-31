@@ -51,6 +51,8 @@ export default defineConfig(({ mode }) => {
 			"process.env.VITE_SUPABASE_SERVICE_ROLE__KEY": JSON.stringify(
 				env.VITE_SUPABASE_SERVICE_ROLE__KEY,
 			),
+			"process.env.VITE_RECAPTCHA_SITE_KEY": JSON.stringify(env.VITE_RECAPTCHA_SITE_KEY),
+			"process.env.VITE_RECAPTCHA_SECRET_KEY": JSON.stringify(env.VITE_RECAPTCHA_SECRET_KEY),
 		},
 		server: {
 			port: 5176,

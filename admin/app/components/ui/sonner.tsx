@@ -27,7 +27,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
 			closeButton={true}
 			position="top-right"
 			richColors
-			duration={2850}
+			duration={5000}
 			swipeDirections={["right"]}
 			visibleToasts={5}
 			{...props}

@@ -2,9 +2,9 @@ import { Loader2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import {
-	ActionFunctionArgs,
+	type ActionFunctionArgs,
+	type LoaderFunctionArgs,
 	Link,
-	LoaderFunctionArgs,
 	redirect,
 	useActionData,
 	useNavigate,
@@ -17,7 +17,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { AuthService } from "@workspace/shared/services/auth.service";
-// import { currentUserQuery } from "@workspace/shared/queries/auth.q";
 import { type onlyEmailLoginFormData, onlyEmailLoginSchema } from "@workspace/shared/schemas/login.schema";
 import { type OtpFormData, OtpSchema } from "@workspace/shared/schemas/otp.schema";
 import { ApiError } from "@workspace/shared/utils/ApiError";
@@ -25,12 +24,13 @@ import type { ActionResponse } from "@workspace/shared/types/action-data";
 import { extractAuthId } from "@workspace/shared/utils/auth-utils.server";
 import { queryClient } from "@workspace/shared/utils/query-client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "~/components/ui/card";
-import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "~/components/ui/input-otp";
+import { Card, CardContent, CardHeader } from "~/components/ui/card";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "~/components/ui/input-otp";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Mail } from "lucide-react";
 import { Badge } from "~/components/ui/badge";
 import { currentUserQuery } from "@workspace/shared/queries/auth.q";
+import { GoogleReCaptcha, verifyRecaptcha } from "~/components/ReCaptcha/GoogleReCaptcha";
 
 export async function action({ request }: ActionFunctionArgs) {
 	const formData = await request.formData();
@@ -77,6 +77,26 @@ export async function action({ request }: ActionFunctionArgs) {
 			});
 		} else {
 			const email = (formData.get("email") as string)?.trim();
+			const recaptchaToken = formData.get("recaptchaToken") as string;
+			// console.log(recaptchaToken, " in the action.");
+
+			if (!recaptchaToken) {
+				return {
+					success: false,
+					intent: "send",
+					error: "Captcha verification required",
+				};
+			}
+
+			const captchaResult = await verifyRecaptcha(recaptchaToken);
+
+			if (!captchaResult.success) {
+				return {
+					success: false,
+					intent: "send",
+					error: "Captcha verification failed",
+				};
+			}
 
 			const parseResult = onlyEmailLoginSchema.safeParse({ email });
 			if (!parseResult.success) {
@@ -134,6 +154,7 @@ function Login() {
 
 	const [tabValue, setTabValue] = useState("login");
 	const [email, setEmail] = useState("");
+	const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
 	const isSending = navigation.state === "submitting" && navigation.formData?.get("intent") === "send";
 	const isVerifying = navigation.state === "submitting" && navigation.formData?.get("intent") === "verify";
@@ -160,6 +181,7 @@ function Login() {
 					setEmail(actionData.email);
 					setTabValue("otp");
 					otpForm.setValue("email", actionData.email);
+					setRecaptchaToken(null);
 				} else if (actionData.intent === "verify") {
 					toast.success("Logged in successfully");
 					queryClient.invalidateQueries({ queryKey: ["current_user"] });
@@ -199,6 +221,15 @@ function Login() {
 		submit(formData, { method: "post", action: "/login" });
 	};
 
+	const handleGetOtpForm = (data: onlyEmailLoginFormData) => {
+		const formData = new FormData();
+		formData.append("intent", "send");
+		formData.append("email", data.email);
+		formData.append("recaptchaToken", recaptchaToken ?? "");
+
+		submit(formData, { method: "post", action: "/login" });
+	};
+
 	return (
 		<section className="flex w-full h-svh items-center py-4 px-4">
 			<div className="flex flex-col gap-6 max-w-md mx-auto">
@@ -217,7 +248,9 @@ function Login() {
 							</div>
 							<TabsList className="w-full">
 								<TabsTrigger value="login">Login</TabsTrigger>
-								<TabsTrigger value="otp">Verify</TabsTrigger>
+								<TabsTrigger value="otp" disabled={email.length === 0}>
+									Verify
+								</TabsTrigger>
 							</TabsList>
 						</CardHeader>
 						<TabsContent value="login">
@@ -226,12 +259,7 @@ function Login() {
 									<form
 										method="POST"
 										className="space-y-4"
-										onSubmit={emailForm.handleSubmit((data) => {
-											const formData = new FormData();
-											formData.append("intent", "send");
-											formData.append("email", data.email);
-											submit(formData, { method: "post", action: "/login" });
-										})}
+										onSubmit={emailForm.handleSubmit(handleGetOtpForm)}
 									>
 										<FormField
 											control={emailForm.control}
@@ -240,13 +268,27 @@ function Login() {
 												<FormItem>
 													<FormLabel>Enter Email</FormLabel>
 													<FormControl>
-														<Input placeholder="admin@gmail.com" {...field} />
+														<Input
+															placeholder="admin@gmail.com"
+															type="email"
+															{...field}
+														/>
 													</FormControl>
 													<FormMessage />
 												</FormItem>
 											)}
 										/>
-										<Button type="submit" className="w-full" disabled={isSending}>
+
+										<GoogleReCaptcha
+											siteKey={process.env.VITE_RECAPTCHA_SITE_KEY as string}
+											onChange={(token) => setRecaptchaToken(token)}
+										/>
+
+										<Button
+											type="submit"
+											className="w-full"
+											disabled={isSending || !recaptchaToken}
+										>
 											{isSending && <Loader2 className="animate-spin mr-1" />}
 											<span>Get OTP</span>
 										</Button>
@@ -286,7 +328,11 @@ function Login() {
 												</FormItem>
 											)}
 										/>
-										<Button type="submit" className="w-full" disabled={isVerifying}>
+										<Button
+											type="submit"
+											className="w-full"
+											disabled={isVerifying || email.length == 0}
+										>
 											{isVerifying && <Loader2 className="animate-spin mr-1" />}
 											<span>Verify OTP</span>
 										</Button>
