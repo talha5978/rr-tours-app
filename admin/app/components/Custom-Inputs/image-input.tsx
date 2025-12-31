@@ -58,14 +58,18 @@ const getAcceptedFormats = (): { [key: string]: string[] } => {
 };
 
 const ImagePreview = ({ url, onRemove }: ImagePreviewProps) => (
-	<div className="relative">
+	<div className="relative aspect-square w-full rounded-md border border-border">
 		<button
 			className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-pointer"
 			onClick={onRemove}
 		>
 			<XCircleIcon className="h-6 w-6 fill-primary text-primary-foreground" />
 		</button>
-		<img src={url} alt="Cover Image" className="border border-border rounded-md object-cover" />
+		<img
+			src={url}
+			alt="Cover Image"
+			className="border border-border rounded-md h-full w-full object-cover"
+		/>
 	</div>
 );
 
