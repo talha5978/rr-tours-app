@@ -27,7 +27,11 @@ export const GeneralDetailsCard = ({ control, cities, categories, providers }: P
 						<FormItem>
 							<FormLabel>Tour Name</FormLabel>
 							<FormControl>
-								<Input placeholder="e.g. Ferrari World, Abu Dhabi" {...field} />
+								<Input
+									placeholder="e.g. Ferrari World, Abu Dhabi"
+									spellCheck={false}
+									{...field}
+								/>
 							</FormControl>
 							<FormMessage />
 						</FormItem>

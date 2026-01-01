@@ -10,6 +10,7 @@ import type { AddCityActionData, UpdateCityActionData } from "@workspace/shared/
 import type {
 	CityUpdationPayload,
 	GetCityDetailsForUpdateResponse,
+	GetCityList,
 	GetHighLevelCitiesResponse,
 } from "@workspace/shared/types/cities";
 
@@ -106,6 +107,20 @@ export class CityService extends Service {
 			total: count ?? 0,
 			error,
 		};
+	}
+
+	/** Get full city list */
+	async getCitiesList(): Promise<GetCityList> {
+		const { data, error: dbError } = await this.supabase
+			.from(this.CITIES_TABLE)
+			.select("id, name")
+			.order("created_at", { ascending: true });
+
+		if (dbError) {
+			throw new ApiError(dbError.message, 500, [dbError.details || ""]);
+		}
+
+		return data ?? [];
 	}
 
 	/** Get full details of a city to update */

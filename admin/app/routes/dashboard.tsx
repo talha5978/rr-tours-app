@@ -1,8 +1,7 @@
-import { useLoaderData, useRouteLoaderData } from "react-router";
+import { useRouteLoaderData } from "react-router";
 import { toast } from "sonner";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { loader } from "~/root";
 
 export default function Home() {
 	const rootLoaderData = useRouteLoaderData("root");

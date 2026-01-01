@@ -9,6 +9,7 @@
 
 html,
 body {
+	scroll-behavior: smooth;
 	@media (prefers-color-scheme: dark) {
 		color-scheme: dark;
 	}

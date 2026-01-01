@@ -68,14 +68,6 @@ export function extractAuthId(request: Request): string | null {
 	return null;
 }
 
-/**
- * Debug helper: returns parsed cookie names (for one-time logging)
- */
-export function debugCookieNames(request: Request) {
-	const cookieHeader = request.headers.get("Cookie") ?? "";
-	return Object.keys(parseCookies(cookieHeader));
-}
-
 export function genAuthSecurity(request: Request): {
 	authId: string;
 	headers: Headers;
@@ -103,7 +95,6 @@ export function genAuthSecurity(request: Request): {
 		}
 
 		authId = `guest:${anon}`;
-		// console.log("Cookie names present:", debugCookieNames(request));
 	}
 
 	return { authId, headers };

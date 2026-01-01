@@ -391,6 +391,7 @@ export type Database = {
 			};
 			tours: {
 				Row: {
+					added_by: string;
 					address_link: string | null;
 					address_name: string | null;
 					age_health_restrictions: string | null;
@@ -417,6 +418,7 @@ export type Database = {
 					updated_at: string | null;
 				};
 				Insert: {
+					added_by: string;
 					address_link?: string | null;
 					address_name?: string | null;
 					age_health_restrictions?: string | null;
@@ -443,6 +445,7 @@ export type Database = {
 					updated_at?: string | null;
 				};
 				Update: {
+					added_by?: string;
 					address_link?: string | null;
 					address_name?: string | null;
 					age_health_restrictions?: string | null;
@@ -469,6 +472,13 @@ export type Database = {
 					updated_at?: string | null;
 				};
 				Relationships: [
+					{
+						foreignKeyName: "tours_added_by_fkey";
+						columns: ["added_by"];
+						isOneToOne: false;
+						referencedRelation: "app_users";
+						referencedColumns: ["user_id"];
+					},
 					{
 						foreignKeyName: "tours_cancellation_policy_fkey";
 						columns: ["cancellation_policy"];

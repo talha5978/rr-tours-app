@@ -1,11 +1,12 @@
 import { Button } from "~/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
-import { Calendar } from "~/components/Custom-Inputs/calendar";
+import { Calendar, type CalendarProps } from "~/components/Custom-Inputs/calendar";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@workspace/shared/utils/ui";
 import type { Matcher } from "react-day-picker";
+import type { PopoverContentProps } from "@radix-ui/react-popover";
 
 type DatePickerProps = {
 	className?: string;
@@ -13,6 +14,9 @@ type DatePickerProps = {
 	onDateChange?: (date: Date | undefined) => void;
 	displayFormat?: string;
 	date_disabled?: Matcher | Matcher[];
+	calender_mode?: CalendarProps["mode"];
+	numberOfMonths?: CalendarProps["numberOfMonths"];
+	popover_align?: PopoverContentProps["align"];
 };
 
 export default function DatePicker({
@@ -21,6 +25,9 @@ export default function DatePicker({
 	onDateChange: controlledOnChange,
 	displayFormat = "PPP",
 	date_disabled,
+	calender_mode = "single",
+	numberOfMonths,
+	popover_align = "start",
 	...rest
 }: DatePickerProps) {
 	const isControlled = controlledOnChange != null;
@@ -53,12 +60,14 @@ export default function DatePicker({
 						{date ? format(date, displayFormat) : <span>Pick a date</span>}
 					</Button>
 				</PopoverTrigger>
-				<PopoverContent className="w-auto p-0" align="start">
+				<PopoverContent className="w-auto p-0" align={popover_align}>
+					{/* @ts-ignore */}
 					<Calendar
-						mode="single"
+						mode={calender_mode}
 						selected={date}
 						onSelect={handleSelect}
 						disabled={date_disabled}
+						numberOfMonths={numberOfMonths}
 						autoFocus
 					/>
 				</PopoverContent>

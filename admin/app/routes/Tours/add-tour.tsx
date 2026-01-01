@@ -1,11 +1,24 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { MAX_META_KEYWORDS } from "@workspace/shared/constants/constants";
-import { type AddTourInput, AddTourSchema } from "@workspace/shared/schemas/tour.schema";
+import { AddTourActionSchema, type AddTourInput, AddTourSchema } from "@workspace/shared/schemas/tour.schema";
+import { ToursService } from "@workspace/shared/services/tours.service";
 import type { ActionResponse } from "@workspace/shared/types/action-data";
+import { ApiError } from "@workspace/shared/utils/ApiError";
+import { queryClient } from "@workspace/shared/utils/query-client";
+import { format } from "date-fns";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { type Control, useForm, useWatch } from "react-hook-form";
-import { Link, useActionData, useLoaderData, useNavigate, useNavigation, useSubmit } from "react-router";
+import {
+	type ActionFunctionArgs,
+	Link,
+	type LoaderFunctionArgs,
+	useActionData,
+	useLoaderData,
+	useNavigate,
+	useNavigation,
+	useSubmit,
+} from "react-router";
 import { toast } from "sonner";
 import BackButton from "~/components/Nav/BackButton";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
@@ -28,84 +41,79 @@ import {
 	TagsInputList,
 } from "~/components/ui/tags-input";
 import { Textarea } from "~/components/ui/textarea";
+import { cancellationPoliciesQuery } from "~/queries/cancellation-policies.q";
+import { categoryListQuery } from "~/queries/categories.q";
+import { citiesListQuery } from "~/queries/cities.q";
+import { participantTypesQuery } from "~/queries/participant-types.q";
+import { allProvidersQuery } from "~/queries/providers.q";
+import { allTagsQuery } from "~/queries/tags.q";
 
-export const action = async ({ request }: { request: Request }) => {
-	// const formData = await request.formData();
-	// const data = {
-	// 	name: formData.get("name") as string,
-	// 	card_image: formData.get("card_image") as File,
-	// 	full_image: formData.get("full_image") as File,
-	// 	meta_details: {
-	// 		meta_title: formData.get("meta_details.meta_title") as string,
-	// 		meta_description: formData.get("meta_details.meta_description") as string,
-	// 		url_key: formData.get("meta_details.url_key") as string,
-	// 		meta_keywords: formData.get("meta_details.meta_keywords"),
-	// 	},
-	// };
-	// const parseResult = AddCityActionSchema.safeParse(data);
-	// if (!parseResult.success) {
-	// 	return new Response(JSON.stringify({ validationErrors: parseResult.error.flatten().fieldErrors }), {
-	// 		status: 400,
-	// 		headers: { "Content-Type": "application/json" },
-	// 	});
-	// }
-	// // console.log("Data in the action: ", parseResult.data);
-	// const svc = new CityService(request);
-	// // return;
-	// try {
-	// 	await svc.addCity(parseResult.data);
-	// 	await queryClient.invalidateQueries({ queryKey: ["highLvlCities"] });
-	// 	return { success: true };
-	// } catch (error: any) {
-	// 	return {
-	// 		success: false,
-	// 		error: error instanceof ApiError ? error.message : error.message || "Failed to add city",
-	// 	};
-	// }
+export const action = async ({ request }: ActionFunctionArgs) => {
+	try {
+		if (request.method !== "POST") {
+			throw new ApiError("Invalid request method", 405, []);
+		}
+
+		const formData = await request.formData();
+		let payload: string = formData.get("payload") as string;
+
+		if (!payload || payload.trim() === "") {
+			throw new ApiError("Empty request body", 400, []);
+		}
+
+		let rawBody: any = JSON.parse(payload);
+
+		if (rawBody?.meta_details?.meta_keywords) {
+			rawBody.meta_details.meta_keywords = (rawBody as AddTourInput)?.meta_details?.meta_keywords
+				?.map((keyword) => keyword.trim())
+				.join(",");
+		}
+
+		const cover_image = formData.get("cover_image") as File;
+		const images = formData.getAll("images") as File[];
+
+		const parseResult = AddTourActionSchema.safeParse({
+			...rawBody,
+			cover_image,
+			images: images.filter((i) => i != null && i instanceof File),
+		});
+
+		// console.log(rawBody.tour_options.map((i) => i.availabilities));
+
+		if (!parseResult.success) {
+			return new Response(
+				JSON.stringify({ validationErrors: parseResult.error.flatten().fieldErrors }),
+				{
+					status: 400,
+					headers: { "Content-Type": "application/json" },
+				},
+			);
+		}
+
+		const tours_svc = new ToursService(request);
+		const tour_id = await tours_svc.addTour(parseResult.data);
+
+		// await queryClient.invalidateQueries({ queryKey: ["highLvlCities"] });
+		return { success: true, tour_id };
+	} catch (error: any) {
+		return {
+			success: false,
+			tour_id: null,
+			error: error instanceof ApiError ? error.message : error.message || "Failed to add tour",
+		};
+	}
 };
 
-export const loader = async () => {
-	const cities = [
-		{ id: 12, name: "Dubai" },
-		{ id: 13, name: "Abu Dhabi" },
-		{ id: 14, name: "Sharjah" },
-	];
-
-	const categories = [
-		{ id: 142, name: "Sightseeing Tours" },
-		{ id: 135, name: "Burj Khalifa Tour" },
-		{ id: 114, name: "Cultural & Heritage Tours" },
-		{ id: 154, name: "Water Parks Tours" },
-		{ id: 194, name: "Theme Parks and Zoo Tours" },
-	];
-
-	const providers = [
-		{ id: 1343, name: "Top Attractions Dubai Tours" },
-		{ id: 1344, name: "Top Attractions Abu Dhabi Tours" },
-		{ id: 1345, name: "Top Attractions Sharjah Tours" },
-	];
-
-	const tags = [
-		{ id: 991, name: "Attractions" },
-		{ id: 992, name: "Food and Drinks" },
-		{ id: 993, name: "Families with Kids" },
-		{ id: 9234, name: "Couple" },
-		{ id: 9942, name: "Nature and Wildlife" },
-		{ id: 995, name: "Culture and Heritage" },
-		{ id: 996, name: "Day Trips" },
-	];
-
-	const cancellation_policies = [
-		{ id: 333, policy: "Free cancellation available" },
-		{ id: 334, policy: "Free cancellation not available" },
-		{ id: 3242, policy: "Can be cancelled before 24 hours and arrival also." },
-	];
-
-	const participants = [
-		{ id: 1, name: "Adult" },
-		{ id: 2, name: "Child" },
-		{ id: 3, name: "Infant" },
-	];
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+	const cancellation_policies = await queryClient.fetchQuery(cancellationPoliciesQuery({ request }));
+	const participants = await queryClient.fetchQuery(participantTypesQuery({ request }));
+	const cities = await queryClient.fetchQuery(citiesListQuery({ request }));
+	const tags = await queryClient.fetchQuery(allTagsQuery({ request }));
+	const categories = await queryClient.fetchQuery(categoryListQuery({ request }));
+	const providers = await queryClient.fetchQuery(allProvidersQuery({ request }));
+	// const a = new ToursService(request);
+	// const b = await a.getTourDetails("8be05459-1352-42f8-94c2-c7268cf63f59");
+	// b.tour_options.map((i) => i.availabilities.map((j) => console.log(j.slots)));
 
 	return {
 		cities,
@@ -125,7 +133,8 @@ export default function AddTourPage() {
 	const submit = useSubmit();
 	const navigation = useNavigation();
 
-	const actionData: ActionResponse = useActionData();
+	// @ts-ignore
+	const actionData: ActionResponse & { tour_id: string | null } = useActionData();
 
 	const form = useForm<AddTourInput>({
 		resolver: zodResolver(AddTourSchema),
@@ -171,7 +180,9 @@ export default function AddTourPage() {
 		if (actionData) {
 			if (actionData.success) {
 				toast.success("New tours added successfully");
-				navigate(`/tours`);
+				if (actionData.tour_id) {
+					navigate(`/tours/tour/${actionData.tour_id}`);
+				}
 			} else if (actionData.error) {
 				toast.error(actionData.error);
 			} else if (actionData.validationErrors) {
@@ -186,7 +197,113 @@ export default function AddTourPage() {
 	const watchedTags = useWatch({ control, name: "tags" }) ?? [];
 
 	async function onFormSubmit(values: AddTourInput) {
-		console.log(values);
+		// console.log(values);
+		if (values.address_name != null && values.address_name != "") {
+			if (values.address_link == null || values.address_link == "") {
+				toast.error("Please add address link.");
+				return;
+			}
+		} else if (values.address_name == null || values.address_name == "") {
+			if (values.address_link != null && values.address_link != "") {
+				toast.error("Please add address name.");
+				return;
+			}
+		}
+
+		if (values.tour_options.length === 0) {
+			toast.error("Please add at least one tour option.");
+			return;
+		}
+
+		for (const option of values.tour_options) {
+			if (option.availabilities == null || option.availabilities.length === 0) {
+				toast.error(`Please add at least one availability for tour option "${option.name}".`);
+				return;
+			}
+		}
+
+		for (const option of values.tour_options) {
+			if (option.prices.length === 0) {
+				toast.error("Please add at least one price for each tour option.");
+				return;
+			}
+
+			const seenParticipants = new Set<string>();
+
+			for (const price of option.prices) {
+				if (seenParticipants.has(price.participant)) {
+					toast.error(
+						`Duplicate ${participants
+							.find((i) => i.id === Number(price.participant))
+							?.name.toLowerCase()} participant prices in the tour option "${option.name}" are not allowed.`,
+					);
+					return;
+				}
+
+				seenParticipants.add(price.participant);
+			}
+		}
+
+		for (const option of values.tour_options) {
+			const seat_type = option.seat_type;
+			if (option.availabilities) {
+				for (const availability of option.availabilities) {
+					for (const timeslot of availability.timeslots) {
+						if (
+							seat_type === "LIMITED" &&
+							(timeslot.available_seats == null || timeslot.available_seats === "")
+						) {
+							toast.error(
+								`Please add available seats for ${format(availability.date, "PP")} ${timeslot.label} timeslot in the tour option "${option.name}".`,
+							);
+							return;
+						}
+
+						if (timeslot.label != null) {
+							timeslot.label = timeslot.label.trim();
+						}
+
+						if (seat_type === "UNLIMITED" && timeslot.available_seats != null) {
+							timeslot.available_seats = null;
+						}
+					}
+				}
+			}
+		}
+
+		const formData = new FormData();
+
+		for (let key in values) {
+			if (typeof values[key as keyof AddTourInput] === "string") {
+				// @ts-ignore
+				values[key as keyof AddTourInput] = values[key].trim();
+			}
+		}
+
+		formData.append(
+			"payload",
+			JSON.stringify({
+				...values,
+				cover_image: undefined,
+				images: undefined,
+			}),
+		);
+
+		if (values.cover_image) {
+			formData.append("cover_image", values.cover_image);
+		}
+
+		if (values.images) {
+			values.images.forEach((file, _) => {
+				if (file) formData.append(`images`, file);
+			});
+		}
+
+		submit(formData, {
+			method: "POST",
+			action: "/tours/add",
+			encType: "multipart/form-data",
+		});
 	}
 
 	useEffect(() => {

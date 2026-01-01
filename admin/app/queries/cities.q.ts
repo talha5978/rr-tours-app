@@ -2,6 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { CityService } from "@workspace/shared/services/cities.service";
 import type {
 	GetCityDetailsForUpdateResponse,
+	GetCityList,
 	GetHighLevelCitiesResponse,
 } from "@workspace/shared/types/cities";
 
@@ -22,6 +23,17 @@ export const cityDetailsUpdateQuery = (request: Request, cityId: number) => {
 		queryFn: async () => {
 			const svc = new CityService(request);
 			const result = await svc.getCityDetailsForUpdate(cityId);
+			return result;
+		},
+	});
+};
+
+export const citiesListQuery = ({ request }: { request: Request }) => {
+	return queryOptions<GetCityList>({
+		queryKey: ["citiesList"],
+		queryFn: async () => {
+			const svc = new CityService(request);
+			const result = await svc.getCitiesList();
 			return result;
 		},
 	});

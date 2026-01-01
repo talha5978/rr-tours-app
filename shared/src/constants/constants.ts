@@ -29,6 +29,11 @@ export const CITY_FULL_IMG_DIMENSTIONS = {
 	max: { width: 1700, height: 1700 },
 } as const;
 
+export const TOUR_IMG_DIMENSTIONS = {
+	min: { width: 500, height: 500 },
+	max: { width: 1700, height: 1700 },
+};
+
 export const MAX_META_KEYWORDS = 25;
 
 export const TIMESLOT_SEAT_TYPE = Constants.public.Enums.timeslot_seat_type;

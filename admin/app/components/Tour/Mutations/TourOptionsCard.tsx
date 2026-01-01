@@ -55,7 +55,7 @@ export const TourOptionsCard = ({
 					participant: participants[0].id.toString(),
 				},
 			],
-			availablities: [],
+			availabilities: [],
 		});
 	};
 
@@ -357,7 +357,7 @@ const AvailabilitiesSubSection = ({
 }) => {
 	const { fields, append, remove } = useFieldArray({
 		control,
-		name: `tour_options.${optionIndex}.availablities`,
+		name: `tour_options.${optionIndex}.availabilities`,
 	});
 
 	const { setValue } = useFormContext();
@@ -453,7 +453,7 @@ const AvailabilitiesSubSection = ({
 					if (avail.timeslots && avail.timeslots.length > 0) {
 						avail.timeslots.forEach((_: any, tsIdx: number) => {
 							setValue(
-								`tour_options.${optionIndex}.availablities.${availIdx}.timeslots.${tsIdx}.available_seats`,
+								`tour_options.${optionIndex}.availabilities.${availIdx}.timeslots.${tsIdx}.available_seats`,
 								null,
 								{ shouldValidate: true },
 							);
@@ -496,6 +496,12 @@ const AvailabilitiesSubSection = ({
 				<div className="text-sm text-muted-foreground">No available dates added yet.</div>
 			)}
 
+			{/* {formErrors.tour_options?.[optionIndex]?.prices && (
+				<div className="text-sm text-destructive">
+					{formErrors.tour_options[optionIndex].prices.message}
+				</div>
+			)} */}
+
 			{/* Existing Availabilities - Card Grid */}
 			<div className="grid grid-cols-1 min-[890px]:grid-cols-2 min-[1280px]:grid-cols-3 gap-4 mr-4">
 				{fields.map((avail, availIndex) => (
@@ -515,7 +521,7 @@ const AvailabilitiesSubSection = ({
 							{/* Date */}
 							<FormField
 								control={control}
-								name={`tour_options.${optionIndex}.availablities.${availIndex}.date`}
+								name={`tour_options.${optionIndex}.availabilities.${availIndex}.date`}
 								render={({ field }) => (
 									<FormItem>
 										<FormControl>
@@ -537,7 +543,7 @@ const AvailabilitiesSubSection = ({
 								{/* Active Switch */}
 								<FormField
 									control={control}
-									name={`tour_options.${optionIndex}.availablities.${availIndex}.isActive`}
+									name={`tour_options.${optionIndex}.availabilities.${availIndex}.isActive`}
 									render={({ field }) => (
 										<FormItem className="flex items-center space-x-3">
 											<FormLabel> Toggle Status</FormLabel>
@@ -650,7 +656,6 @@ const AvailabilitiesSubSection = ({
 										<Input
 											placeholder="Label"
 											value={ts.label}
-											className="disabled pointer-events-none"
 											onChange={(e) => updateTimeslot(tsIndex, "label", e.target.value)}
 										/>
 									</div>
@@ -703,7 +708,9 @@ const AvailabilitiesSubSection = ({
 							</Button>
 						</div>
 					</div>
-
+				</CardContent>
+				<Separator />
+				<CardContent>
 					{/* Submit Add */}
 					<div className="w-fit">
 						<Button
@@ -714,7 +721,11 @@ const AvailabilitiesSubSection = ({
 								(!isRange && !singleDate) ||
 								(isRange && (!range.from || !range.to)) ||
 								newTimeslots.length === 0 ||
-								newTimeslots.every((ts) => !ts.time)
+								newTimeslots.every((ts) => !ts.time) ||
+								(optionSeatType == "LIMITED" &&
+									newTimeslots.every(
+										(ts) => !ts.available_seats == null || ts.available_seats == "",
+									))
 							}
 						>
 							Add {isRange ? "Availabilities" : "Availability"}
@@ -753,7 +764,7 @@ const TimeslotsSubSection = ({
 }) => {
 	const { fields, append, remove } = useFieldArray({
 		control,
-		name: `tour_options.${optionIndex}.availablities.${availIndex}.timeslots`,
+		name: `tour_options.${optionIndex}.availabilities.${availIndex}.timeslots`,
 	});
 
 	const { setValue } = useFormContext();
@@ -783,7 +794,7 @@ const TimeslotsSubSection = ({
 				<div className="space-y-4">
 					{fields.map((ts, tsIndex) => {
 						const currentTime = control._getWatch(
-							`tour_options.${optionIndex}.availablities.${availIndex}.timeslots.${tsIndex}.time`,
+							`tour_options.${optionIndex}.availabilities.${availIndex}.timeslots.${tsIndex}.time`,
 						) as string;
 
 						return (
@@ -791,7 +802,7 @@ const TimeslotsSubSection = ({
 								<div>
 									<FormField
 										control={control}
-										name={`tour_options.${optionIndex}.availablities.${availIndex}.timeslots.${tsIndex}.time`}
+										name={`tour_options.${optionIndex}.availabilities.${availIndex}.timeslots.${tsIndex}.time`}
 										render={({ field }) => (
 											<FormItem className="flex-1">
 												<FormControl>
@@ -805,7 +816,7 @@ const TimeslotsSubSection = ({
 															field.onChange(e);
 															const formatted = formatTimeLabel(e.target.value);
 															setValue(
-																`tour_options.${optionIndex}.availablities.${availIndex}.timeslots.${tsIndex}.label`,
+																`tour_options.${optionIndex}.availabilities.${availIndex}.timeslots.${tsIndex}.label`,
 																formatted,
 																{ shouldValidate: true },
 															);
@@ -818,13 +829,12 @@ const TimeslotsSubSection = ({
 									/>
 									<FormField
 										control={control}
-										name={`tour_options.${optionIndex}.availablities.${availIndex}.timeslots.${tsIndex}.label`}
+										name={`tour_options.${optionIndex}.availabilities.${availIndex}.timeslots.${tsIndex}.label`}
 										render={({ field }) => (
 											<FormItem className="flex-1">
 												<FormControl>
 													<Input
 														placeholder="Label"
-														className="disabled pointer-events-none"
 														{...field}
 														value={
 															field.value || formatTimeLabel(currentTime || "")
@@ -839,7 +849,7 @@ const TimeslotsSubSection = ({
 								<div>
 									<FormField
 										control={control}
-										name={`tour_options.${optionIndex}.availablities.${availIndex}.timeslots.${tsIndex}.sort_order`}
+										name={`tour_options.${optionIndex}.availabilities.${availIndex}.timeslots.${tsIndex}.sort_order`}
 										render={({ field }) => (
 											<FormItem className="flex-1">
 												<FormControl>
@@ -858,7 +868,7 @@ const TimeslotsSubSection = ({
 									{optionSeatType !== "UNLIMITED" && (
 										<FormField
 											control={control}
-											name={`tour_options.${optionIndex}.availablities.${availIndex}.timeslots.${tsIndex}.available_seats`}
+											name={`tour_options.${optionIndex}.availabilities.${availIndex}.timeslots.${tsIndex}.available_seats`}
 											render={({ field }) => (
 												<FormItem className="flex-1">
 													<FormControl>

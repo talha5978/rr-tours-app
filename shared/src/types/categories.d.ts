@@ -31,3 +31,8 @@ export type GetCategoryDetailsForUpdateResponse = {
 };
 
 export type CategoryUpdationPayload = Database["public"]["Tables"]["tours_categories"]["Update"];
+
+export type GetCategoryList = {
+	id: number;
+	name: string;
+}[];

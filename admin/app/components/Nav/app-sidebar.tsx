@@ -10,8 +10,7 @@ import {
 	SidebarMenuItem,
 } from "~/components/ui/sidebar";
 import { Link } from "react-router";
-import { BuildingIcon, LogOut } from "lucide-react";
-import { Button } from "~/components/ui/button";
+import { BuildingIcon } from "lucide-react";
 import LogoutButton from "~/components/Auth/logout-button";
 
 export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {

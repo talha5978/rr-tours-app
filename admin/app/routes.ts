@@ -19,7 +19,10 @@ export default [
 			...prefix(":cityId", [route("update", "./routes/Cities/update-city.tsx")]),
 		]),
 
-		...prefix("tours", [route("add", "./routes/Tours/add-tour.tsx")]),
+		...prefix("tours", [
+			route("tour/:id", "./routes/Tours/tour-details.tsx"),
+			route("add", "./routes/Tours/add-tour.tsx"),
+		]),
 
 		route("*", "./routes/Error/404.tsx"),
 	]),

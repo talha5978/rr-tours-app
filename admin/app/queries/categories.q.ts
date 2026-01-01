@@ -2,6 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { CategoryService } from "@workspace/shared/services/categories.service";
 import type {
 	GetCategoryDetailsForUpdateResponse,
+	GetCategoryList,
 	GetHighLevelCategoriesResponse,
 } from "@workspace/shared/types/categories";
 
@@ -29,6 +30,17 @@ export const categoryDetailsUpdateQuery = (request: Request, categoryId: number)
 		queryFn: async () => {
 			const svc = new CategoryService(request);
 			const result = await svc.getCategoryDetails(categoryId);
+			return result;
+		},
+	});
+};
+
+export const categoryListQuery = ({ request }: { request: Request }) => {
+	return queryOptions<GetCategoryList>({
+		queryKey: ["categoryList"],
+		queryFn: async () => {
+			const svc = new CategoryService(request);
+			const result = await svc.getCategoryList();
 			return result;
 		},
 	});

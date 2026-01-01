@@ -3,14 +3,13 @@ import type { AdminUser } from "@workspace/shared/types/user.d";
 import { loggerMiddleware } from "@workspace/shared/middlewares/logger.middleware";
 import { UseClassMiddleware } from "@workspace/shared/decorators/useClassMiddleware";
 import { Service } from "@workspace/shared/services/service.base";
-import { type Session, type User, type UserResponse, type Provider } from "@supabase/auth-js";
+import { type Session, type User, type UserResponse } from "@supabase/auth-js";
 import { ApiError } from "@workspace/shared/utils/ApiError";
-import { UseMiddleware } from "@workspace/shared/decorators/useMiddleware";
-// import { verifyUser } from "@workspace/shared/middlewares/auth.middleware";
 
 @UseClassMiddleware(loggerMiddleware)
 export class AuthService extends Service {
 	async getCurrentUser(): Promise<GetCurrentUser> {
+		console.log("🌸 Running the GET current user service");
 		try {
 			const {
 				data: { user: authUser },

@@ -31,3 +31,8 @@ export type GetCityDetailsForUpdateResponse = {
 };
 
 export type CityUpdationPayload = Database["public"]["Tables"]["cities"]["Update"];
+
+export type GetCityList = {
+	id: number;
+	name: string;
+}[];

@@ -13,6 +13,7 @@ import { MetaDetailsService } from "@workspace/shared/services/meta-details.serv
 import type {
 	CategoryUpdationPayload,
 	GetCategoryDetailsForUpdateResponse,
+	GetCategoryList,
 	GetHighLevelCategoriesResponse,
 } from "@workspace/shared/types/categories";
 
@@ -107,6 +108,21 @@ export class CategoryService extends Service {
 			total: count ?? 0,
 			error,
 		};
+	}
+
+	/** Get full categories list */
+	async getCategoryList(): Promise<GetCategoryList> {
+		const { data, error: dbError } = await this.supabase
+			.from(this.CATEGORIES_TABLE)
+			.select("id, name")
+			.limit(100)
+			.order("sort_order", { ascending: true });
+
+		if (dbError) {
+			throw new ApiError(dbError.message, 500, [dbError.details || ""]);
+		}
+
+		return data ?? [];
 	}
 
 	/** Get full details of a category to update */
