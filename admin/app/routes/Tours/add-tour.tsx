@@ -94,6 +94,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 		const tour_id = await tours_svc.addTour(parseResult.data);
 
 		await queryClient.invalidateQueries({ queryKey: ["high_level_tours"] });
+		await queryClient.invalidateQueries({ queryKey: ["highLvlCategories"] });
+
 		return { success: true, tour_id };
 	} catch (error: any) {
 		return {
