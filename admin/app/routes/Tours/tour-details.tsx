@@ -47,7 +47,7 @@ export default function TourDetailsPage() {
 
 	if (!tour) return <div>Tour not found</div>;
 	console.log("Re rendreed");
-	console.log(tour);
+	// console.log(tour);
 
 	const hasAvailabilities = tour.tour_options.some(
 		(opt: TourDetailOption) => opt.availabilities?.length > 0,
@@ -193,6 +193,10 @@ export default function TourDetailsPage() {
 								<TourImageCarousel images={tour_images} thumbPosition="bottom" />
 							</div>
 						</div>
+
+						<section className="lg:hidden">
+							<AttributesCard tour={tour} />
+						</section>
 
 						<div className="space-y-8">
 							{/* Tour Options */}
@@ -636,7 +640,7 @@ const ParticipantFormComponent = memo(
 												<p>{pt.name}</p>
 												<div>
 													{pt.age_max - pt.age_min > 50 ? (
-														<p>({pt.age_min} Years & Above)</p>
+														<p>({pt.age_min}+)</p>
 													) : (
 														<p>
 															({pt.age_min}-{pt.age_max})
@@ -692,7 +696,7 @@ const AttributesCard = memo(
 		className,
 	}: {
 		tour: GetTourDetails;
-		className: HtmlHTMLAttributes<HTMLDivElement>["className"];
+		className?: HtmlHTMLAttributes<HTMLDivElement>["className"];
 	}) => {
 		return (
 			<Card className={cn("h-fit", className)}>
@@ -754,15 +758,24 @@ const AttributesCard = memo(
 							</div>
 						</div>
 					)}
-					{tour.live_tour_guide && (
-						<div className="flex items-center gap-4">
-							<Check className="h-5 w-5 text-primary" />
-							<div>
-								<h3 className="font-semibold">Live Tour Guide Available</h3>
-								<p className="text-muted-foreground text-sm">{tour.live_tour_guide_langs}</p>
+					{tour.live_tour_guide &&
+						tour.live_tour_guide_langs != "" &&
+						tour.live_tour_guide_langs != null && (
+							<div className="flex items-center gap-4">
+								<Check className="h-5 w-5 text-primary" />
+								<div>
+									<h3 className="font-semibold">Live Tour Guide Available</h3>
+									<p className="text-muted-foreground text-sm">
+										{tour.live_tour_guide_langs
+											.split(",")
+											.map(
+												(lang: string, idx: number) =>
+													`${lang}${idx === (tour?.live_tour_guide_langs as string).split(",").length - 1 ? "" : ","} `,
+											)}
+									</p>
+								</div>
 							</div>
-						</div>
-					)}
+						)}
 				</CardContent>
 			</Card>
 		);
