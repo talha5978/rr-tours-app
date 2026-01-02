@@ -61,6 +61,7 @@ export const action = async ({ request }: { request: Request }) => {
 	try {
 		await svc.addCategory(parseResult.data);
 		await queryClient.invalidateQueries({ queryKey: ["highLvlCategories"] });
+		await queryClient.invalidateQueries({ queryKey: ["categoryList"] });
 
 		return { success: true };
 	} catch (error: any) {

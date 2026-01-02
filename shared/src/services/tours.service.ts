@@ -8,7 +8,7 @@ import { asServiceMiddleware } from "@workspace/shared/middlewares/utils";
 import { MetaDetailsService } from "@workspace/shared/services/meta-details.service";
 import type { AddTourActionDate } from "@workspace/shared/schemas/tour.schema";
 import { type TablesInsert } from "@workspace/shared/types/supabase";
-import type { GetTourDetails } from "@workspace/shared/types/tours";
+import type { GetHighLevelToursResponse, GetTourDetails, HighLevelTour } from "@workspace/shared/types/tours";
 
 @UseClassMiddleware(loggerMiddleware, asServiceMiddleware<ToursService>(verifyUser))
 export class ToursService extends Service {
@@ -249,6 +249,7 @@ export class ToursService extends Service {
 		}
 	}
 
+	/** Get tour details for preview page */
 	async getTourDetails(tourId: string): Promise<GetTourDetails | null> {
 		if (!tourId) {
 			throw new ApiError("Tour ID is required", 400, []);
@@ -317,5 +318,87 @@ export class ToursService extends Service {
 				url_key: tour.tour_category.meta_details.url_key,
 			},
 		};
+	}
+
+	/** Get tours for main tours page in the admin panel  */
+	async getHighLevelTours(q = "", pageIndex = 0, pageSize = 10): Promise<GetHighLevelToursResponse> {
+		const from = pageIndex * pageSize;
+		const to = from + pageSize - 1;
+
+		try {
+			let query = this.supabase
+				.from(this.TOURS_TABLE)
+				.select(
+					`
+						id, name, cover_image, created_at, updated_at, isFeatured, isActive,
+						${this.META_DETAILS_TABLE}(url_key),
+						${this.CITIES_TABLE}(id, name, ${this.META_DETAILS_TABLE}(url_key)),
+						${this.CATEGORIES_TABLE}(id, name, ${this.META_DETAILS_TABLE}(url_key)),
+						tour_options(tour_availabilities(date, isActive, tour_availability_slots(seat_type, available_seats)))
+					`,
+					{ count: "exact" },
+				)
+				.range(from, to)
+				.order("created_at", { ascending: false });
+
+			if (q.trim().length > 0) {
+				query = query.ilike("name", `%${q}%`);
+			}
+
+			const { data, error, count } = await query;
+
+			if (error) {
+				throw new ApiError(error.message, 500, [error.details || ""]);
+			}
+
+			const computeToBeSoldOutScore = (tour: (typeof data)[0]): number => {
+				const now = new Date().toISOString().split("T")[0];
+				let totalLimited = 0;
+				let soldOut = 0;
+				for (const option of tour.tour_options || []) {
+					for (const avail of option.tour_availabilities || []) {
+						if (avail.date >= now && avail.isActive) {
+							for (const slot of avail.tour_availability_slots || []) {
+								if (slot.seat_type === "LIMITED" && slot.available_seats != null) {
+									totalLimited++;
+									if (slot.available_seats <= 0) {
+										soldOut++;
+									}
+								}
+							}
+						}
+					}
+				}
+				return totalLimited > 0 ? soldOut / totalLimited : 0;
+			};
+
+			const tours: HighLevelTour[] = data.map((tour: (typeof data)[0]) => ({
+				id: tour.id,
+				name: tour.name,
+				cover_image: tour.cover_image,
+				created_at: tour.created_at ?? "",
+				updated_at: tour.updated_at ?? "",
+				url_key: tour.meta_details.url_key,
+				isFeatured: tour.isFeatured,
+				isActive: tour.isActive,
+				toBeSoldOutScore: computeToBeSoldOutScore(tour),
+				city: {
+					id: tour.cities.id,
+					name: tour.cities.name,
+					url_key: tour.cities.meta_details.url_key,
+				},
+				category: {
+					id: tour.tours_categories.id,
+					name: tour.tours_categories.name,
+					url_key: tour.tours_categories.meta_details.url_key,
+				},
+			}));
+
+			return { tours, total: count ?? 0 };
+		} catch (error) {
+			console.error(error);
+
+			throw error instanceof ApiError ? error : new ApiError("Failed to get tours", 500, []);
+		}
 	}
 }

@@ -93,6 +93,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 	try {
 		await svc.updateCity(cityId, parseResult.data);
 		await queryClient.invalidateQueries({ queryKey: ["highLvlCities"] });
+		await queryClient.invalidateQueries({ queryKey: ["citiesList"] });
 		await queryClient.invalidateQueries({ queryKey: ["cityDetailsForUpdate", Number(cityId)] });
 
 		return { success: true };

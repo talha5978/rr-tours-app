@@ -93,7 +93,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 		const tours_svc = new ToursService(request);
 		const tour_id = await tours_svc.addTour(parseResult.data);
 
-		// await queryClient.invalidateQueries({ queryKey: ["highLvlCities"] });
+		await queryClient.invalidateQueries({ queryKey: ["high_level_tours"] });
 		return { success: true, tour_id };
 	} catch (error: any) {
 		return {
@@ -111,9 +111,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 	const tags = await queryClient.fetchQuery(allTagsQuery({ request }));
 	const categories = await queryClient.fetchQuery(categoryListQuery({ request }));
 	const providers = await queryClient.fetchQuery(allProvidersQuery({ request }));
-	// const a = new ToursService(request);
-	// const b = await a.getTourDetails("8be05459-1352-42f8-94c2-c7268cf63f59");
-	// b.tour_options.map((i) => i.availabilities.map((j) => console.log(j.slots)));
 
 	return {
 		cities,
@@ -179,9 +176,9 @@ export default function AddTourPage() {
 	useEffect(() => {
 		if (actionData) {
 			if (actionData.success) {
-				toast.success("New tours added successfully");
+				toast.success("New tour added successfully");
 				if (actionData.tour_id) {
-					navigate(`/tours/tour/${actionData.tour_id}`);
+					navigate(`/tours`);
 				}
 			} else if (actionData.error) {
 				toast.error(actionData.error);
@@ -306,11 +303,11 @@ export default function AddTourPage() {
 		});
 	}
 
-	useEffect(() => {
-		if (form.formState.errors) {
-			console.log("Errors: ", form.formState.errors);
-		}
-	}, [form.formState.errors]);
+	// useEffect(() => {
+	// 	if (form.formState.errors) {
+	// 		console.log("Errors: ", form.formState.errors);
+	// 	}
+	// }, [form.formState.errors]);
 
 	return (
 		<>

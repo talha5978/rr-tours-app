@@ -28,7 +28,7 @@ export default function TableCopyField({ id, message = "ID Copied" }: { id: stri
 	return (
 		<div>
 			<button
-				className="flex gap-2 w-fit bg-table-row-muted-button dark:bg-muted rounded-sm px-3 py-1 cursor-pointer"
+				className="flex gap-2 w-fit bg-muted-foreground/5 dark:bg-muted-foreground/20 rounded-sm px-3 py-1 cursor-pointer"
 				onClick={handleCopy}
 				style={{
 					whiteSpace: "nowrap",

@@ -21,6 +21,8 @@ import { SUPABASE_IMAGE_BUCKET_PATH } from "@workspace/shared/constants/constant
 import { Tables } from "@workspace/shared/types/supabase";
 import { toast } from "sonner";
 import QuantityInput from "~/components/Custom-Inputs/quantity-input-basic";
+import BackButton from "~/components/Nav/BackButton";
+import { Badge } from "~/components/ui/badge";
 
 const participantSchema = z.object({
 	quantities: z.record(z.number().min(0).int()),
@@ -65,7 +67,7 @@ export default function TourDetailsPage() {
 
 	const getTimeSlotsForDate = (date: Date, option: TourDetailOption) => {
 		const formattedDate = format(date, "yyyy-MM-dd");
-		const avail = option.availabilities?.find((a: any) => a.date === formattedDate);
+		const avail = option.availabilities?.find((a: TourDetailAvailability) => a.date === formattedDate);
 		return avail?.slots.sort((a, b) => a.time_slot.sort_order - b.time_slot.sort_order) || [];
 	};
 
@@ -78,7 +80,6 @@ export default function TourDetailsPage() {
 	const handleDateSelect = (date: Date | undefined) => {
 		if (date) {
 			setSelectedDate(date);
-			setStep("time");
 		}
 	};
 
@@ -104,15 +105,18 @@ export default function TourDetailsPage() {
 	}, [tour]);
 
 	function getNextAvailabilityMsg(option: TourDetailOption) {
-		if (hasAvailabilities) {
+		if (option.availabilities) {
 			const nextDate = option.availabilities.map((a) => {
-				const ss = a.slots.find(
-					(s) => s.seat_type === "LIMITED" && (s.available_seats as number) > 0,
-				);
+				return a.date;
 
-				if (ss) {
-					return a.date;
-				}
+				// --> Logic for displaying the availability message only on the limited seats options
+				// const ss = a.slots.find(
+				// 	(s) => s.seat_type === "LIMITED" && (s.available_seats as number) > 0,
+				// );
+
+				// if (ss) {
+				// 	return a.date;
+				// }
 			})[0];
 
 			if (nextDate) {
@@ -124,6 +128,7 @@ export default function TourDetailsPage() {
 			return null;
 		}
 	}
+	console.log(tour);
 
 	return (
 		<>
@@ -144,7 +149,10 @@ export default function TourDetailsPage() {
 			<div className="container mx-auto p-4 space-y-8">
 				{/* Header */}
 				<div className="space-y-2">
-					<h1 className="text-3xl font-bold">{tour.name}</h1>
+					<div className="flex gap-4 items-center flex-wrap">
+						<BackButton href={"/tours"} />
+						<h1 className="text-3xl font-bold">{tour.name}</h1>
+					</div>
 
 					<div className="flex gap-4 items-center">
 						{tour.tour_category && (
@@ -280,13 +288,14 @@ export default function TourDetailsPage() {
 												</div>
 
 												<div className="flex gap-4 flex-wrap mt-6">
+													{/* View Details Dialog */}
 													<Dialog>
 														<DialogTrigger asChild>
 															<Button variant={"outline"} size={"sm"}>
 																View Details
 															</Button>
 														</DialogTrigger>
-														<DialogContent className="max-w-lg">
+														<DialogContent className="max-w-xl">
 															<DialogHeader className="mb-2">
 																<DialogTitle>Option Details</DialogTitle>
 															</DialogHeader>
@@ -295,13 +304,26 @@ export default function TourDetailsPage() {
 																<h3 className="font-semibold text-base">
 																	{tour.name}
 																</h3>
-																<p className="text-sm">{option.name}</p>
+																<div className="flex gap-2 flex-wrap items-center">
+																	<p className="text-sm">{option.name}</p>
+																	<div>
+																		{option.availabilities.every((a) =>
+																			a.slots.every(
+																				(s) =>
+																					s.seat_type ===
+																						"UNLIMITED" &&
+																					s.available_seats == null,
+																			),
+																		) && (
+																			<Badge className="bg-warning">
+																				Open Dated
+																			</Badge>
+																		)}
+																	</div>
+																</div>
 															</div>
-
+															{/* *:data-[slot=badge]:px-2 *:data-[slot=badge]:py-1.5 *:data-[slot=badge]:text-sm */}
 															<div className="space-y-4">
-																{/* {option.inclusions && (
-																	<
-																)} */}
 																<MainBodySection
 																	content={option.inclusions}
 																	title="Inclusions"
@@ -368,7 +390,29 @@ export default function TourDetailsPage() {
 																<h3 className="font-semibold text-base">
 																	{tour.name}
 																</h3>
-																<p className="text-sm">{option.name}</p>
+																{selectedOption && (
+																	<div className="flex gap-2 flex-wrap items-center">
+																		<p className="text-sm">
+																			{selectedOption.name}
+																		</p>
+																		<div>
+																			{selectedOption.availabilities.every(
+																				(a) =>
+																					a.slots.every(
+																						(s) =>
+																							s.seat_type ===
+																								"UNLIMITED" &&
+																							s.available_seats ==
+																								null,
+																					),
+																			) && (
+																				<Badge className="bg-warning">
+																					Open Dated
+																				</Badge>
+																			)}
+																		</div>
+																	</div>
+																)}
 																{step === "time" && selectedDate && (
 																	<div className="flex gap-2 items-center justify-between">
 																		<p className="text-sm mt-1">
@@ -451,6 +495,47 @@ export default function TourDetailsPage() {
 																			}
 																		/>
 																	</div>
+
+																	{selectedDate &&
+																		selectedOption &&
+																		getTimeSlotsForDate(
+																			selectedDate,
+																			selectedOption,
+																		).every(
+																			(s) =>
+																				s.available_seats === 0 &&
+																				s.seat_type === "LIMITED",
+																		) && (
+																			<p className="text-destructive">
+																				Sorry! No timeslot is
+																				available for this date.
+																			</p>
+																		)}
+
+																	<div className="w-fit ml-auto">
+																		<Button
+																			size={"sm"}
+																			onClick={() => setStep("time")}
+																			disabled={
+																				(selectedDate &&
+																				selectedOption &&
+																				getTimeSlotsForDate(
+																					selectedDate,
+																					selectedOption,
+																				).every(
+																					(s) =>
+																						s.available_seats ===
+																							0 &&
+																						s.seat_type ===
+																							"LIMITED",
+																				)
+																					? true
+																					: false) || !selectedDate
+																			}
+																		>
+																			Next
+																		</Button>
+																	</div>
 																</div>
 															)}
 
@@ -498,19 +583,6 @@ export default function TourDetailsPage() {
 																				},
 																			)}
 																		</div>
-																		{getTimeSlotsForDate(
-																			selectedDate,
-																			selectedOption,
-																		).every(
-																			(s) =>
-																				s.available_seats === 0 &&
-																				s.seat_type === "LIMITED",
-																		) && (
-																			<p className="text-destructive">
-																				Sorry! All time slots for this
-																				date are full.
-																			</p>
-																		)}
 																	</div>
 																)}
 

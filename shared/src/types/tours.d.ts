@@ -36,3 +36,30 @@ export type GetTourDetails = Tables<"tours"> & {
 	tags: Tables<"tour_tags">[];
 	tour_options: TourDetailOption[];
 };
+
+export type HighLevelTour = {
+	id: string;
+	name: string;
+	cover_image: string;
+	created_at: string;
+	updated_at: string;
+	url_key: string;
+	isFeatured: boolean;
+	isActive: boolean;
+	toBeSoldOutScore: number; // from 0 to 1
+	city: {
+		id: number;
+		name: string;
+		url_key: string;
+	};
+	category: {
+		id: number;
+		name: string;
+		url_key: string;
+	};
+};
+
+export type GetHighLevelToursResponse = {
+	tours: HighLevelTour[];
+	total: number;
+};

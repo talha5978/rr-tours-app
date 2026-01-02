@@ -1,3 +1,5 @@
+import { SUPABASE_IMAGE_BUCKET_PATH } from "@workspace/shared/constants/constants";
+import type { GetAllTourTags } from "@workspace/shared/types/tour-tags";
 import { useFormContext } from "react-hook-form";
 import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
@@ -11,7 +13,7 @@ import { type FormControlType } from "~/routes/Tours/add-tour";
 type Props = {
 	control: FormControlType;
 	noTags: boolean;
-	tags: { id: number; name: string }[];
+	tags: GetAllTourTags;
 };
 
 export const TagsCard = ({ control, tags, noTags }: Props) => {
@@ -44,7 +46,7 @@ export const TagsCard = ({ control, tags, noTags }: Props) => {
 											return (
 												<Label
 													key={tag.id}
-													className="hover:bg-accent/50 flex items-center gap-3 rounded-lg border p-2 cursor-pointer"
+													className={`hover:bg-accent/50 flex items-center border-2 gap-3 rounded-lg p-2 cursor-pointer ${checked ? "bg-accent/50 border-primary" : ""}`}
 												>
 													<Checkbox
 														checked={checked}
@@ -57,8 +59,18 @@ export const TagsCard = ({ control, tags, noTags }: Props) => {
 																	: [...selectedTags, value],
 															);
 														}}
+														hidden
 													/>
-													<span className="text-sm font-medium">{tag.name}</span>
+													<div
+														key={tag.id}
+														className="flex flex-col gap-2 items-center px-7 py-6 rounded-xl"
+													>
+														<img
+															src={SUPABASE_IMAGE_BUCKET_PATH + "/" + tag.image}
+															className="h-6 w-6"
+														/>
+														<p className="text-base">{tag.name}</p>
+													</div>
 												</Label>
 											);
 										})}

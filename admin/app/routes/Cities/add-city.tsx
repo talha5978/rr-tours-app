@@ -62,6 +62,7 @@ export const action = async ({ request }: { request: Request }) => {
 	try {
 		await svc.addCity(parseResult.data);
 		await queryClient.invalidateQueries({ queryKey: ["highLvlCities"] });
+		await queryClient.invalidateQueries({ queryKey: ["citiesList"] });
 
 		return { success: true };
 	} catch (error: any) {

@@ -25,7 +25,8 @@ export default [
 		]),
 
 		...prefix("tours", [
-			route("tour/:id", "./routes/Tours/tour-details.tsx"),
+			index("./routes/Tours/tours.tsx"),
+			route("tour/:id/:urlKey", "./routes/Tours/tour-details.tsx"),
 			route("add", "./routes/Tours/add-tour.tsx"),
 		]),
 

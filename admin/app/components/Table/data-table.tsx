@@ -61,8 +61,9 @@ export const DataTable = ({
 	pageSize,
 	total,
 	customEmptyMessage,
-	cellClassName = "**:data-[slot=table-cell]:last:bg-background",
-	headerClassName = "bg-muted",
+	// cellClassName = "**:data-[slot=table-cell]:last:bg-background",
+	cellClassName = "",
+	headerClassName = "bg-muted-foreground/5 dark:bg-muted-foreground/20",
 }: DataTableProps) => {
 	if (!table) {
 		return (

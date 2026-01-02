@@ -10,6 +10,7 @@
 html,
 body {
 	scroll-behavior: smooth;
+
 	@media (prefers-color-scheme: dark) {
 		color-scheme: dark;
 	}
@@ -30,8 +31,10 @@ body {
 	--muted-foreground: oklch(0.551 0.0234 264.3637);
 	--accent: oklch(0.9505 0.0507 163.0508);
 	--accent-foreground: oklch(0.3729 0.0306 259.7328);
+	--warning: oklch(0.681 0.162 75.834);
 	--destructive: oklch(0.6368 0.2078 25.3313);
 	--destructive-foreground: oklch(1 0 0);
+	--table-row-muted-button: oklch(97.488% 0.0168 145.752);
 	--border: oklch(0.9276 0.0058 264.5313);
 	--input: oklch(0.9276 0.0058 264.5313);
 	--ring: oklch(0.7227 0.192 149.5793);
@@ -86,7 +89,9 @@ body {
 	--muted-foreground: oklch(0.551 0.0234 264.3637);
 	--accent: oklch(0.3729 0.0306 259.7328);
 	--accent-foreground: oklch(0.7118 0.0129 286.0665);
+	--warning: oklch(0.795 0.184 86.047);
 	--destructive: oklch(0.6368 0.2078 25.3313);
+	--table-row-muted-button: oklch(97.488% 0.0168 145.752);
 	--destructive-foreground: oklch(0.2077 0.0398 265.7549);
 	--border: oklch(0.4461 0.0263 256.8018);
 	--input: oklch(0.4461 0.0263 256.8018);
@@ -140,8 +145,11 @@ body {
 	--color-muted-foreground: var(--muted-foreground);
 	--color-accent: var(--accent);
 	--color-accent-foreground: var(--accent-foreground);
+	--color-warning: var(--warning);
 	--color-destructive: var(--destructive);
 	--color-destructive-foreground: var(--destructive-foreground);
+	--table-row-muted-button: oklch(97.488% 0.0168 145.752);
+	--color-table-row-muted-button: var(--table-row-muted-button);
 	--color-border: var(--border);
 	--color-input: var(--input);
 	--color-ring: var(--ring);

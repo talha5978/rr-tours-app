@@ -87,6 +87,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 	try {
 		await svc.updateCategory(categoryId, parseResult.data);
 		await queryClient.invalidateQueries({ queryKey: ["highLvlCategories"] });
+		await queryClient.invalidateQueries({ queryKey: ["categoryList"] });
 		await queryClient.invalidateQueries({ queryKey: ["categoryDetailsForUpdate", Number(categoryId)] });
 
 		return { success: true };
