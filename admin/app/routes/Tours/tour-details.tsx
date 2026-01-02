@@ -477,7 +477,20 @@ export default function TourDetailsPage() {
 																				isBefore(
 																					date,
 																					startOfToday(),
-																				) || !isDateAvailable(date)
+																				) ||
+																				!isDateAvailable(date) ||
+																				(selectedOption &&
+																				selectedOption.availabilities &&
+																				!selectedOption.availabilities.find(
+																					(a) =>
+																						a.date ===
+																						format(
+																							date,
+																							"yyyy-MM-dd",
+																						),
+																				)?.isActive
+																					? true
+																					: false)
 																			}
 																		/>
 																	</div>

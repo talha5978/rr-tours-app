@@ -241,12 +241,12 @@ export const DataTableSkeleton = memo(function DataTableSkeleton({
 
 	return (
 		<TableComponent>
-			<TableHeader className="bg-muted sticky top-0 z-10">
+			<TableHeader className="bg-muted-foreground/5 dark:bg-muted-foreground/20 sticky top-0 z-10">
 				{table.getHeaderGroups().map((headerGroup) => (
 					<TableRow key={headerGroup.id}>
 						{headerGroup.headers.map((header) => {
 							return (
-								<TableHead key={header.id} className="bg-muted">
+								<TableHead key={header.id}>
 									{header.isPlaceholder
 										? null
 										: flexRender(header.column.columnDef.header, header.getContext())}
@@ -262,7 +262,7 @@ export const DataTableSkeleton = memo(function DataTableSkeleton({
 						{Array.from({ length: columns.length }, (_, i) => i + 1).map((index) => {
 							return (
 								<TableCell key={index + index}>
-									<Skeleton className="h-[30px] w-full bg-muted-dark dark:bg-muted" />
+									<Skeleton className="h-7.5 w-full bg-muted-foreground/5 dark:bg-muted-foreground/20" />
 								</TableCell>
 							);
 						})}
@@ -286,7 +286,7 @@ export function TableColumnsToggle({ table }: { table: Table<any> }) {
 					<span className="hidden md:inline">Columns</span>
 				</Button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent align="end" className="w-[150px]">
+			<DropdownMenuContent align="end" className="w-37.5">
 				<DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
 				<DropdownMenuSeparator />
 				{table
