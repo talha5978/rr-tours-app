@@ -41,7 +41,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 	});
 
 	const data = await queryClient.fetchQuery(highLevelCategoriesQuery({ request, q, pageIndex, pageSize }));
-	console.log(data);
 
 	return { data, query: q, pageIndex, pageSize };
 };

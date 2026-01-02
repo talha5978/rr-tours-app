@@ -51,7 +51,7 @@ export const mainNavItems: NavItem[] = [
 			},
 			{
 				title: "Tour Tags",
-				url: "/tour-tags",
+				url: "/tags",
 				icon: <Tag />,
 			},
 			{

@@ -26,6 +26,7 @@ type ImageInputProps = {
 	dimensions: ImgDimensions;
 	className?: HtmlHTMLAttributes<HTMLDivElement>["className"];
 	dropZoneClassName?: HtmlHTMLAttributes<HTMLDivElement>["className"];
+	showDetails?: boolean;
 };
 
 type ImagePreviewProps = {
@@ -73,7 +74,13 @@ const ImagePreview = ({ url, onRemove }: ImagePreviewProps) => (
 	</div>
 );
 
-export default function ImageInput({ name, dimensions, className, dropZoneClassName }: ImageInputProps) {
+export default function ImageInput({
+	name,
+	dimensions,
+	className,
+	dropZoneClassName,
+	showDetails = true,
+}: ImageInputProps) {
 	const { setValue, watch, setError, clearErrors } = useFormContext();
 	const formValue = watch(name);
 
@@ -208,23 +215,25 @@ export default function ImageInput({ name, dimensions, className, dropZoneClassN
 										className="h-16 w-16 text-muted-foreground"
 										strokeWidth={0.85}
 									/>
-									<div className="px-2 flex flex-col gap-1 justify-center items-center">
-										<span className="text-sm text-muted-foreground">
-											Drag and drop or click to upload
-										</span>
-										<span className="text-xs text-muted-foreground">
-											{ALLOWED_IMAGE_FORMATS.map(
-												(fmt) => `.${fmt.split("/")[1].toUpperCase()}`,
-											).join(", ")}
-										</span>
-										<span className="text-xs text-muted-foreground">
-											MAX {formatFileSize(MAX_IMAGE_SIZE)} Supported
-										</span>
-										<span className="text-xs text-muted-foreground">
-											{formatDimensions(dimensions.min)} to{" "}
-											{formatDimensions(dimensions.max)}px
-										</span>
-									</div>
+									{showDetails && (
+										<div className="px-2 flex flex-col gap-1 justify-center items-center">
+											<span className="text-sm text-muted-foreground">
+												Drag and drop or click to upload
+											</span>
+											<span className="text-xs text-muted-foreground">
+												{ALLOWED_IMAGE_FORMATS.map(
+													(fmt) => `.${fmt.split("/")[1].toUpperCase()}`,
+												).join(", ")}
+											</span>
+											<span className="text-xs text-muted-foreground">
+												MAX {formatFileSize(MAX_IMAGE_SIZE)} Supported
+											</span>
+											<span className="text-xs text-muted-foreground">
+												{formatDimensions(dimensions.min)} to{" "}
+												{formatDimensions(dimensions.max)}px
+											</span>
+										</div>
+									)}
 								</div>
 							</div>
 						)}

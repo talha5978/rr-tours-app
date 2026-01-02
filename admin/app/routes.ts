@@ -19,6 +19,11 @@ export default [
 			...prefix(":cityId", [route("update", "./routes/Cities/update-city.tsx")]),
 		]),
 
+		route("tags", "./routes/Tags/tags.tsx", [
+			route("add", "./routes/Tags/add-tag.tsx"),
+			route(":id/update", "./routes/Tags/update-tag.tsx"),
+		]),
+
 		...prefix("tours", [
 			route("tour/:id", "./routes/Tours/tour-details.tsx"),
 			route("add", "./routes/Tours/add-tour.tsx"),
