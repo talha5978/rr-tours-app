@@ -20,13 +20,14 @@ import { IconCurrencyDirham } from "@tabler/icons-react";
 import { Badge } from "~/components/ui/badge";
 import { type FormControlType } from "~/routes/Tours/add-tour";
 import type { SeatType } from "@workspace/shared/types/tours";
+import type { GetAllParticipantTypes } from "@workspace/shared/types/participant-types";
 
 export const TourOptionsCard = ({
 	control,
 	participants,
 }: {
 	control: FormControlType;
-	participants: { id: number; name: string }[];
+	participants: GetAllParticipantTypes;
 }) => {
 	const {
 		getValues,
@@ -233,7 +234,7 @@ const PricesSubSection = ({
 }: {
 	control: FormControlType;
 	optionIndex: number;
-	participants: { id: number; name: string }[];
+	participants: GetAllParticipantTypes;
 }) => {
 	const { fields, append, remove } = useFieldArray({
 		control,
@@ -317,9 +318,22 @@ const PricesSubSection = ({
 													<SelectValue placeholder="Select participant" />
 												</SelectTrigger>
 												<SelectContent>
-													{participants.map((p) => (
-														<SelectItem key={p.id} value={p.id.toString()}>
-															{p.name}
+													{participants.map((pt) => (
+														<SelectItem
+															key={pt.id}
+															value={pt.id.toString()}
+															className="flex gap-2 items-center"
+														>
+															<div>{pt.name}</div>
+															<div>
+																{pt.age_max - pt.age_min > 50 ? (
+																	<p>({pt.age_min}+)</p>
+																) : (
+																	<p>
+																		({pt.age_min}-{pt.age_max})
+																	</p>
+																)}
+															</div>
 														</SelectItem>
 													))}
 												</SelectContent>
