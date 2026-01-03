@@ -48,17 +48,15 @@ export default function TourDetailsPage() {
 	const [stepsDialogOpen, setStepsDialogOpen] = useState(false);
 
 	if (!tour) return <div>Tour not found</div>;
-	console.log("Re rendreed");
-	// console.log(tour);
+	if (tour.tour_options.some((opt) => opt.availabilities == null)) return <div>Error loading tour</div>;
 
-	const hasAvailabilities = tour.tour_options.some(
-		(opt: TourDetailOption) => opt.availabilities?.length > 0,
-	);
+	console.log("Re rendreed");
+	console.log(tour);
 
 	const availableDates = tour.tour_options.flatMap(
 		(opt: any) =>
 			opt.availabilities
-				?.filter((a: TourDetailAvailability) => a.isActive)
+				.filter((a: TourDetailAvailability) => a.isActive)
 				.map((a: TourDetailAvailability) => new Date(a.date)) || [],
 	);
 
@@ -67,14 +65,24 @@ export default function TourDetailsPage() {
 
 	const getTimeSlotsForDate = (date: Date, option: TourDetailOption) => {
 		const formattedDate = format(date, "yyyy-MM-dd");
-		const avail = option.availabilities?.find((a: TourDetailAvailability) => a.date === formattedDate);
+		const avail = option.availabilities.find((a: TourDetailAvailability) => a.date === formattedDate);
 		return avail?.slots.sort((a, b) => a.time_slot.sort_order - b.time_slot.sort_order) || [];
+	};
+
+	const checkIfNoSlotsAvailable = () => {
+		return (
+			selectedDate &&
+			selectedOption &&
+			getTimeSlotsForDate(selectedDate, selectedOption).every(
+				(s) => s.available_seats === 0 && s.seat_type === "LIMITED",
+			)
+		);
 	};
 
 	const handleButtonClick = (option: TourDetailOption) => {
 		setStepsDialogOpen(true);
 		setSelectedOption(option);
-		setStep(hasAvailabilities ? "date" : "participants");
+		setStep("date");
 	};
 
 	const handleDateSelect = (date: Date | undefined) => {
@@ -90,7 +98,7 @@ export default function TourDetailsPage() {
 
 	const handleBack = () => {
 		if (step === "time") setStep("date");
-		if (step === "participants" && hasAvailabilities) setStep("time");
+		if (step === "participants") setStep("time");
 	};
 
 	const tour_images = useMemo(() => {
@@ -153,7 +161,7 @@ export default function TourDetailsPage() {
 						<h1 className="text-3xl font-bold">{tour.name}</h1>
 					</div>
 
-					<div className="flex gap-4 items-center">
+					<div className="flex gap-4 flex-wrap items-center">
 						{tour.tour_category && (
 							<>
 								<Link
@@ -214,8 +222,15 @@ export default function TourDetailsPage() {
 									.map((option) => (
 										<Card key={option.id} className="pt-0">
 											<CardHeader className="bg-accent pt-4 pb-3 rounded-t-xl">
-												<CardTitle>
+												<CardTitle className="sm:flex sm:flex-wrap gap-4 items-center justify-between">
 													<h3 className="text-lg">{option.name}</h3>
+													{option.isOpenDated && (
+														<div className="max-sm:hidden">
+															<Badge className="bg-warning py-1.5">
+																Open Dated
+															</Badge>
+														</div>
+													)}
 												</CardTitle>
 											</CardHeader>
 											<CardContent className="space-y-4">
@@ -268,8 +283,7 @@ export default function TourDetailsPage() {
 														From {getMinPrice(option)} AED
 													</p>
 													<p className="text-destructive">
-														{hasAvailabilities &&
-														option.availabilities.every((a) =>
+														{option.availabilities.every((a) =>
 															a.slots.every(
 																(s) =>
 																	s.seat_type === "LIMITED" &&
@@ -303,25 +317,18 @@ export default function TourDetailsPage() {
 																<h3 className="font-semibold text-base">
 																	{tour.name}
 																</h3>
-																<div className="flex gap-2 flex-wrap items-center">
+																<div className="flex gap-2 justify-between flex-wrap items-center">
 																	<p className="text-sm">{option.name}</p>
-																	<div>
-																		{option.availabilities.every((a) =>
-																			a.slots.every(
-																				(s) =>
-																					s.seat_type ===
-																						"UNLIMITED" &&
-																					s.available_seats == null,
-																			),
-																		) && (
+																	{option.isOpenDated && (
+																		<div>
 																			<Badge className="bg-warning">
 																				Open Dated
 																			</Badge>
-																		)}
-																	</div>
+																		</div>
+																	)}
 																</div>
 															</div>
-															{/* *:data-[slot=badge]:px-2 *:data-[slot=badge]:py-1.5 *:data-[slot=badge]:text-sm */}
+
 															<div className="space-y-4">
 																<MainBodySection
 																	content={option.inclusions}
@@ -348,10 +355,9 @@ export default function TourDetailsPage() {
 																	</p>
 																	<Button
 																		size={"icon"}
-																		onClick={() => {
-																			handleButtonClick(option);
-																			console.log("Clicked");
-																		}}
+																		onClick={() =>
+																			handleButtonClick(option)
+																		}
 																	>
 																		<ArrowRight className="w-4 h-4" />
 																	</Button>
@@ -365,9 +371,7 @@ export default function TourDetailsPage() {
 															onClick={() => handleButtonClick(option)}
 															size={"sm"}
 														>
-															{hasAvailabilities
-																? "Check Availability"
-																: "Select"}
+															Select
 														</Button>
 													</div>
 
@@ -390,28 +394,20 @@ export default function TourDetailsPage() {
 																	{tour.name}
 																</h3>
 																{selectedOption && (
-																	<div className="flex gap-2 flex-wrap items-center">
+																	<div className="flex gap-2 justify-between flex-wrap items-center">
 																		<p className="text-sm">
 																			{selectedOption.name}
 																		</p>
-																		<div>
-																			{selectedOption.availabilities.every(
-																				(a) =>
-																					a.slots.every(
-																						(s) =>
-																							s.seat_type ===
-																								"UNLIMITED" &&
-																							s.available_seats ==
-																								null,
-																					),
-																			) && (
+																		{option.isOpenDated && (
+																			<div>
 																				<Badge className="bg-warning">
 																					Open Dated
 																				</Badge>
-																			)}
-																		</div>
+																			</div>
+																		)}
 																	</div>
 																)}
+
 																{step === "time" && selectedDate && (
 																	<div className="flex gap-2 items-center justify-between">
 																		<p className="text-sm mt-1">
@@ -463,84 +459,80 @@ export default function TourDetailsPage() {
 																	)}
 															</div>
 
-															{step === "date" && hasAvailabilities && (
+															{step === "date" && (
 																<div className="space-y-4">
-																	<p>Select a date</p>
-																	<div className="max-[32rem]:hidden">
-																		<DatePicker
-																			popover_align="center"
-																			numberOfMonths={2}
-																			value={selectedDate}
-																			onDateChange={handleDateSelect}
-																			date_disabled={(date) =>
-																				isBefore(
-																					date,
-																					startOfToday(),
-																				) ||
-																				!isDateAvailable(date) ||
-																				(selectedOption &&
-																				selectedOption.availabilities &&
-																				!selectedOption.availabilities.find(
-																					(a) =>
-																						a.date ===
-																						format(
+																	<p>
+																		Select{" "}
+																		{selectedOption?.isOpenDated
+																			? "your preffered date"
+																			: "a date"}
+																	</p>
+																	{[
+																		{
+																			className: "max-[32rem]:hidden",
+																			months: 2,
+																			align: "center",
+																		},
+																		{
+																			className:
+																				"max-[32rem]:block hidden",
+																			months: 1,
+																			align: "start",
+																		},
+																	].map(
+																		({ className, months, align }, i) => (
+																			<div
+																				className={className}
+																				key={i}
+																			>
+																				<DatePicker
+																					popover_align={
+																						align as any
+																					}
+																					numberOfMonths={months}
+																					value={selectedDate}
+																					onDateChange={
+																						handleDateSelect
+																					}
+																					date_disabled={(date) =>
+																						isBefore(
 																							date,
-																							"yyyy-MM-dd",
-																						),
-																				)?.isActive
-																					? true
-																					: false)
-																			}
-																		/>
-																	</div>
-																	<div className="max-[32rem]:block hidden">
-																		<DatePicker
-																			popover_align="start"
-																			numberOfMonths={1}
-																			value={selectedDate}
-																			onDateChange={handleDateSelect}
-																			date_disabled={(date) =>
-																				isBefore(
-																					date,
-																					startOfToday(),
-																				) || !isDateAvailable(date)
-																			}
-																		/>
-																	</div>
+																							startOfToday(),
+																						) ||
+																						!isDateAvailable(
+																							date,
+																						) ||
+																						(selectedOption &&
+																						selectedOption.availabilities &&
+																						!selectedOption.availabilities.find(
+																							(a) =>
+																								a.date ===
+																								format(
+																									date,
+																									"yyyy-MM-dd",
+																								),
+																						)?.isActive
+																							? true
+																							: false)
+																					}
+																				/>
+																			</div>
+																		),
+																	)}
 
-																	{selectedDate &&
-																		selectedOption &&
-																		getTimeSlotsForDate(
-																			selectedDate,
-																			selectedOption,
-																		).every(
-																			(s) =>
-																				s.available_seats === 0 &&
-																				s.seat_type === "LIMITED",
-																		) && (
-																			<p className="text-destructive">
-																				Sorry! No timeslot is
-																				available for this date.
-																			</p>
-																		)}
+																	{checkIfNoSlotsAvailable() == true && (
+																		<p className="text-destructive">
+																			Sorry! No timeslot is available
+																			for this date.
+																		</p>
+																	)}
 
 																	<div className="w-fit ml-auto">
 																		<Button
 																			size={"sm"}
 																			onClick={() => setStep("time")}
 																			disabled={
-																				(selectedDate &&
-																				selectedOption &&
-																				getTimeSlotsForDate(
-																					selectedDate,
-																					selectedOption,
-																				).every(
-																					(s) =>
-																						s.available_seats ===
-																							0 &&
-																						s.seat_type ===
-																							"LIMITED",
-																				)
+																				(checkIfNoSlotsAvailable()
 																					? true
 																					: false) || !selectedDate
 																			}
@@ -555,7 +547,12 @@ export default function TourDetailsPage() {
 																selectedDate &&
 																selectedOption && (
 																	<div className="space-y-4">
-																		<p>Select a time slot</p>
+																		<p>
+																			Select{" "}
+																			{selectedOption?.isOpenDated
+																				? "your preffered timeslot"
+																				: "a timeslot"}
+																		</p>
 																		<div className="flex gap-2 flex-wrap">
 																			{getTimeSlotsForDate(
 																				selectedDate,

@@ -1,5 +1,5 @@
 import {
-	ColumnDef,
+	type ColumnDef,
 	getCoreRowModel,
 	getFilteredRowModel,
 	getPaginationRowModel,
@@ -338,9 +338,6 @@ const ToursGrid = memo(() => {
 					<TourCard tour={tour} className="h-full" />
 				</li>
 			))}
-			<li key={"create-new-tour"}>
-				<CreateNewTourCard />
-			</li>
 		</motion.ul>
 	);
 });
@@ -504,19 +501,6 @@ function TourCard({ tour, className }: { tour: HighLevelTour; className?: string
 		</div>
 	);
 }
-
-const CreateNewTourCard = memo(() => {
-	return (
-		<Link to="/tours/add" viewTransition prefetch="intent">
-			<div className="h-full flex border-2 border-transparent transition-colors duration-200 ease-in-out items-center justify-center bg-card cursor-pointer hover:bg-accent/50 hover:border-primary rounded-xl">
-				<div className="flex flex-col items-center gap-2 p-6">
-					<PlusCircle className="h-6 w-6 text-muted-foreground" />
-					<p className="text-md font-semibold">Add New Tour</p>
-				</div>
-			</div>
-		</Link>
-	);
-});
 
 const TourCardSkeleton = memo(({ className }: { className?: string }) => {
 	const { pageSize } = useLoaderData<typeof loader>();
