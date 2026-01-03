@@ -330,7 +330,7 @@ export class ToursService extends Service {
 				.from(this.TOURS_TABLE)
 				.select(
 					`
-						id, name, cover_image, created_at, updated_at, isFeatured, isActive,
+						id, name, cover_image, updated_at, isFeatured, isActive,
 						${this.META_DETAILS_TABLE}(url_key),
 						${this.CITIES_TABLE}(id, name, ${this.META_DETAILS_TABLE}(url_key)),
 						${this.CATEGORIES_TABLE}(id, name, ${this.META_DETAILS_TABLE}(url_key)),
@@ -376,7 +376,6 @@ export class ToursService extends Service {
 				id: tour.id,
 				name: tour.name,
 				cover_image: tour.cover_image,
-				created_at: tour.created_at ?? "",
 				updated_at: tour.updated_at ?? "",
 				url_key: tour.meta_details.url_key,
 				isFeatured: tour.isFeatured,

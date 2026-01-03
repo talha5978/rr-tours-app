@@ -128,7 +128,6 @@ export default function TourDetailsPage() {
 			return null;
 		}
 	}
-	console.log(tour);
 
 	return (
 		<>
@@ -815,7 +814,10 @@ const AttributesCard = memo(
 						)}
 					</div>
 				</CardContent>
-				<Separator />
+				{tour.free_cancelation_avilable == null &&
+					tour.duration_minutes == null &&
+					tour.live_tour_guide == null &&
+					(tour.live_tour_guide_langs == null || tour.live_tour_guide_langs == "") && <Separator />}
 				<CardContent className="space-y-2">
 					{tour.free_cancelation_avilable && (
 						<div className="flex items-center gap-4">
