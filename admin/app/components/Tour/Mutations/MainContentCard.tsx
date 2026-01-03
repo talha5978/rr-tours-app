@@ -51,7 +51,7 @@ export const MainContentCard = ({
 								<Textarea
 									placeholder="e.g. Overview of the tour"
 									className="min-h-24"
-									maxLength={700}
+									maxLength={2000}
 									{...field}
 								/>
 							</FormControl>
@@ -129,6 +129,12 @@ export const MainContentCard = ({
 							<FormLabel>Cancellation Policy</FormLabel>
 							<FormControl className="mt-1">
 								<RadioGroup onValueChange={field.onChange} value={field.value}>
+									{/* Optional "None" */}
+									<div className="flex items-center gap-3">
+										<RadioGroupItem value="" id="none" />
+										<Label htmlFor="none">None</Label>
+									</div>
+
 									{cancellation_policies.map((p) => (
 										<div className="flex items-center gap-3" key={p.id}>
 											<RadioGroupItem value={p.id.toString()} id={p.id.toString()} />

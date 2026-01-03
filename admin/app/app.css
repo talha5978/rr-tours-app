@@ -228,3 +228,36 @@ input::-webkit-inner-spin-button {
 	background-color: var(--primary);
 	color: var(--primary-foreground);
 }
+
+/* Hide all pickers by default */
+.picker {
+	display: none;
+}
+
+/* sm (up to 599px) → show 1 month */
+@media (max-width: 599px) {
+	.picker-sm {
+		display: block;
+	}
+}
+
+/* md (600px to 1023px) → show 2 months */
+@media (min-width: 600px) and (max-width: 1023px) {
+	.picker-md {
+		display: block;
+	}
+}
+
+/* lg (1024px to 1279px) → show 3 months */
+@media (min-width: 1024px) and (max-width: 1279px) {
+	.picker-lg {
+		display: block;
+	}
+}
+
+/* xl (1280px and above) → show 4 months */
+@media (min-width: 1280px) {
+	.picker-xl {
+		display: block;
+	}
+}

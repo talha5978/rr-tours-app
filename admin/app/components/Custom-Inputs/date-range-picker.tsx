@@ -13,6 +13,7 @@ interface DateRangePickerProps extends HTMLAttributes<HTMLDivElement> {
 	/** called when user selects new range */
 	onDateRangeChange?: (range: DateRange | undefined) => void;
 	date_disabled?: Matcher | Matcher[];
+	numberOfMonths?: number;
 }
 
 export default function DateRangePicker({
@@ -20,6 +21,7 @@ export default function DateRangePicker({
 	value: controlledValue,
 	onDateRangeChange: controlledOnChange,
 	date_disabled,
+	numberOfMonths = 2,
 	...rest
 }: DateRangePickerProps) {
 	const isControlled = controlledOnChange != null;
@@ -73,7 +75,7 @@ export default function DateRangePicker({
 						defaultMonth={date?.from}
 						selected={date}
 						onSelect={handleSelect}
-						numberOfMonths={2}
+						numberOfMonths={numberOfMonths}
 						disabled={date_disabled}
 					/>
 				</PopoverContent>

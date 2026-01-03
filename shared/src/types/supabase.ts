@@ -309,6 +309,7 @@ export type Database = {
 					exclusions: string | null;
 					id: number;
 					inclusions: string | null;
+					isOpenDated: boolean;
 					name: string;
 					note: string | null;
 					sort_order: number;
@@ -320,6 +321,7 @@ export type Database = {
 					exclusions?: string | null;
 					id?: number;
 					inclusions?: string | null;
+					isOpenDated?: boolean;
 					name: string;
 					note?: string | null;
 					sort_order?: number;
@@ -331,6 +333,7 @@ export type Database = {
 					exclusions?: string | null;
 					id?: number;
 					inclusions?: string | null;
+					isOpenDated?: boolean;
 					name?: string;
 					note?: string | null;
 					sort_order?: number;

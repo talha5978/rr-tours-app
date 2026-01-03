@@ -1,4 +1,4 @@
-import { XCircleIcon } from "lucide-react";
+import { Loader2, XCircleIcon } from "lucide-react";
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "~/components/ui/accordion";
 import { Button } from "~/components/ui/button";
@@ -57,6 +57,7 @@ export const TourOptionsCard = ({
 				},
 			],
 			availabilities: [],
+			isOpenDated: "true",
 		});
 	};
 
@@ -104,6 +105,7 @@ export const TourOptionsCard = ({
 														<FormControl>
 															<Input
 																placeholder="e.g. Tickets To Ferrari World"
+																maxLength={300}
 																{...field}
 															/>
 														</FormControl>
@@ -111,6 +113,7 @@ export const TourOptionsCard = ({
 													</FormItem>
 												)}
 											/>
+
 											<FormField
 												control={control}
 												name={`tour_options.${optionIndex}.inclusions`}
@@ -172,6 +175,39 @@ export const TourOptionsCard = ({
 																type="number"
 																{...field}
 															/>
+														</FormControl>
+														<FormMessage />
+													</FormItem>
+												)}
+											/>
+											<FormField
+												control={control}
+												name={`tour_options.${optionIndex}.isOpenDated`}
+												render={({ field }) => (
+													<FormItem>
+														<FormControl>
+															<Label className="hover:bg-accent/50 flex items-start gap-3 rounded-lg border p-4 cursor-pointer">
+																<Checkbox
+																	checked={field.value === "true"}
+																	onCheckedChange={() => {
+																		field.onChange(
+																			field.value === "true"
+																				? "false"
+																				: "true",
+																		);
+																	}}
+																/>
+																<div className="grid gap-1.5 font-normal">
+																	<p className="text-sm leading-none font-medium">
+																		Open Dated
+																	</p>
+																	<p className="text-muted-foreground text-sm">
+																		This option will be marked as open
+																		dated and available for any date for a
+																		duration.
+																	</p>
+																</div>
+															</Label>
 														</FormControl>
 														<FormMessage />
 													</FormItem>
@@ -271,7 +307,7 @@ const PricesSubSection = ({
 				{fields.map((price, priceIndex) => (
 					<div
 						key={price.id}
-						className="flex flex-col space-y-4 bg-background shadow-lg p-4 rounded-lg relative col-span-1"
+						className="flex flex-col space-y-4 bg-card shadow-md border-2 p-4 rounded-lg relative col-span-1"
 					>
 						<button
 							className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-pointer"
@@ -390,6 +426,7 @@ const AvailabilitiesSubSection = ({
 	const [singleDate, setSingleDate] = useState("");
 	const [range, setRange] = useState({ from: "", to: "" });
 	const [cardCollapsed, setCardsCollapsed] = useState(false);
+	const [addingAvailability, setAvailablitilyAdding] = useState(false);
 
 	const optionSeatType = useWatch({ control, name: `tour_options.${optionIndex}.seat_type` }) as SeatType;
 
@@ -421,6 +458,7 @@ const AvailabilitiesSubSection = ({
 	};
 
 	const handleAddAvailabilities = () => {
+		setAvailablitilyAdding(true);
 		const existingDates = fields.map((f) => f.date);
 		// console.log(fields.map(f => f.date));
 
@@ -458,6 +496,7 @@ const AvailabilitiesSubSection = ({
 		setNewTimeslots([{ time: "", label: "", sort_order: "1", available_seats: "" }]);
 		setSingleDate("");
 		setRange({ from: "", to: "" });
+		setAvailablitilyAdding(false);
 	};
 
 	useEffect(() => {
@@ -521,7 +560,7 @@ const AvailabilitiesSubSection = ({
 				{fields.map((avail, availIndex) => (
 					<div
 						key={avail.id}
-						className="flex flex-col bg-background shadow-lg p-5 rounded-lg relative col-span-1 h-fit"
+						className="flex flex-col bg-card shadow-md border-2 p-5 rounded-lg relative col-span-1 h-fit"
 					>
 						<button
 							className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-pointer"
@@ -622,19 +661,30 @@ const AvailabilitiesSubSection = ({
 
 					{/* Date Picker */}
 					{isRange ? (
-						<DateRangePicker
-							value={{
-								from: range.from ? new Date(range.from) : undefined,
-								to: range.to ? new Date(range.to) : undefined,
-							}}
-							onDateRangeChange={(r) =>
-								setRange({
-									from: r?.from ? r.from.toISOString() : "",
-									to: r?.to ? r.to.toISOString() : "",
-								})
-							}
-							date_disabled={{ before: startOfToday() }}
-						/>
+						<div>
+							{[
+								{ class: "picker-xl", months: 4 },
+								{ class: "picker-lg", months: 3 },
+								{ class: "picker-md", months: 2 },
+								{ class: "picker-sm", months: 1 },
+							].map((p) => (
+								<DateRangePicker
+									value={{
+										from: range.from ? new Date(range.from) : undefined,
+										to: range.to ? new Date(range.to) : undefined,
+									}}
+									onDateRangeChange={(r) =>
+										setRange({
+											from: r?.from ? r.from.toISOString() : "",
+											to: r?.to ? r.to.toISOString() : "",
+										})
+									}
+									date_disabled={{ before: startOfToday() }}
+									numberOfMonths={p.months}
+									className={`picker ${p.class}`}
+								/>
+							))}
+						</div>
 					) : (
 						<DatePicker
 							value={singleDate ? new Date(singleDate) : undefined}
@@ -732,6 +782,7 @@ const AvailabilitiesSubSection = ({
 							size="sm"
 							onClick={handleAddAvailabilities}
 							disabled={
+								addingAvailability ||
 								(!isRange && !singleDate) ||
 								(isRange && (!range.from || !range.to)) ||
 								newTimeslots.length === 0 ||
@@ -742,7 +793,8 @@ const AvailabilitiesSubSection = ({
 									))
 							}
 						>
-							Add {isRange ? "Availabilities" : "Availability"}
+							{addingAvailability && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+							Add{addingAvailability && "ing"} {isRange ? "Availabilities" : "Availability"}
 						</Button>
 					</div>
 				</CardContent>

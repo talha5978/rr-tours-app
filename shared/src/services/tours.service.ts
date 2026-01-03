@@ -63,7 +63,10 @@ export class ToursService extends Service {
 				address_link: input.address_link || null,
 				address_name: input.address_name || null,
 				age_health_restrictions: input.age_health_restrictions || null,
-				cancellation_policy: input.cancellation_policy ? Number(input.cancellation_policy) : null,
+				cancellation_policy:
+					input.cancellation_policy && input.cancellation_policy != ""
+						? Number(input.cancellation_policy)
+						: null,
 				city_id: Number(input.city_id),
 				cover_image: uploadedCoverPath,
 				duration_minutes: input.duration_minutes ? parseFloat(input.duration_minutes) : null,
@@ -122,6 +125,7 @@ export class ToursService extends Service {
 					note: option.note || null,
 					sort_order: Number(option.sort_order || "1"),
 					tour_id: tourId,
+					isOpenDated: option.isOpenDated === "true",
 				};
 
 				const { data: optionInsert, error: optionError } = await this.supabase

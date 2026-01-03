@@ -752,7 +752,7 @@ const ParticipantFormComponent = memo(
 													min={0}
 													max={
 														selectedTimeSlot.seat_type === "UNLIMITED"
-															? 50
+															? 100
 															: selectedTimeSlot.available_seats
 													}
 													step={1}

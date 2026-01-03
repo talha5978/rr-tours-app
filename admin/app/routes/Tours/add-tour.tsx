@@ -152,8 +152,7 @@ export default function AddTourPage() {
 			overview: "",
 			highlights: "",
 			know_before_you_go: "",
-			cancellation_policy:
-				cancellation_policies?.length > 0 ? (cancellation_policies[0].id.toString() as string) : "",
+			cancellation_policy: "",
 			age_health_restrictions: "",
 			cover_image: undefined,
 			images: Array.from({ length: 4 }).fill(undefined) as undefined[],
@@ -180,7 +179,7 @@ export default function AddTourPage() {
 			if (actionData.success) {
 				toast.success("New tour added successfully");
 				if (actionData.tour_id) {
-					navigate("/tours/tour" + actionData.tour_id);
+					navigate("/tours/tour/" + actionData.tour_id);
 				}
 			} else if (actionData.error) {
 				toast.error(actionData.error);

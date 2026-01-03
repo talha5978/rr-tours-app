@@ -21,6 +21,8 @@ const AddTourOptionsSchema = z
 					message: "Option name is required.",
 				}),
 
+			isOpenDated: z.enum(["true", "false"]).default("false"),
+
 			exclusions: z.string().optional(),
 			inclusions: z.string().optional(),
 			note: z.string().optional(),
