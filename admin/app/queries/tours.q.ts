@@ -10,6 +10,8 @@ export const tourDetailsQuery = ({ request, tour_id }: { request: Request; tour_
 			const result = await svc.getTourDetails(tour_id);
 			return result;
 		},
+		staleTime: 10 * 60 * 1000,
+		gcTime: 20 * 60 * 1000,
 	});
 };
 
@@ -31,5 +33,7 @@ export const highLevelToursQuery = ({
 			const result = await svc.getHighLevelTours(q, pageIndex, pageSize);
 			return result;
 		},
+		staleTime: 10 * 60 * 1000,
+		gcTime: 20 * 60 * 1000,
 	});
 };
