@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "~/components/ui/dialog";
 import { format, isBefore, startOfToday } from "date-fns";
-import { ArrowRight, Check, ClockFading, Edit, MapPinned, X } from "lucide-react";
+import { Accessibility, ArrowRight, Check, ClockFading, Edit, MapPinned, X } from "lucide-react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -51,7 +51,7 @@ export default function TourDetailsPage() {
 	if (tour.tour_options.some((opt) => opt.availabilities == null)) return <div>Error loading tour</div>;
 
 	console.log("Re rendreed");
-	console.log(tour);
+	// console.log(tour);
 
 	const availableDates = tour.tour_options.flatMap(
 		(opt: any) =>
@@ -113,28 +113,30 @@ export default function TourDetailsPage() {
 	}, [tour]);
 
 	function getNextAvailabilityMsg(option: TourDetailOption) {
-		if (option.availabilities) {
-			const nextDate = option.availabilities.map((a) => {
-				return a.date;
-
-				// --> Logic for displaying the availability message only on the limited seats options
-				// const ss = a.slots.find(
-				// 	(s) => s.seat_type === "LIMITED" && (s.available_seats as number) > 0,
-				// );
-
-				// if (ss) {
-				// 	return a.date;
-				// }
-			})[0];
-
-			if (nextDate) {
-				return `Next available at ${format(nextDate, "PPPP")}`;
-			} else {
-				return null;
-			}
-		} else {
+		if (!option.availabilities || option.availabilities.length === 0) {
 			return null;
 		}
+
+		const sortedAvailabilities = [...option.availabilities].sort((a, b) => a.date.localeCompare(b.date));
+
+		const nextAvailability = sortedAvailabilities.find((availability) => {
+			if (new Date(availability.date) < startOfToday()) {
+				return false;
+			}
+
+			return availability.slots.some(
+				(slot) =>
+					slot.seat_type === "LIMITED" &&
+					slot.available_seats != null &&
+					(slot.available_seats as number) > 0,
+			);
+		});
+
+		if (nextAvailability) {
+			return `Next Available on ${format(new Date(nextAvailability.date), "PPPP")}`;
+		}
+
+		return null;
 	}
 
 	return (
@@ -290,7 +292,7 @@ export default function TourDetailsPage() {
 																	s.available_seats === 0,
 															),
 														)
-															? "Fully Booked"
+															? "Not Available"
 															: ""}
 													</p>
 													{getNextAvailabilityMsg(option) != null && (
@@ -662,6 +664,24 @@ export default function TourDetailsPage() {
 						<AttributesCard className="sticky top-10" tour={tour} />
 					</section>
 				</div>
+
+				{tour.tags && tour.tags.length > 0 && (
+					<section>
+						<h2 className="text-2xl font-semibold">Related Tags</h2>
+						<div className="flex gap-2 flex-wrap mt-4">
+							{tour.tags.map((tag, i) => (
+								<div className="relative " key={tag.id}>
+									<div className="flex gap-2 items-center pr-6 bg-card rounded-md">
+										<div className="px-4 bg-primary py-2 rounded-l-md">
+											<p>{i + 1}</p>
+										</div>
+										<p className="text-base py-2">{tag.name}</p>
+									</div>
+								</div>
+							))}
+						</div>
+					</section>
+				)}
 			</div>
 		</>
 	);
@@ -840,6 +860,17 @@ const AttributesCard = memo(
 								</h3>
 								<p className="text-muted-foreground text-sm">
 									Check availability or contact us for starting times
+								</p>
+							</div>
+						</div>
+					)}
+					{tour.isWeelChairAccessible && (
+						<div className="flex items-center gap-4">
+							<Accessibility className="h-5 w-5" />
+							<div>
+								<h3 className="font-semibold">Accessibility</h3>
+								<p className="text-muted-foreground text-sm">
+									{tour.name} tour is wheelchair accessible
 								</p>
 							</div>
 						</div>

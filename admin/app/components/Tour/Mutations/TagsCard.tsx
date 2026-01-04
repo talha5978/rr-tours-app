@@ -8,10 +8,10 @@ import { Checkbox } from "~/components/ui/checkbox";
 import { FormField } from "~/components/ui/form";
 import { Label } from "~/components/ui/label";
 import { Separator } from "~/components/ui/separator";
-import { type FormControlType } from "~/routes/Tours/add-tour";
+import { type AddFormControlType } from "~/routes/Tours/add-tour";
 
 type Props = {
-	control: FormControlType;
+	control: AddFormControlType;
 	noTags: boolean;
 	tags: GetAllTourTags;
 };

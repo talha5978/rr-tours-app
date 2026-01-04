@@ -1,6 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { MAX_META_KEYWORDS } from "@workspace/shared/constants/constants";
-import { AddTourActionSchema, type AddTourInput, AddTourSchema } from "@workspace/shared/schemas/tour.schema";
+import {
+	AddTourActionSchema,
+	type AddTourInput,
+	type UpdateTourInput,
+	UpdateTourSchema,
+} from "@workspace/shared/schemas/tour.schema";
 import { ToursService } from "@workspace/shared/services/tours.service";
 import type { ActionResponse } from "@workspace/shared/types/action-data";
 import { ApiError } from "@workspace/shared/utils/ApiError";
@@ -47,6 +52,7 @@ import { citiesListQuery } from "~/queries/cities.q";
 import { participantTypesQuery } from "~/queries/participant-types.q";
 import { allProvidersQuery } from "~/queries/providers.q";
 import { allTagsQuery } from "~/queries/tags.q";
+import { tourDetailsForUpdateQuery } from "~/queries/tours.q";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
 	try {
@@ -106,7 +112,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 	}
 };
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
+export const loader = async ({ request, params }: LoaderFunctionArgs) => {
+	if (params.id == null || params.id == "") {
+		throw new ApiError("Tour ID is required", 400, []);
+	}
+
+	const tour = await queryClient.fetchQuery(tourDetailsForUpdateQuery({ request, tour_id: params.id }));
 	const cancellation_policies = await queryClient.fetchQuery(cancellationPoliciesQuery({ request }));
 	const participants = await queryClient.fetchQuery(participantTypesQuery({ request }));
 	const cities = await queryClient.fetchQuery(citiesListQuery({ request }));
@@ -121,13 +132,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 		tags,
 		cancellation_policies,
 		participants,
+		tour,
 	};
 };
 
-export default function AddTourPage() {
-	const { cities, categories, providers, tags, cancellation_policies, participants } =
+export default function UpdateTourPage() {
+	const { cities, categories, providers, tags, cancellation_policies, participants, tour } =
 		useLoaderData<typeof loader>();
 	const navigate = useNavigate();
+
+	if (tour == null) {
+		toast.error("Error fetching tour!");
+		navigate("/tours");
+	}
 
 	const submit = useSubmit();
 	const navigation = useNavigation();
@@ -135,38 +152,64 @@ export default function AddTourPage() {
 	// @ts-ignore
 	const actionData: ActionResponse & { tour_id: string | null } = useActionData();
 
-	const form = useForm<AddTourInput>({
-		resolver: zodResolver(AddTourSchema),
+	const form = useForm<UpdateTourInput>({
+		resolver: zodResolver(UpdateTourSchema),
 		mode: "onSubmit",
 		defaultValues: {
-			name: "",
-			city_id: "",
-			tour_category_id: "",
-			provider: "",
-			duration_minutes: "",
-			isFeatured: "false",
-			isActive: "true",
-			free_cancelation_avilable: "false",
-			isWeelChairAccessible: "false",
-			tags: [],
-			overview: "",
-			highlights: "",
-			know_before_you_go: "",
-			cancellation_policy: "",
-			age_health_restrictions: "",
-			cover_image: undefined,
-			images: Array.from({ length: 4 }).fill(undefined) as undefined[],
-			address_name: "",
-			address_link: "",
+			name: tour?.name ?? "",
+			city_id: tour?.city?.id.toString() ?? "",
+			tour_category_id: tour?.tour_category?.id.toString() ?? "",
+			provider: tour?.provider?.id.toString() ?? "",
+			duration_minutes: tour?.duration_minutes?.toString() ?? "",
+			isFeatured: tour?.isFeatured ? "true" : "false",
+			isActive: tour?.isActive ? "true" : "false",
+			free_cancelation_avilable: tour?.free_cancelation_avilable ? "true" : "false",
+			isWeelChairAccessible: tour?.isWeelChairAccessible ? "true" : "false",
+			tags: tour?.tags.map((i) => i.id.toString()) ?? [],
+			overview: tour?.overview ?? "",
+			highlights: tour?.highlights ?? "",
+			know_before_you_go: tour?.know_before_you_go ?? "",
+			cancellation_policy: tour?.cancellation_policy?.toString() ?? "",
+			age_health_restrictions: tour?.age_health_restrictions ?? "",
+			cover_image: tour?.cover_image ?? undefined,
+			images: tour?.images ?? (Array.from({ length: 4 }).fill(undefined) as undefined[]),
+			address_name: tour?.address_name ?? "",
+			address_link: tour?.address_link ?? "",
 			meta_details: {
-				meta_title: "",
-				meta_description: "",
-				url_key: "",
-				meta_keywords: [],
+				meta_title: tour?.meta_details?.meta_title || "",
+				meta_description: tour?.meta_details?.meta_description || "",
+				url_key: tour?.meta_details?.url_key || "",
+				meta_keywords:
+					tour?.meta_details?.meta_keywords == ""
+						? []
+						: tour?.meta_details?.meta_keywords?.split(",") || [],
 			},
-			tour_options: [],
-			live_tour_guide: "false",
-			live_tour_guide_langs: [],
+			tour_options: tour?.tour_options.map((option) => ({
+				name: option.name ?? "",
+				note: option.note ?? "",
+				exclusions: option.exclusions ?? "",
+				inclusions: option.inclusions ?? "",
+				prices: option.prices.map((price) => ({
+					price: price.price.toString() ?? "",
+					participant: price.participant_type_id.toString() ?? "",
+				})),
+				sort_order: option?.sort_order.toString() ?? "1",
+				isOpenDated: (option.isOpenDated ? "true" : "false") as "true" | "false",
+				seat_type: option.availabilities[0].slots[0].seat_type ?? "LIMITED",
+				availabilities: option.availabilities.map((availability) => ({
+					date: availability.date,
+					isActive: availability.isActive ? "true" : "false",
+					timeslots: availability.slots.map((slot) => ({
+						available_seats: slot.available_seats?.toString() ?? "0",
+						label: slot.time_slot.label ?? "",
+						time: slot.time_slot.time ?? "",
+						sort_order: slot.time_slot.sort_order?.toString() ?? "1",
+					})),
+				})),
+			})),
+			live_tour_guide:
+				tour?.live_tour_guide_langs != null && tour?.live_tour_guide_langs != "" ? "true" : "false",
+			live_tour_guide_langs: tour?.live_tour_guide_langs?.split(",") ?? [],
 		},
 	});
 
@@ -177,7 +220,7 @@ export default function AddTourPage() {
 	useEffect(() => {
 		if (actionData) {
 			if (actionData.success) {
-				toast.success("New tour added successfully");
+				toast.success(tour?.name + " tour updated successfully");
 				if (actionData.tour_id) {
 					navigate("/tours/tour/" + actionData.tour_id);
 				}
@@ -186,7 +229,7 @@ export default function AddTourPage() {
 			} else if (actionData.validationErrors) {
 				toast.error("Invalid form data. Please check your inputs.");
 				Object.entries(actionData.validationErrors).forEach(([field, errors]) => {
-					setError(field as keyof AddTourInput, { message: errors[0] });
+					setError(field as keyof UpdateTourInput, { message: errors[0] });
 				});
 			}
 		}
@@ -194,8 +237,9 @@ export default function AddTourPage() {
 
 	const watchedTags = useWatch({ control, name: "tags" }) ?? [];
 
-	async function onFormSubmit(values: AddTourInput) {
-		// console.log(values);
+	async function onFormSubmit(values: UpdateTourInput) {
+		console.log(values);
+
 		if (values.address_name != null && values.address_name != "") {
 			if (values.address_link == null || values.address_link == "") {
 				toast.error("Please add address link.");
@@ -269,39 +313,43 @@ export default function AddTourPage() {
 			}
 		}
 
-		const formData = new FormData();
-
-		for (let key in values) {
-			if (typeof values[key as keyof AddTourInput] === "string") {
-				// @ts-ignore
-				values[key as keyof AddTourInput] = values[key].trim();
-			}
-		}
-
-		formData.append(
-			"payload",
-			JSON.stringify({
-				...values,
-				cover_image: undefined,
-				images: undefined,
-			}),
-		);
-
-		if (values.cover_image) {
-			formData.append("cover_image", values.cover_image);
-		}
-
-		if (values.images) {
-			values.images.forEach((file, _) => {
-				if (file) formData.append(`images`, file);
-			});
-		}
-
-		submit(formData, {
-			method: "POST",
-			action: "/tours/add",
-			encType: "multipart/form-data",
+		toast.warning("Notice", {
+			description: "Tour Updation functionality is under development.",
 		});
+
+		// const formData = new FormData();
+
+		// for (let key in values) {
+		// 	if (typeof values[key as keyof UpdateTourInput] === "string") {
+		// 		// @ts-ignore
+		// 		values[key as keyof UpdateTourInput] = values[key].trim();
+		// 	}
+		// }
+
+		// formData.append(
+		// 	"payload",
+		// 	JSON.stringify({
+		// 		...values,
+		// 		cover_image: undefined,
+		// 		images: undefined,
+		// 	}),
+		// );
+
+		// if (values.cover_image) {
+		// 	formData.append("cover_image", values.cover_image);
+		// }
+
+		// if (values.images) {
+		// 	values.images.forEach((file, _) => {
+		// 		if (file) formData.append(`images`, file);
+		// 	});
+		// }
+
+		// submit(formData, {
+		// 	method: "POST",
+		// 	action: "/tours/add",
+		// 	encType: "multipart/form-data",
+		// });
 	}
 
 	// useEffect(() => {
@@ -313,44 +361,47 @@ export default function AddTourPage() {
 	return (
 		<>
 			<MetaDetails
-				metaTitle="Add Tour | Admin Panel"
-				metaDescription="Add new Tour"
-				metaKeywords="Add Tour, New Tour"
+				metaTitle={"Update " + tour?.name + " Tour | Admin Panel"}
+				metaDescription={"Update" + tour?.name + " Tour"}
+				metaKeywords="Update Tour, New Tour"
 			/>
 			<section className="flex flex-col gap-4">
 				<div className="flex gap-4 items-center">
 					<BackButton href="/tours" />
-					<h1 className="text-2xl font-semibold">Add Tour</h1>
+					<h1 className="text-2xl font-semibold">Update Tour</h1>
 				</div>
 				<form className="space-y-4" onSubmit={handleSubmit(onFormSubmit)}>
 					<Form {...form}>
 						<div className="grid md:grid-cols-2 gap-4">
 							{/* General Card */}
 							<GeneralDetailsCard
-								control={control}
+								control={control as any}
 								cities={cities}
 								categories={categories}
 								providers={providers}
 							/>
 
 							{/* Attributes Card */}
-							<AttributesCard control={control} />
+							<AttributesCard control={control as any} />
 						</div>
 
 						{/* Images Card */}
-						<ImagesInputCard control={control} />
+						<ImagesInputCard control={control as any} />
 
 						{/* Tags Selection Card */}
-						<TagsCard control={control} tags={tags} noTags={watchedTags.length === 0} />
+						<TagsCard control={control as any} tags={tags} noTags={watchedTags.length === 0} />
 
 						{/* MAIN Content Card */}
-						<MainContentCard control={control} cancellation_policies={cancellation_policies} />
+						<MainContentCard
+							control={control as any}
+							cancellation_policies={cancellation_policies}
+						/>
 
 						{/* Options Card */}
-						<TourOptionsCard control={control} participants={participants} />
+						<TourOptionsCard control={control as any} participants={participants} />
 
 						{/* Address Card */}
-						<AddressCard control={control} />
+						<AddressCard control={control as any} />
 
 						{/* Meta Details Card */}
 						<Card>
@@ -466,7 +517,7 @@ export default function AddTourPage() {
 							</Link>
 							<Button type="submit" disabled={isSubmitting}>
 								{isSubmitting && <Loader2 className="animate-spin mr-2" />}
-								<span>Add</span>
+								<span>Update</span>
 							</Button>
 						</div>
 					</Form>
@@ -476,4 +527,4 @@ export default function AddTourPage() {
 	);
 }
 
-export type AddFormControlType = Control<AddTourInput>;
+export type UpdateFormControlType = Control<UpdateTourInput>;

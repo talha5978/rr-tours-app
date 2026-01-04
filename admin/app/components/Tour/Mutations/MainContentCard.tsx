@@ -14,7 +14,7 @@ import {
 	TagsInputList,
 } from "~/components/ui/tags-input";
 import { Textarea } from "~/components/ui/textarea";
-import { type FormControlType } from "~/routes/Tours/add-tour";
+import { type AddFormControlType } from "~/routes/Tours/add-tour";
 
 const MAX_LANGUAGES = 8;
 
@@ -22,7 +22,7 @@ export const MainContentCard = ({
 	control,
 	cancellation_policies,
 }: {
-	control: FormControlType;
+	control: AddFormControlType;
 	cancellation_policies: { id: number; policy: string }[];
 }) => {
 	const watchedGuide = useWatch<AddTourInput>({

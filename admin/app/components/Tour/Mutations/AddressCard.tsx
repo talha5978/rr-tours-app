@@ -6,7 +6,7 @@ import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/comp
 import { Input } from "~/components/ui/input";
 import { Separator } from "~/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
-import { type FormControlType } from "~/routes/Tours/add-tour";
+import { type AddFormControlType } from "~/routes/Tours/add-tour";
 
 export function extractIframeSrc(input: string): string {
 	if (!input) return "";
@@ -25,7 +25,7 @@ export function extractIframeSrc(input: string): string {
 	return "";
 }
 
-export const AddressCard = ({ control }: { control: FormControlType }) => {
+export const AddressCard = ({ control }: { control: AddFormControlType }) => {
 	const watchedIframe = useWatch({ control, name: "address_link" });
 
 	return (

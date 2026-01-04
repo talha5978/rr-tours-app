@@ -21,17 +21,21 @@ export type ImgDimensions = {
 	};
 };
 
+type AspectRatio = "square" | "video" | "wide" | "auto";
+
 type ImageInputProps = {
 	name: string;
 	dimensions: ImgDimensions;
 	className?: HtmlHTMLAttributes<HTMLDivElement>["className"];
 	dropZoneClassName?: HtmlHTMLAttributes<HTMLDivElement>["className"];
 	showDetails?: boolean;
+	aspectRatio?: AspectRatio;
 };
 
 type ImagePreviewProps = {
 	url: string;
 	onRemove: () => void;
+	aspectRatio?: AspectRatio;
 };
 
 const formatFileSize = (sizeInBytes: number) => {
@@ -58,8 +62,8 @@ const getAcceptedFormats = (): { [key: string]: string[] } => {
 	return accept;
 };
 
-const ImagePreview = ({ url, onRemove }: ImagePreviewProps) => (
-	<div className="relative aspect-square w-full rounded-md border border-border">
+const ImagePreview = ({ url, onRemove, aspectRatio = "wide" }: ImagePreviewProps) => (
+	<div className={`relative w-full rounded-md border border-border ${getAspectRatioClass(aspectRatio)}`}>
 		<button
 			className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-pointer"
 			onClick={onRemove}
@@ -74,12 +78,28 @@ const ImagePreview = ({ url, onRemove }: ImagePreviewProps) => (
 	</div>
 );
 
+const getAspectRatioClass = (ratio?: string) => {
+	switch (ratio) {
+		case "square":
+			return "aspect-square";
+		case "video":
+			return "aspect-video";
+		case "wide":
+			return "aspect-4/3";
+		case "auto":
+			return "aspect-auto";
+		default:
+			return "aspect-4/3";
+	}
+};
+
 export default function ImageInput({
 	name,
 	dimensions,
 	className,
 	dropZoneClassName,
 	showDetails = true,
+	aspectRatio = "wide",
 }: ImageInputProps) {
 	const { setValue, watch, setError, clearErrors } = useFormContext();
 	const formValue = watch(name);
@@ -189,7 +209,7 @@ export default function ImageInput({
 		<>
 			<div className={cn("w-full max-w-75", className)}>
 				{previewUrl && !uploadError ? (
-					<ImagePreview url={previewUrl} onRemove={handleRemove} />
+					<ImagePreview url={previewUrl} onRemove={handleRemove} aspectRatio={aspectRatio} />
 				) : (
 					<Dropzone
 						onDrop={handleDrop}
@@ -201,12 +221,13 @@ export default function ImageInput({
 							<div
 								{...getRootProps()}
 								className={cn(
-									"border-2 border-dashed flex items-center justify-center aspect-square rounded-md focus:outline-none outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors duration-200 ease-in-out p-4",
+									"border-2 border-dashed flex items-center justify-center rounded-md focus:outline-none outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors duration-200 ease-in-out p-4",
 									{
 										"border-primary bg-primary/5": isDragActive && isDragAccept,
 										"border-destructive bg-destructive/20": isDragActive && isDragReject,
 									},
 									dropZoneClassName,
+									getAspectRatioClass(aspectRatio),
 								)}
 							>
 								<input {...getInputProps()} id={name} />

@@ -197,6 +197,12 @@ body {
 	}
 }
 
+@layer components {
+	.filters-count {
+		@apply absolute top-0 right-0 px-1 min-w-4 translate-x-1/2 -translate-y-1/2 origin-center flex items-center justify-center rounded-sm text-xs bg-primary text-primary-foreground;
+	}
+}
+
 ::-webkit-scrollbar {
 	width: 5px;
 	height: 8px;

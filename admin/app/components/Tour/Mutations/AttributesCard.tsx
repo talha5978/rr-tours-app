@@ -2,10 +2,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Checkbox } from "~/components/ui/checkbox";
 import { FormControl, FormField, FormItem, FormMessage } from "~/components/ui/form";
 import { Label } from "~/components/ui/label";
-import { FormControlType } from "~/routes/Tours/add-tour";
+import { AddFormControlType } from "~/routes/Tours/add-tour";
 
 type Props = {
-	control: FormControlType;
+	control: AddFormControlType;
 };
 
 export const AttributesCard = ({ control }: Props) => {

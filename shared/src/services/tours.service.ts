@@ -8,7 +8,13 @@ import { asServiceMiddleware } from "@workspace/shared/middlewares/utils";
 import { MetaDetailsService } from "@workspace/shared/services/meta-details.service";
 import type { AddTourActionDate } from "@workspace/shared/schemas/tour.schema";
 import { type TablesInsert } from "@workspace/shared/types/supabase";
-import type { GetHighLevelToursResponse, GetTourDetails, HighLevelTour } from "@workspace/shared/types/tours";
+import type {
+	GetHighLevelToursResponse,
+	GetTourDetails,
+	GetTourDetailsForUpdate,
+	HighLevelTour,
+} from "@workspace/shared/types/tours";
+import { type TourFilters } from "@workspace/shared/schemas/tours-filter.schema";
 
 @UseClassMiddleware(loggerMiddleware, asServiceMiddleware<ToursService>(verifyUser))
 export class ToursService extends Service {
@@ -18,10 +24,20 @@ export class ToursService extends Service {
 			throw new ApiError("Unauthorized", 401, []);
 		}
 
+		for (const option of input.tour_options) {
+			if (option.availabilities == null || option.availabilities.length === 0) {
+				throw new ApiError(
+					`Please add at least one availability for ${option.name} tour option.`,
+					400,
+					[],
+				);
+			}
+		}
+
 		const mediaSvc = await this.createSubService(MediaService);
 
 		let uploadedCoverPath = "";
-		const uploadedImagePaths: string[] = [];
+		let uploadedImagePaths: string[] = [];
 		let metaId: string | null = null;
 		let tourId: string | null = null;
 		const optionIds: number[] = [];
@@ -38,16 +54,19 @@ export class ToursService extends Service {
 				}
 			}
 
-			// Upload secondary images
+			// Upload secondary images in parallel
 			if (input.images) {
-				for (const img of input.images.filter(Boolean) as File[]) {
-					const { data } = await mediaSvc.uploadImage(img);
-					const path = data?.path;
-					if (path) {
-						uploadedImagePaths.push(path);
-					} else {
-						throw new ApiError("Failed to upload secondary image", 500, []);
-					}
+				const uploadPromises = input.images
+					.filter(Boolean)
+					.map((img) => mediaSvc.uploadImage(img as File));
+				const uploadedResults = await Promise.all(uploadPromises);
+
+				uploadedImagePaths = uploadedResults
+					.map((res) => res.data?.path)
+					.filter((path): path is string => !!path);
+
+				if (uploadedImagePaths.length !== input.images.filter(Boolean).length) {
+					throw new ApiError("Failed to upload one or more secondary images", 500, []);
 				}
 			}
 
@@ -116,117 +135,152 @@ export class ToursService extends Service {
 				}
 			}
 
-			// Insert tour options
-			for (const option of input.tour_options) {
-				const optionData: TablesInsert<"tour_options"> = {
-					name: option.name,
-					inclusions: option.inclusions || null,
-					exclusions: option.exclusions || null,
-					note: option.note || null,
-					sort_order: Number(option.sort_order || "1"),
-					tour_id: tourId,
-					isOpenDated: option.isOpenDated === "true",
-				};
+			// Prepare all tour options data
+			const optionsData: TablesInsert<"tour_options">[] = input.tour_options.map((option) => ({
+				name: option.name,
+				inclusions: option.inclusions || null,
+				exclusions: option.exclusions || null,
+				note: option.note || null,
+				sort_order: Number(option.sort_order || "1"),
+				tour_id: tourId as string,
+				isOpenDated: option.isOpenDated === "true",
+			}));
 
-				const { data: optionInsert, error: optionError } = await this.supabase
-					.from(this.TOUR_OPTIONS_TABLE)
-					.insert(optionData)
-					.select("id")
-					.single();
+			// Batch insert tour options
+			const { data: insertedOptions, error: optionsError } = await this.supabase
+				.from(this.TOUR_OPTIONS_TABLE)
+				.insert(optionsData)
+				.select("id");
 
-				if (optionError) {
-					throw new ApiError(optionError.message, 500, [optionError.details || []]);
-				}
+			if (optionsError) {
+				throw new ApiError(optionsError.message, 500, [optionsError.details || []]);
+			}
 
-				const optionId = optionInsert.id;
-				optionIds.push(optionId);
+			optionIds.push(...insertedOptions.map((opt) => opt.id));
 
-				// Insert prices
-				const pricesData = option.prices.map((p) => ({
-					price: Number(p.price),
-					participant_type_id: Number(p.participant),
-					tour_option_id: optionId,
-				}));
+			// Prepare all prices data
+			const allPrices: TablesInsert<"tour_option_prices">[] = [];
+			input.tour_options.forEach((option, optIdx) => {
+				const optionId = insertedOptions[optIdx].id;
+				option.prices.forEach((p) => {
+					allPrices.push({
+						price: Number(p.price),
+						participant_type_id: Number(p.participant),
+						tour_option_id: optionId,
+					});
+				});
+			});
 
+			// Batch insert prices
+			if (allPrices.length > 0) {
 				const { error: pricesError } = await this.supabase
 					.from(this.TOUR_OPTION_PRICES_TABLE)
-					.insert(pricesData);
+					.insert(allPrices);
 
 				if (pricesError) {
 					throw new ApiError(pricesError.message, 500, [pricesError.details || []]);
 				}
+			}
 
-				// Insert availabilities if provided
-				if (option.availabilities && option.availabilities.length > 0) {
-					for (const avail of option.availabilities) {
-						const availData: TablesInsert<"tour_availabilities"> = {
-							date: avail.date, // FORMAT -> 2026-01-01
-							isActive: avail.isActive === "true",
-							tour_option_id: optionId,
-						};
+			// Prepare all availabilities data
+			const allAvails: TablesInsert<"tour_availabilities">[] = [];
+			input.tour_options.forEach((option, optIdx) => {
+				const optionId = insertedOptions[optIdx].id;
+				option.availabilities?.forEach((avail) => {
+					allAvails.push({
+						date: avail.date,
+						isActive: avail.isActive === "true",
+						tour_option_id: optionId,
+					});
+				});
+			});
 
-						const { data: availInsert, error: availError } = await this.supabase
-							.from(this.TOUR_AVAILABILITIES_TABLE)
-							.insert(availData)
-							.select("id")
-							.single();
+			// Batch insert availabilities
+			const { data: insertedAvails, error: availsError } = await this.supabase
+				.from(this.TOUR_AVAILABILITIES_TABLE)
+				.insert(allAvails)
+				.select("id");
 
-						if (availError) {
-							throw new ApiError(availError.message, 500, [availError.details || []]);
-						}
+			if (availsError) {
+				throw new ApiError(availsError.message, 500, [availsError.details || []]);
+			}
 
-						const availId = availInsert.id;
-						availabilityIds.push(availId);
+			availabilityIds.push(...insertedAvails.map((avail) => avail.id));
 
-						// Insert timeslots and slots
-						for (const ts of avail.timeslots) {
-							const timeData: TablesInsert<"tour_time_slots"> = {
-								time: ts.time,
-								label: ts.label || null,
-								sort_order: Number(ts.sort_order || "1"),
-							};
+			// Prepare all time slots data
+			const allTimeSlots: TablesInsert<"tour_time_slots">[] = [];
+			input.tour_options.forEach((option) => {
+				option.availabilities?.forEach((avail) => {
+					avail.timeslots.forEach((ts) => {
+						allTimeSlots.push({
+							time: ts.time,
+							label: ts.label || null,
+							sort_order: Number(ts.sort_order || "1"),
+						});
+					});
+				});
+			});
 
-							const { data: timeInsert, error: timeInsertError } = await this.supabase
-								.from(this.TOUR_TIME_SLOTS_TABLE)
-								.insert(timeData)
-								.select("id")
-								.single();
+			// Batch insert time slots
+			const { data: insertedTimeSlots, error: timeSlotsError } = await this.supabase
+				.from(this.TOUR_TIME_SLOTS_TABLE)
+				.insert(allTimeSlots)
+				.select("id");
 
-							if (timeInsertError) {
-								throw new ApiError(timeInsertError.message, 500, [
-									timeInsertError.details || [],
-								]);
-							}
+			if (timeSlotsError) {
+				throw new ApiError(timeSlotsError.message, 500, [timeSlotsError.details || []]);
+			}
 
-							const timeSlotId = timeInsert.id;
-							timeSlotIds.push(timeSlotId);
+			timeSlotIds.push(...insertedTimeSlots.map((ts) => ts.id));
 
-							// Insert availability slot (junction)
-							const slotData: TablesInsert<"tour_availability_slots"> = {
-								availability_id: availId,
-								time_slot_id: timeSlotId,
-								seat_type: option.seat_type,
-								available_seats:
-									ts.available_seats && option.seat_type === "LIMITED"
-										? Number(ts.available_seats)
-										: null,
-							};
+			// Prepare all availability slots data
+			const allAvailSlots: TablesInsert<"tour_availability_slots">[] = [];
+			let availIndex = 0;
+			let timeSlotIndex = 0;
+			input.tour_options.forEach((option) => {
+				option.availabilities?.forEach((avail) => {
+					const availId = insertedAvails[availIndex].id;
+					avail.timeslots.forEach((ts) => {
+						allAvailSlots.push({
+							availability_id: availId,
+							time_slot_id: insertedTimeSlots[timeSlotIndex].id,
+							seat_type: option.seat_type,
+							available_seats:
+								ts.available_seats && option.seat_type === "LIMITED"
+									? Number(ts.available_seats)
+									: null,
+						});
+						timeSlotIndex++;
+					});
+					availIndex++;
+				});
+			});
 
-							const { error: slotError } = await this.supabase
-								.from(this.TOUR_AVAILABILITY_SLOTS_TABLE)
-								.insert(slotData);
+			// Batch insert availability slots
+			if (allAvailSlots.length > 0) {
+				const { error: availSlotsError } = await this.supabase
+					.from(this.TOUR_AVAILABILITY_SLOTS_TABLE)
+					.insert(allAvailSlots);
 
-							if (slotError) {
-								throw new ApiError(slotError.message, 500, [slotError.details || []]);
-							}
-						}
-					}
+				if (availSlotsError) {
+					throw new ApiError(availSlotsError.message, 500, [availSlotsError.details || []]);
 				}
 			}
 
 			return tourId ?? null;
 		} catch (error) {
 			// Cleanup on error
+			const imgPromises: Promise<any>[] = [];
+
+			if (uploadedCoverPath) {
+				imgPromises.push(mediaSvc.deleteImage(uploadedCoverPath).catch(() => {}));
+			}
+			for (const path of uploadedImagePaths) {
+				imgPromises.push(mediaSvc.deleteImage(path).catch(() => {}));
+			}
+
+			Promise.all(imgPromises);
+
 			if (uploadedCoverPath) {
 				await mediaSvc.deleteImage(uploadedCoverPath);
 			}
@@ -263,35 +317,35 @@ export class ToursService extends Service {
 			.from(this.TOURS_TABLE)
 			.select(
 				`
-				*,
-				meta_details (*),
-				city: cities (
-					id, name,
-					meta_details (url_key)
-				),
-				tour_category: tours_categories (
-					id, name,
-					meta_details (url_key)
-				),
-				provider: activity_providers (*),
-				cancellation_policy_detail: cancellation_policies (*),
-				tags: tours_tags (
-					tour_tags (*)
-				),
-				tour_options (
 					*,
-					prices: tour_option_prices (
-					*,
-					participant_type: participant_types (*)
+					${this.META_DETAILS_TABLE} (*),
+					city: ${this.CITIES_TABLE} (
+						id, name,
+						${this.META_DETAILS_TABLE} (url_key)
 					),
-					availabilities: tour_availabilities (
-					*,
-					slots: tour_availability_slots (
+					tour_category: ${this.CATEGORIES_TABLE} (
+						id, name,
+						${this.META_DETAILS_TABLE} (url_key)
+					),
+					provider: ${this.PROVIDERS_TABLE} (*),
+					cancellation_policy_detail: ${this.CANCELLATION_POLICIES_TABLE} (*),
+					tags: ${this.TOURS_TAGS_LINK_TABLE} (
+						${this.TOUR_TAGS_TABLE} (*)
+					),
+					${this.TOUR_OPTIONS_TABLE} (
 						*,
-						time_slot: tour_time_slots (*)
+						prices: ${this.TOUR_OPTION_PRICES_TABLE} (
+							*,
+							participant_type: ${this.PARTICIPANT_TYPES_TABLE} (*)
+						),
+						availabilities: ${this.TOUR_AVAILABILITIES_TABLE} (
+							*,
+							slots: ${this.TOUR_AVAILABILITY_SLOTS_TABLE} (
+								*,
+								time_slot: ${this.TOUR_TIME_SLOTS_TABLE} (*)
+							)
+						)
 					)
-					)
-				)
 				`,
 			)
 			.eq("id", tourId)
@@ -324,8 +378,80 @@ export class ToursService extends Service {
 		};
 	}
 
+	/** Get tour details for update page */
+	async getTourDetailsForUpdate(tourId: string): Promise<GetTourDetailsForUpdate | null> {
+		if (!tourId) {
+			throw new ApiError("Tour ID is required", 400, []);
+		}
+
+		const { data: tour, error } = await this.supabase
+			.from(this.TOURS_TABLE)
+			.select(
+				`
+					*,
+					${this.META_DETAILS_TABLE} (*),
+					city: ${this.CITIES_TABLE} (
+						id, name
+					),
+					tour_category: ${this.CATEGORIES_TABLE} (
+						id, name
+					),
+					provider: ${this.PROVIDERS_TABLE} (*),
+					cancellation_policy_detail: ${this.CANCELLATION_POLICIES_TABLE} (*),
+					tags: ${this.TOURS_TAGS_LINK_TABLE} (
+						${this.TOUR_TAGS_TABLE} (*)
+					),
+					${this.TOUR_OPTIONS_TABLE} (
+						*,
+						prices: ${this.TOUR_OPTION_PRICES_TABLE} (
+							*,
+							participant_type: ${this.PARTICIPANT_TYPES_TABLE} (*)
+						),
+						availabilities: ${this.TOUR_AVAILABILITIES_TABLE} (
+							*,
+							slots: ${this.TOUR_AVAILABILITY_SLOTS_TABLE} (
+								*,
+								time_slot: ${this.TOUR_TIME_SLOTS_TABLE} (*)
+							)
+						)
+					)
+				`,
+			)
+			.eq("id", tourId)
+			.single();
+
+		if (error) {
+			if (error.code === "PGRST116") {
+				throw new ApiError("Tour not found", 404, []);
+			}
+			throw new ApiError(error.message, 500, [error.details || []]);
+		}
+
+		if (!tour) {
+			throw new ApiError("Tour not found", 404, []);
+		}
+
+		return {
+			...tour,
+			tags: tour.tags.map((tag) => tag.tour_tags),
+			city: {
+				id: tour.city.id,
+				name: tour.city.name,
+			},
+			tour_category: {
+				id: tour.tour_category.id,
+				name: tour.tour_category.name,
+			},
+		};
+	}
+
 	/** Get tours for main tours page in the admin panel  */
-	async getHighLevelTours(q = "", pageIndex = 0, pageSize = 10): Promise<GetHighLevelToursResponse> {
+	async getHighLevelTours(
+		q = "",
+		pageIndex = 0,
+		pageSize = 10,
+		filters: TourFilters = {},
+	): Promise<GetHighLevelToursResponse> {
 		const from = pageIndex * pageSize;
 		const to = from + pageSize - 1;
 
@@ -342,11 +468,98 @@ export class ToursService extends Service {
 					`,
 					{ count: "exact" },
 				)
-				.range(from, to)
-				.order("created_at", { ascending: false });
+				.range(from, to);
 
 			if (q.trim().length > 0) {
 				query = query.ilike("name", `%${q}%`);
+			}
+
+			if (filters.isFeatured != null) {
+				query = query.eq("isFeatured", filters.isFeatured);
+			}
+
+			if (filters.isActive != null) {
+				query = query.eq("isActive", filters.isActive);
+			}
+
+			if (filters.categories && filters.categories.length > 0) {
+				query = query.in(
+					"tour_category_id",
+					filters.categories.map((i) => Number(i)),
+				);
+			}
+
+			if (filters.cities && filters.cities.length > 0) {
+				query = query.in(
+					"city_id",
+					filters.cities.map((i) => Number(i)),
+				);
+			}
+
+			if (filters.providers && filters.providers.length > 0) {
+				query = query.in(
+					"provider",
+					filters.providers.map((i) => Number(i)),
+				);
+			}
+
+			if (filters.tags && filters.tags.length > 0) {
+				const { data: tagTourIds, error: tagError } = await this.supabase
+					.from(this.TOURS_TAGS_LINK_TABLE)
+					.select("tour_id")
+					.in(
+						"tour_tag_id",
+						filters.tags.map((i) => Number(i)),
+					);
+
+				if (tagError) {
+					throw new ApiError(tagError.message, 500, [tagError.details || ""]);
+				}
+
+				const uniqueTourIds = [...new Set(tagTourIds.map((t) => t.tour_id))];
+				if (uniqueTourIds.length > 0) {
+					query = query.in("id", uniqueTourIds);
+				} else {
+					// No matching tours, return empty
+					return { tours: [], total: 0 };
+				}
+			}
+
+			if (filters.isOpenDated != null) {
+				const { data: openDatedTourIds, error: openDatedError } = await this.supabase
+					.from(this.TOUR_OPTIONS_TABLE)
+					.select("tour_id")
+					.eq("isOpenDated", true);
+
+				if (openDatedError) {
+					throw new ApiError(openDatedError.message, 500, [openDatedError.details || ""]);
+				}
+
+				const uniqueOpenDatedIds = [...new Set(openDatedTourIds.map((o) => o.tour_id))];
+
+				if (filters.isOpenDated) {
+					if (uniqueOpenDatedIds.length > 0) {
+						query = query.in("id", uniqueOpenDatedIds);
+					} else {
+						// If isOpenDated=true and no such tours, return empty
+						return { tours: [], total: 0 };
+					}
+				} else {
+					if (uniqueOpenDatedIds.length > 0) {
+						query = query.notIn("id", uniqueOpenDatedIds);
+					}
+				}
+			}
+
+			if (filters.created_at) {
+				query = query.gte("created_at", filters.created_at.from.toISOString());
+				query = query.lte("created_at", filters.created_at.to.toISOString());
+			}
+
+			if (filters.sortBy) {
+				query = query.order(filters.sortBy, { ascending: filters.sortType === "asc" });
+			} else {
+				query = query.order("created_at", { ascending: false });
 			}
 
 			const { data, error, count } = await query;

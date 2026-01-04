@@ -42,3 +42,9 @@ export const TAG_IMG_DIMENSIONS = {
 export const MAX_META_KEYWORDS = 25;
 
 export const TIMESLOT_SEAT_TYPE = Constants.public.Enums.timeslot_seat_type;
+
+export const sortTypeEnums = ["asc", "desc"] as const;
+
+export const defaultTourSortByFilter = "created_at";
+export const defaultTourSortTypeFilter = "desc";
+export const tourSortByEnums = ["created_at", "updated_at", "isFeatured", "isActive"] as const;

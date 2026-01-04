@@ -6,19 +6,29 @@ import {
 	Table,
 	useReactTable,
 } from "@tanstack/react-table";
-import { SUPABASE_IMAGE_BUCKET_PATH } from "@workspace/shared/constants/constants";
+import {
+	defaultTourSortByFilter,
+	defaultTourSortTypeFilter,
+	SUPABASE_IMAGE_BUCKET_PATH,
+} from "@workspace/shared/constants/constants";
 import type { HighLevelTour } from "@workspace/shared/types/tours";
 import { queryClient } from "@workspace/shared/utils/query-client";
 import { formatDistanceToNow } from "date-fns";
 import {
+	ArrowDownWideNarrow,
+	ArrowUpDown,
+	ArrowUpNarrowWide,
 	Check,
 	Flame,
 	LayoutGrid,
+	ListFilter,
 	Loader2,
 	MoreHorizontal,
 	PlusCircle,
+	RotateCcw,
 	Search,
 	TableOfContents,
+	TicketX,
 	X,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -31,6 +41,7 @@ import {
 	useLoaderData,
 	useLocation,
 	useNavigation,
+	useNavigate,
 	useSearchParams,
 } from "react-router";
 import { toast } from "sonner";
@@ -54,15 +65,76 @@ import { GetPaginationControls } from "~/utils/getPaginationControls";
 import { getPaginationQueryPayload } from "~/utils/getPaginationQueryPayload";
 import { Badge } from "~/components/ui/badge";
 import { Skeleton } from "~/components/ui/skeleton";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm, useWatch, Controller } from "react-hook-form";
+import { Checkbox } from "~/components/ui/checkbox";
+import { Label } from "~/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
+import {
+	FormControl,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
+	Form as ShadcnForm,
+} from "~/components/ui/form";
+import {
+	Sheet,
+	SheetClose,
+	SheetContent,
+	SheetDescription,
+	SheetFooter,
+	SheetHeader,
+	SheetTitle,
+} from "~/components/ui/sheet";
+import { categoryListQuery } from "~/queries/categories.q";
+import { citiesListQuery } from "~/queries/cities.q";
+import { allProvidersQuery } from "~/queries/providers.q";
+import { allTagsQuery } from "~/queries/tags.q";
+import DateRangePicker from "~/components/Custom-Inputs/date-range-picker";
+import { getActiveToursFiltersCount } from "~/utils/getActiveToursFiltersCount";
+import { getToursFiltersPayload } from "~/utils/getToursFiltersPayload";
+import { getToursResetFiltersUrl } from "~/utils/getToursResetFiltersUrl";
+import { sortTypeEnums } from "@workspace/shared/constants/constants";
+import {
+	TourFilterFormSchema,
+	type TourFilters,
+	type TourFilterFormData,
+} from "@workspace/shared/schemas/tours-filter.schema";
+import { Separator } from "~/components/ui/separator";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
 	const { q, pageIndex, pageSize } = getPaginationQueryPayload({
 		request,
 	});
 
-	const data = await queryClient.fetchQuery(highLevelToursQuery({ request, q, pageIndex, pageSize }));
+	const tourFilters: TourFilters = getToursFiltersPayload({ request });
 
-	return { data, query: q, pageIndex, pageSize };
+	const data = await queryClient.fetchQuery(
+		highLevelToursQuery({
+			request,
+			q,
+			pageIndex,
+			pageSize,
+			filters: tourFilters,
+		}),
+	);
+
+	const categories = await queryClient.fetchQuery(categoryListQuery({ request }));
+	const cities = await queryClient.fetchQuery(citiesListQuery({ request }));
+	const providers = await queryClient.fetchQuery(allProvidersQuery({ request }));
+	const tags = await queryClient.fetchQuery(allTagsQuery({ request }));
+
+	return {
+		data,
+		query: q,
+		pageIndex,
+		pageSize,
+		categories,
+		cities,
+		providers,
+		tags,
+	};
 };
 
 export default function ToursMainCtx() {
@@ -110,14 +182,15 @@ const ToursMainPage = memo(() => {
 		}
 	}, [fetcher.data]);
 
-	const handleDeleteClick = (tourId: string) => {
-		const formData = new FormData();
-		formData.append("tourId", tourId.toString());
-		fetcher.submit(formData, {
-			method: "POST",
-			action: `/tours/${tourId}/delete`,
-		});
-	};
+	// const handleDeleteClick = (tourId: string) => {
+	// 	const formData = new FormData();
+	// 	formData.append("tourId", tourId.toString());
+	// 	fetcher.submit(formData, {
+	// 		method: "POST",
+	// 		action: `/tours/${tourId}/delete`,
+	// 	});
+	// };
+	console.log(data);
 
 	const columns: ColumnDef<HighLevelTour, unknown>[] = [
 		{
@@ -179,10 +252,16 @@ const ToursMainPage = memo(() => {
 			header: () => "Status",
 		},
 		{
-			id: "Url Key",
-			accessorKey: "url_key",
-			cell: (info) => "/" + info.row.original.url_key,
-			header: () => "Url Key",
+			id: "Category",
+			accessorKey: "category",
+			cell: (info) => info.row.original.category.name,
+			header: () => "Category",
+		},
+		{
+			id: "City",
+			accessorKey: "city",
+			cell: (info) => info.row.original.city.name,
+			header: () => "City",
 		},
 		{
 			id: "Last Updated",
@@ -228,16 +307,6 @@ const ToursMainPage = memo(() => {
 							<Link to={`tour/${rowData.id}/update`} viewTransition prefetch="intent">
 								<DropdownMenuItem>Update</DropdownMenuItem>
 							</Link>
-							<DropdownMenuItem
-								disabled={fetcher.state === "submitting"}
-								variant="destructive"
-								onClick={() => handleDeleteClick(rowData.id)}
-							>
-								{fetcher.state === "submitting" ? (
-									<Loader2 className="animate-spin" color="white" />
-								) : null}
-								Delete
-							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
 				);
@@ -401,11 +470,32 @@ const PageOptions = memo(() => {
 	const [searchParams] = useSearchParams();
 	const currentQuery = searchParams.get("q") ?? "";
 	const isFetchingThisRoute = getRouteFetchingState();
+	const navigate = useNavigate();
+	const location = useLocation();
+
+	const activeFiltersCount = getActiveToursFiltersCount(searchParams);
+	const [filtersMenuOpen, setFiltersMenuOpen] = useState<boolean>(false);
+
+	function handleFiltersClick() {
+		return setFiltersMenuOpen(!filtersMenuOpen);
+	}
+
+	function handleResetFilters() {
+		navigate(
+			getToursResetFiltersUrl({
+				defaultPage: "0",
+				defaultSize: "10",
+				pathname: location.pathname,
+				search: location.search,
+			}),
+			{ replace: true },
+		);
+	}
 
 	return (
 		<>
-			<div className="w-full flex justify-between gap-4 items-center">
-				<div>
+			<div className="w-full flex-wrap flex justify-between gap-4 items-center">
+				<div className="flex gap-2 items-center">
 					<Form method="get" action="/tours">
 						<div className="relative">
 							<Search
@@ -425,12 +515,534 @@ const PageOptions = memo(() => {
 							Search
 						</button>
 					</Form>
+					<SortSelector />
 				</div>
-				<ViewModeChangeButtons />
+				<div className="flex gap-2 items-center ml-auto">
+					<div className="sm:inline hidden">
+						<Button
+							variant="outline"
+							className="h-8 flex cursor-pointer select-none dark:hover:bg-muted"
+							onClick={handleResetFilters}
+							disabled={isFetchingThisRoute || activeFiltersCount === 0}
+						>
+							<RotateCcw />
+						</Button>
+					</div>
+					<div className="relative">
+						<Button
+							variant="outline"
+							size="sm"
+							className="h-8 flex cursor-pointer select-none dark:hover:bg-muted"
+							disabled={isFetchingThisRoute}
+							onClick={handleFiltersClick}
+						>
+							<ListFilter />
+							<span className="hidden md:inline">Filters</span>
+						</Button>
+						<span className="filters-count">
+							{activeFiltersCount > 0 ? activeFiltersCount : ""}
+						</span>
+					</div>
+					<ViewModeChangeButtons />
+				</div>
 			</div>
+			<FiltersSheet open={filtersMenuOpen} setOpen={setFiltersMenuOpen} />
 		</>
 	);
 });
+
+function SortSelector() {
+	const [searchParams] = useSearchParams();
+	const navigate = useNavigate();
+
+	const navigation = useNavigation();
+	const isSubmitting = navigation.state === "submitting" && navigation.formMethod === "POST";
+
+	type sortFormData = Pick<TourFilterFormData, "sortBy" | "sortType">;
+
+	const form = useForm<sortFormData>({
+		resolver: zodResolver(TourFilterFormSchema),
+		defaultValues: {
+			sortBy: (searchParams.get("sortBy") as sortFormData["sortBy"]) || defaultTourSortByFilter,
+			sortType: (searchParams.get("sortType") as sortFormData["sortType"]) || defaultTourSortTypeFilter,
+		},
+	});
+
+	const { handleSubmit, control } = form;
+
+	const onSortSubmit = (values: sortFormData) => {
+		const currentParams = new URLSearchParams(location.search);
+
+		// Remove old sort params if they exist
+		currentParams.delete("sortBy");
+		currentParams.delete("sortType");
+
+		// Add new sort params
+		if (values.sortBy) currentParams.set("sortBy", values.sortBy);
+		if (values.sortType) currentParams.set("sortType", values.sortType);
+
+		navigate(`?${currentParams.toString()}`);
+	};
+
+	return (
+		<Button
+			variant="outline"
+			className="h-8 flex cursor-pointer select-none dark:hover:bg-muted"
+			disabled={isSubmitting}
+			asChild
+		>
+			<DropdownMenu>
+				<DropdownMenuTrigger tabIndex={-1} className="focus:outline-0">
+					<Button variant={"outline"} size="sm">
+						<ArrowUpDown />
+						<span className="hidden md:inline">Sort</span>
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="end" className="w-fit">
+					<form onSubmit={handleSubmit(onSortSubmit)} className="space-y-4 flex flex-col p-4">
+						<ShadcnForm {...form}>
+							<FormField
+								control={control}
+								name="sortBy"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Sort By</FormLabel>
+										<FormControl>
+											<Select value={field.value} onValueChange={field.onChange}>
+												<SelectTrigger className="w-full">
+													<SelectValue placeholder="Select field" />
+												</SelectTrigger>
+												<SelectContent>
+													<SelectItem value="created_at">Date Created</SelectItem>
+													<SelectItem value="updated_at">Date Updated</SelectItem>
+													<SelectItem value="isFeatured">Featured</SelectItem>
+													<SelectItem value="isActive">Active</SelectItem>
+												</SelectContent>
+											</Select>
+										</FormControl>
+									</FormItem>
+								)}
+							/>
+
+							<FormField
+								control={control}
+								name="sortType"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Sort Direction</FormLabel>
+										<FormControl>
+											<Select value={field.value} onValueChange={field.onChange}>
+												<SelectTrigger className="w-full">
+													<SelectValue placeholder="asc / desc" />
+												</SelectTrigger>
+												<SelectContent>
+													{sortTypeEnums.map((sortType) => (
+														<SelectItem key={sortType} value={sortType}>
+															{sortType === "asc" ? (
+																<>
+																	<span>Ascending</span>
+																	<ArrowUpNarrowWide />
+																</>
+															) : (
+																<>
+																	<span>Descending</span>
+																	<ArrowDownWideNarrow />
+																</>
+															)}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</FormControl>
+									</FormItem>
+								)}
+							/>
+							<div className="w-fit ml-auto">
+								<Button type="submit" disabled={isSubmitting} size={"sm"}>
+									{isSubmitting ? <Loader2 className="animate-spin mr-2" /> : null}
+									Apply
+								</Button>
+							</div>
+						</ShadcnForm>
+					</form>
+				</DropdownMenuContent>
+			</DropdownMenu>
+		</Button>
+	);
+}
+
+function FiltersSheet({ open, setOpen }: { open?: boolean; setOpen: (open: boolean) => void }) {
+	const [searchParams] = useSearchParams();
+	const navigate = useNavigate();
+	const location = useLocation();
+	const currentQuery = searchParams.get("q") || undefined;
+
+	const currentPageIndex = searchParams.get("page") || "1";
+	const currentPageSize = searchParams.get("size") || "10";
+
+	const loaderData = useLoaderData<typeof loader>();
+
+	const categories = loaderData.categories.map((i) => {
+		return {
+			id: i.id.toString(),
+			name: i.name,
+		};
+	});
+	const cities = loaderData.cities.map((i) => {
+		return {
+			id: i.id.toString(),
+			name: i.name,
+		};
+	});
+	const providers = loaderData.providers.map((i) => {
+		return {
+			id: i.id.toString(),
+			name: i.name,
+		};
+	});
+	const tags = loaderData.tags.map((i) => {
+		return {
+			id: i.id.toString(),
+			name: i.name,
+		};
+	});
+
+	const navigation = useNavigation();
+	const isSubmitting = navigation.state === "submitting" && navigation.formMethod === "POST";
+
+	type BoolVals = "true" | "false" | "null";
+	const createdFromParam = searchParams.get("createdFrom");
+	const createdToParam = searchParams.get("createdTo");
+
+	const form = useForm<TourFilterFormData>({
+		resolver: zodResolver(TourFilterFormSchema),
+		defaultValues: {
+			q: currentQuery,
+			page: currentPageIndex,
+			size: currentPageSize,
+			isFeatured: (searchParams.get("isFeatured") as BoolVals) || "null",
+			isActive: (searchParams.get("isActive") as BoolVals) || "null",
+			categories: searchParams.get("categories")?.split(",") ?? [],
+			cities: searchParams.get("cities")?.split(",") ?? [],
+			providers: searchParams.get("providers")?.split(",") ?? [],
+			tags: searchParams.get("tags")?.split(",") ?? [],
+			isOpenDated: (searchParams.get("isOpenDated") as BoolVals) || "null",
+			created_at:
+				createdFromParam && createdToParam
+					? {
+							from: new Date(createdFromParam),
+							to: new Date(createdToParam),
+						}
+					: null,
+		},
+	});
+
+	const { handleSubmit, control, setValue, reset } = form;
+
+	const selectedCategories = useWatch({ control, name: "categories" }) || [];
+	const selectedCities = useWatch({ control, name: "cities" }) || [];
+	const selectedProviders = useWatch({ control, name: "providers" }) || [];
+	const selectedTags = useWatch({ control, name: "tags" }) || [];
+
+	// Handle form submission
+	const onFormSubmit = (values: TourFilterFormData) => {
+		const params = new URLSearchParams();
+
+		if (values.q) params.set("q", values.q);
+		if (values.isFeatured && values.isFeatured !== "null") params.set("isFeatured", values.isFeatured);
+		if (values.isActive && values.isActive !== "null") params.set("isActive", values.isActive);
+		if (values.categories && values.categories.length > 0) {
+			params.set("categories", values.categories.join(","));
+		}
+		if (values.cities && values.cities.length > 0) {
+			params.set("cities", values.cities.join(","));
+		}
+		if (values.providers && values.providers.length > 0) {
+			params.set("providers", values.providers.join(","));
+		}
+		if (values.tags && values.tags.length > 0) {
+			params.set("tags", values.tags.join(","));
+		}
+		if (values.isOpenDated && values.isOpenDated !== "null")
+			params.set("isOpenDated", values.isOpenDated);
+
+		if (values.created_at) {
+			params.set("createdFrom", values.created_at.from.toISOString());
+			params.set("createdTo", values.created_at.to.toISOString());
+		} else {
+			params.delete("createdFrom");
+			params.delete("createdTo");
+		}
+
+		if (currentPageIndex !== "1") {
+			params.set("page", String(currentPageIndex));
+		}
+		if (currentPageSize !== "10") {
+			params.set("size", String(currentPageSize));
+		}
+
+		const sortBy = searchParams.get("sortBy");
+		const sortType = searchParams.get("sortType");
+		if (sortBy) params.set("sortBy", sortBy);
+		if (sortType) params.set("sortType", sortType);
+
+		navigate(`?${params.toString()}`);
+		setOpen(false);
+	};
+
+	function handleReset() {
+		reset();
+		navigate(
+			getToursResetFiltersUrl({
+				pathname: location.pathname,
+				search: location.search,
+			}),
+			{ replace: true },
+		);
+	}
+
+	return (
+		<Sheet open={!!open} onOpenChange={setOpen}>
+			<SheetContent className="overflow-y-auto">
+				<SheetHeader>
+					<SheetTitle>Tour Filters</SheetTitle>
+					<SheetDescription>Filter tours by their fields and values</SheetDescription>
+				</SheetHeader>
+				<Separator />
+				<form
+					onSubmit={handleSubmit(onFormSubmit)}
+					className="space-y-4 flex flex-col pb-4 px-4 h-full"
+				>
+					<ShadcnForm {...form}>
+						<div className="flex justify-between gap-2 items-center">
+							<h2 className="text-xl mt-0 font-bold">Filter</h2>
+							<Button variant="link" onClick={handleReset}>
+								Reset All
+							</Button>
+						</div>
+						{/* isFeatured Filter */}
+						<FormField
+							control={control}
+							name="isFeatured"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Featured</FormLabel>
+									<FormControl>
+										<Select value={field.value} onValueChange={field.onChange}>
+											<SelectTrigger className="w-full">
+												<SelectValue placeholder="Select featured" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="null">Any</SelectItem>
+												<SelectItem value="true">Yes</SelectItem>
+												<SelectItem value="false">No</SelectItem>
+											</SelectContent>
+										</Select>
+									</FormControl>
+								</FormItem>
+							)}
+						/>
+
+						{/* isActive Filter */}
+						<FormField
+							control={control}
+							name="isActive"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Active</FormLabel>
+									<FormControl>
+										<Select value={field.value} onValueChange={field.onChange}>
+											<SelectTrigger className="w-full">
+												<SelectValue placeholder="Select active" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="null">Any</SelectItem>
+												<SelectItem value="true">Yes</SelectItem>
+												<SelectItem value="false">No</SelectItem>
+											</SelectContent>
+										</Select>
+									</FormControl>
+								</FormItem>
+							)}
+						/>
+
+						{/* Categories Filter */}
+						<FormItem>
+							<FormLabel>Categories</FormLabel>
+							<FormControl className="mt-1">
+								<div className="max-h-64 overflow-y-auto space-y-2">
+									{categories.map((cat) => (
+										<div key={cat.id} className="flex items-center gap-2">
+											<Checkbox
+												id={`cat-${cat.id}`}
+												checked={selectedCategories.includes(cat.id)}
+												onCheckedChange={(checked) => {
+													const newCats = new Set(selectedCategories);
+													checked ? newCats.add(cat.id) : newCats.delete(cat.id);
+													setValue("categories", Array.from(newCats));
+												}}
+											/>
+											<Label
+												htmlFor={`cat-${cat.id}`}
+												className="font-medium text-sm cursor-pointer"
+											>
+												{cat.name}
+											</Label>
+										</div>
+									))}
+								</div>
+							</FormControl>
+						</FormItem>
+
+						{/* Cities Filter */}
+						<FormItem>
+							<FormLabel>Cities</FormLabel>
+							<FormControl className="mt-1">
+								<div className="max-h-64 overflow-y-auto space-y-2">
+									{cities.map((city) => (
+										<div key={city.id} className="flex items-center gap-2">
+											<Checkbox
+												id={`city-${city.id}`}
+												checked={selectedCities.includes(city.id)}
+												onCheckedChange={(checked) => {
+													const newCities = new Set(selectedCities);
+													checked
+														? newCities.add(city.id)
+														: newCities.delete(city.id);
+													setValue("cities", Array.from(newCities));
+												}}
+											/>
+											<Label
+												htmlFor={`city-${city.id}`}
+												className="font-medium text-sm cursor-pointer"
+											>
+												{city.name}
+											</Label>
+										</div>
+									))}
+								</div>
+							</FormControl>
+						</FormItem>
+
+						{/* Providers Filter */}
+						<FormItem>
+							<FormLabel>Providers</FormLabel>
+							<FormControl className="mt-1">
+								<div className="max-h-64 overflow-y-auto space-y-2">
+									{providers.map((provider) => (
+										<div key={provider.id} className="flex items-center gap-2">
+											<Checkbox
+												id={`provider-${provider.id}`}
+												checked={selectedProviders.includes(provider.id)}
+												onCheckedChange={(checked) => {
+													const newProviders = new Set(selectedProviders);
+													checked
+														? newProviders.add(provider.id)
+														: newProviders.delete(provider.id);
+													setValue("providers", Array.from(newProviders));
+												}}
+											/>
+											<Label
+												htmlFor={`provider-${provider.id}`}
+												className="font-medium text-sm cursor-pointer"
+											>
+												{provider.name}
+											</Label>
+										</div>
+									))}
+								</div>
+							</FormControl>
+						</FormItem>
+
+						{/* Tags Filter */}
+						<FormItem>
+							<FormLabel>Tags</FormLabel>
+							<FormControl className="mt-1">
+								<div className="max-h-64 overflow-y-auto space-y-2">
+									{tags.map((tag) => (
+										<div key={tag.id} className="flex items-center gap-2">
+											<Checkbox
+												id={`tag-${tag.id}`}
+												checked={selectedTags.includes(tag.id)}
+												onCheckedChange={(checked) => {
+													const newTags = new Set(selectedTags);
+													checked ? newTags.add(tag.id) : newTags.delete(tag.id);
+													setValue("tags", Array.from(newTags));
+												}}
+											/>
+											<Label
+												htmlFor={`tag-${tag.id}`}
+												className="font-medium text-sm cursor-pointer"
+											>
+												{tag.name}
+											</Label>
+										</div>
+									))}
+								</div>
+							</FormControl>
+						</FormItem>
+
+						{/* isOpenDated Filter */}
+						<FormField
+							control={control}
+							name="isOpenDated"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Open Dated</FormLabel>
+									<FormControl>
+										<Select value={field.value} onValueChange={field.onChange}>
+											<SelectTrigger className="w-full">
+												<SelectValue placeholder="Select open dated" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="null">Any</SelectItem>
+												<SelectItem value="true">Yes</SelectItem>
+												<SelectItem value="false">No</SelectItem>
+											</SelectContent>
+										</Select>
+									</FormControl>
+								</FormItem>
+							)}
+						/>
+
+						{/* Date Created Filter */}
+						<Controller
+							control={control}
+							name="created_at"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Date Created</FormLabel>
+									<FormControl>
+										<div>
+											<DateRangePicker
+												className={`w-full`}
+												value={field.value ?? null}
+												onDateRangeChange={field.onChange}
+												numberOfMonths={1}
+											/>
+										</div>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+
+						{/* Form Actions */}
+						<SheetFooter className="px-0 w-full **:w-full">
+							<Button type="submit" disabled={isSubmitting}>
+								{isSubmitting ? <Loader2 className="animate-spin mr-2" /> : null}
+								Apply
+							</Button>
+							<SheetClose asChild>
+								<Button variant="outline">Close</Button>
+							</SheetClose>
+						</SheetFooter>
+					</ShadcnForm>
+				</form>
+			</SheetContent>
+		</Sheet>
+	);
+}
 
 function TourCard({ tour, className }: { tour: HighLevelTour; className?: string }) {
 	return (
@@ -481,14 +1093,21 @@ function TourCard({ tour, className }: { tour: HighLevelTour; className?: string
 					<Badge variant="outline">{tour.category.name}</Badge>
 					{tour.isFeatured && <Badge variant="default">Featured</Badge>}
 				</div>
-				{tour.toBeSoldOutScore >= 0.7 && (
+				{tour.toBeSoldOutScore === 1 ? (
+					<div className="my-3">
+						<Badge variant="destructive">
+							<TicketX />
+							<span>Sold Out</span>
+						</Badge>
+					</div>
+				) : tour.toBeSoldOutScore >= 0.7 ? (
 					<div className="my-3">
 						<Badge variant="destructive">
 							<Flame />
 							<span>Likely to Sell Out</span>
 						</Badge>
 					</div>
-				)}
+				) : null}
 				<div className="mt-auto pt-4">
 					<p className="text-xs text-muted-foreground">
 						Updated{" "}

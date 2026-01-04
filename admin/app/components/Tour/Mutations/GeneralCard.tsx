@@ -3,10 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/components/ui/form";
 import { Input } from "~/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
-import { type FormControlType } from "~/routes/Tours/add-tour";
+import { type AddFormControlType } from "~/routes/Tours/add-tour";
 
 type Props = {
-	control: FormControlType;
+	control: AddFormControlType;
 	cities: { id: number; name: string }[];
 	categories: { id: number; name: string }[];
 	providers: { id: number; name: string }[];

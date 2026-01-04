@@ -16,9 +16,9 @@ import DatePicker from "~/components/Custom-Inputs/date-picker";
 import DateRangePicker from "~/components/Custom-Inputs/date-range-picker";
 import { Separator } from "~/components/ui/separator";
 import { startOfToday } from "date-fns";
-import { IconCurrencyDirham } from "@tabler/icons-react";
+import { IconChevronLeft, IconChevronRight, IconCurrencyDirham } from "@tabler/icons-react";
 import { Badge } from "~/components/ui/badge";
-import { type FormControlType } from "~/routes/Tours/add-tour";
+import { type AddFormControlType } from "~/routes/Tours/add-tour";
 import type { SeatType } from "@workspace/shared/types/tours";
 import type { GetAllParticipantTypes } from "@workspace/shared/types/participant-types";
 
@@ -26,7 +26,7 @@ export const TourOptionsCard = ({
 	control,
 	participants,
 }: {
-	control: FormControlType;
+	control: AddFormControlType;
 	participants: GetAllParticipantTypes;
 }) => {
 	const {
@@ -268,7 +268,7 @@ const PricesSubSection = ({
 	optionIndex,
 	participants,
 }: {
-	control: FormControlType;
+	control: AddFormControlType;
 	optionIndex: number;
 	participants: GetAllParticipantTypes;
 }) => {
@@ -402,7 +402,7 @@ const AvailabilitiesSubSection = ({
 	control,
 	optionIndex,
 }: {
-	control: FormControlType;
+	control: AddFormControlType;
 	optionIndex: number;
 }) => {
 	const { fields, append, remove } = useFieldArray({
@@ -428,7 +428,16 @@ const AvailabilitiesSubSection = ({
 	const [cardCollapsed, setCardsCollapsed] = useState(false);
 	const [addingAvailability, setAvailablitilyAdding] = useState(false);
 
+	// Pagination state
+	const [currentPage, setCurrentPage] = useState(1);
+	const pageSize = 9;
+
 	const optionSeatType = useWatch({ control, name: `tour_options.${optionIndex}.seat_type` }) as SeatType;
+
+	const totalPages = Math.ceil(fields.length / pageSize);
+	const startIndex = (currentPage - 1) * pageSize;
+	const endIndex = startIndex + pageSize;
+	const visibleAvailabilities = fields.slice(startIndex, endIndex);
 
 	const addTimeslot = () => {
 		const newTimeSlotSortOrder =
@@ -460,7 +469,6 @@ const AvailabilitiesSubSection = ({
 	const handleAddAvailabilities = () => {
 		setAvailablitilyAdding(true);
 		const existingDates = fields.map((f) => f.date);
-		// console.log(fields.map(f => f.date));
 
 		const processedTimeslots = newTimeslots.map((ts) => ({
 			...ts,
@@ -490,13 +498,14 @@ const AvailabilitiesSubSection = ({
 				append({ date: singleDateStr, isActive: "true", timeslots: processedTimeslots });
 			}
 		}
-		// console.log(fields.map(f => f.date));
-		// Reset form
 
 		setNewTimeslots([{ time: "", label: "", sort_order: "1", available_seats: "" }]);
 		setSingleDate("");
 		setRange({ from: "", to: "" });
 		setAvailablitilyAdding(false);
+
+		// Reset to first page after adding new items
+		setCurrentPage(1);
 	};
 
 	useEffect(() => {
@@ -549,80 +558,109 @@ const AvailabilitiesSubSection = ({
 				<div className="text-sm text-muted-foreground">No available dates added yet.</div>
 			)}
 
-			{/* {formErrors.tour_options?.[optionIndex]?.prices && (
-				<div className="text-sm text-destructive">
-					{formErrors.tour_options[optionIndex].prices.message}
-				</div>
-			)} */}
-
-			{/* Existing Availabilities - Card Grid */}
+			{/* Existing Availabilities - Paginated Card Grid */}
 			<div className="grid grid-cols-1 min-[890px]:grid-cols-2 min-[1280px]:grid-cols-3 gap-4 mr-4">
-				{fields.map((avail, availIndex) => (
-					<div
-						key={avail.id}
-						className="flex flex-col bg-card shadow-md border-2 p-5 rounded-lg relative col-span-1 h-fit"
-					>
-						<button
-							className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-pointer"
-							type="button"
-							onClick={() => remove(availIndex)}
+				{visibleAvailabilities.map((avail, visibleIndex) => {
+					const globalIndex = startIndex + visibleIndex;
+
+					return (
+						<div
+							key={avail.id}
+							className="flex flex-col bg-card shadow-md border-2 p-5 rounded-lg relative col-span-1 h-fit"
 						>
-							<XCircleIcon className="h-6 w-6 fill-destructive text-destructive-foreground" />
-						</button>
+							<button
+								className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-pointer"
+								type="button"
+								onClick={() => remove(globalIndex)}
+							>
+								<XCircleIcon className="h-6 w-6 fill-destructive text-destructive-foreground" />
+							</button>
 
-						<div className={!cardCollapsed ? "space-y-4" : ""}>
-							{/* Date */}
-							<FormField
-								control={control}
-								name={`tour_options.${optionIndex}.availabilities.${availIndex}.date`}
-								render={({ field }) => (
-									<FormItem>
-										<FormControl>
-											<div className="w-full">
-												<DatePicker
-													value={field.value ? new Date(field.value) : null}
-													onDateChange={field.onChange}
-													date_disabled={{ before: startOfToday() }}
-													className={`${cardCollapsed ? "pointer-events-none disabled" : ""}`}
-												/>
-											</div>
-										</FormControl>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
-
-							<div hidden={cardCollapsed} className="space-y-4">
-								{/* Active Switch */}
+							<div className={!cardCollapsed ? "space-y-4" : ""}>
+								{/* Date */}
 								<FormField
 									control={control}
-									name={`tour_options.${optionIndex}.availabilities.${availIndex}.isActive`}
+									name={`tour_options.${optionIndex}.availabilities.${globalIndex}.date`}
 									render={({ field }) => (
-										<FormItem className="flex items-center space-x-3">
-											<FormLabel> Toggle Status</FormLabel>
+										<FormItem>
 											<FormControl>
-												<Switch
-													checked={field.value === "true"}
-													onCheckedChange={(checked) =>
-														field.onChange(checked ? "true" : "false")
-													}
-												/>
+												<div className="w-full">
+													<DatePicker
+														value={field.value ? new Date(field.value) : null}
+														onDateChange={field.onChange}
+														date_disabled={{ before: startOfToday() }}
+														className={`${cardCollapsed ? "pointer-events-none disabled" : ""}`}
+													/>
+												</div>
 											</FormControl>
 											<FormMessage />
 										</FormItem>
 									)}
 								/>
-								{/* Timeslots for this date */}
-								<TimeslotsSubSection
-									control={control}
-									optionIndex={optionIndex}
-									availIndex={availIndex}
-								/>
+
+								<div hidden={cardCollapsed} className="space-y-4">
+									{/* Active Switch */}
+									<FormField
+										control={control}
+										name={`tour_options.${optionIndex}.availabilities.${globalIndex}.isActive`}
+										render={({ field }) => (
+											<FormItem className="flex items-center space-x-3">
+												<FormLabel> Toggle Status</FormLabel>
+												<FormControl>
+													<Switch
+														checked={field.value === "true"}
+														onCheckedChange={(checked) =>
+															field.onChange(checked ? "true" : "false")
+														}
+													/>
+												</FormControl>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+									{/* Timeslots for this date */}
+									<TimeslotsSubSection
+										control={control}
+										optionIndex={optionIndex}
+										availIndex={globalIndex}
+									/>
+								</div>
 							</div>
 						</div>
-					</div>
-				))}
+					);
+				})}
 			</div>
+
+			{/* Pagination Controls */}
+			{totalPages > 1 && (
+				<div className="flex justify-center items-center gap-4 mt-6">
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+						disabled={currentPage === 1}
+						type="button"
+					>
+						<IconChevronLeft className="sm:hidden" />
+						<span className="sm:inline hidden">Previous</span>
+					</Button>
+
+					<span className="text-sm text-muted-foreground">
+						Page {currentPage} of {totalPages}
+					</span>
+
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+						disabled={currentPage === totalPages}
+						type="button"
+					>
+						<IconChevronRight className="sm:hidden" />
+						<span className="sm:inline hidden">Next</span>
+					</Button>
+				</div>
+			)}
 
 			{/* ------------------------- */}
 			{/* Add New Availability Card */}
@@ -824,7 +862,7 @@ const TimeslotsSubSection = ({
 	optionIndex,
 	availIndex,
 }: {
-	control: FormControlType;
+	control: AddFormControlType;
 	optionIndex: number;
 	availIndex: number;
 }) => {

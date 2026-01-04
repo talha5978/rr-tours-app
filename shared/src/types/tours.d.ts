@@ -62,3 +62,19 @@ export type GetHighLevelToursResponse = {
 	tours: HighLevelTour[];
 	total: number;
 };
+
+export type GetTourDetailsForUpdate = Tables<"tours"> & {
+	meta_details: Tables<"meta_details"> | null;
+	city: {
+		id: number;
+		name: string;
+	} | null;
+	tour_category: {
+		id: number;
+		name: string;
+	} | null;
+	provider: Tables<"activity_providers"> | null;
+	cancellation_policy_detail: Tables<"cancellation_policies"> | null;
+	tags: Tables<"tour_tags">[];
+	tour_options: TourDetailOption[];
+};

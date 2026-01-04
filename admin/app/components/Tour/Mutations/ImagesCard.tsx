@@ -1,12 +1,12 @@
 import { TOUR_IMG_DIMENSTIONS } from "@workspace/shared/constants/constants";
-import { type FormControlType } from "~/routes/Tours/add-tour";
+import { type AddFormControlType } from "~/routes/Tours/add-tour";
 import ImageInput from "~/components/Custom-Inputs/image-input";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/components/ui/form";
 import { useFormContext } from "react-hook-form";
 
 type Props = {
-	control: FormControlType;
+	control: AddFormControlType;
 };
 
 export const ImagesInputCard = ({ control }: Props) => {

@@ -249,3 +249,101 @@ export const AddTourActionSchema = z.object({
 });
 
 export type AddTourActionDate = z.infer<typeof AddTourActionSchema>;
+
+const UpdateTourImagesSchema = z
+	.array(
+		z.union([
+			z
+				.instanceof(File)
+				.refine((file) => file.size <= MAX_IMAGE_SIZE, "Image must be less than 1MB.")
+				.refine(
+					(file) => ALLOWED_IMAGE_FORMATS.includes(file.type),
+					"Only JPEG, PNG, or WebP image formats are allowed.",
+				)
+				.optional()
+				.nullable(),
+			z.string().optional().nullable(),
+		]),
+	)
+	.refine(
+		(arr) =>
+			arr.filter((file) => Boolean(file)).length >= 1 &&
+			arr.filter((file) => Boolean(file)).length <= 4,
+		{
+			message: "At least one secondary image is required.",
+		},
+	);
+
+export const UpdateTourSchema = z.object({
+	address_link: z.string().optional(),
+	address_name: z.string().optional(),
+	age_health_restrictions: z.string().optional(),
+	cancellation_policy: z.string().optional(),
+
+	city_id: z
+		.string({ required_error: "City is required." })
+		.min(1, "City is required.")
+		.refine((value) => value.trim().length > 0, {
+			message: "City is required.",
+		}),
+
+	cover_image: z.union([
+		z
+			.instanceof(File, { message: "Cover image is required." })
+			.refine((file) => file.size <= MAX_IMAGE_SIZE, "Cover image must be less than 1MB.")
+			.refine(
+				(file) => ALLOWED_IMAGE_FORMATS.includes(file.type),
+				`Only ${getSimpleImgFormats()} image formats are allowed.`,
+			),
+		z.string().min(1, "Cover image path is required."),
+	]),
+
+	images: UpdateTourImagesSchema,
+
+	duration_minutes: z.string().optional(),
+	free_cancelation_avilable: z.enum(["true", "false"]).default("false"),
+	highlights: z.string().optional(),
+
+	isActive: z.enum(["true", "false"]).default("true"),
+	isFeatured: z.enum(["true", "false"]).default("false"),
+	isWeelChairAccessible: z.enum(["true", "false"]).default("false"),
+
+	know_before_you_go: z.string().optional(),
+
+	live_tour_guide: z.enum(["true", "false"]),
+	live_tour_guide_langs: z.array(z.string()).optional().default([]),
+
+	meta_details: MetaDetailsInputSchema,
+
+	name: z
+		.string({ required_error: "Name is required." })
+		.min(1, "Name is required.")
+		.max(250, "Name must be at most 250 characters.")
+		.refine((value) => value.trim().length > 0, {
+			message: "Name is required.",
+		}),
+
+	overview: z
+		.string({ required_error: "Overview is required." })
+		.min(1, "Overview is required.")
+		.refine((value) => value.trim().length > 0, {
+			message: "Overview is required.",
+		}),
+
+	provider: z.string().optional(),
+
+	tour_category_id: z
+		.string({
+			required_error: "Category is required.",
+		})
+		.min(1, "Category is required.")
+		.refine((value) => value.trim().length > 0, {
+			message: "Category is required.",
+		}),
+
+	tags: z.array(z.string()).optional(),
+
+	tour_options: AddTourOptionsSchema,
+});
+
+export type UpdateTourInput = z.input<typeof UpdateTourSchema>;
