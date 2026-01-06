@@ -190,7 +190,7 @@ const ToursMainPage = memo(() => {
 	// 		action: `/tours/${tourId}/delete`,
 	// 	});
 	// };
-	console.log(data);
+	// console.log(data);
 
 	const columns: ColumnDef<HighLevelTour, unknown>[] = [
 		{

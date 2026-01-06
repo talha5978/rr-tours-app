@@ -312,7 +312,7 @@ export type Database = {
 					isOpenDated: boolean;
 					name: string;
 					note: string | null;
-					sort_order: number;
+					sort_order: number | null;
 					tour_id: string;
 					updated_at: string | null;
 				};
@@ -324,7 +324,7 @@ export type Database = {
 					isOpenDated?: boolean;
 					name: string;
 					note?: string | null;
-					sort_order?: number;
+					sort_order?: number | null;
 					tour_id: string;
 					updated_at?: string | null;
 				};
@@ -336,7 +336,7 @@ export type Database = {
 					isOpenDated?: boolean;
 					name?: string;
 					note?: string | null;
-					sort_order?: number;
+					sort_order?: number | null;
 					tour_id?: string;
 					updated_at?: string | null;
 				};

@@ -54,10 +54,13 @@ export function getSanitizedMetaDetailsForForm({
 		.map((kw: string) => kw.trim())
 		.filter((kw: string) => kw !== "");
 
-	const initialKeywords = entity
-		.meta_details!.meta_keywords!.split(",")
-		.map((kw: string) => kw.trim())
-		.filter((kw: string) => kw !== "");
+	const initialKeywords =
+		entity.meta_details?.meta_keywords != null
+			? entity
+					.meta_details!.meta_keywords!.split(",")
+					.map((kw: string) => kw.trim())
+					.filter((kw: string) => kw !== "")
+			: [];
 
 	const keywordsChanged =
 		submittedKeywords.length !== initialKeywords!.length ||

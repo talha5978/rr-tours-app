@@ -8,7 +8,7 @@ import { Input } from "~/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 import { Switch } from "~/components/ui/switch";
 import { Textarea } from "~/components/ui/textarea";
-import type { AddTourInput } from "@workspace/shared/schemas/tour.schema";
+import type { AddTourInput, UpdateTourInput } from "@workspace/shared/schemas/tour.schema";
 import { Label } from "~/components/ui/label";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Fragment, useEffect, useState } from "react";
@@ -18,21 +18,21 @@ import { Separator } from "~/components/ui/separator";
 import { startOfToday } from "date-fns";
 import { IconChevronLeft, IconChevronRight, IconCurrencyDirham } from "@tabler/icons-react";
 import { Badge } from "~/components/ui/badge";
-import { type AddFormControlType } from "~/routes/Tours/add-tour";
 import type { SeatType } from "@workspace/shared/types/tours";
 import type { GetAllParticipantTypes } from "@workspace/shared/types/participant-types";
+import { UpdateFormControlType } from "~/routes/Tours/update-tour";
 
 export const TourOptionsCard = ({
 	control,
 	participants,
 }: {
-	control: AddFormControlType;
+	control: UpdateFormControlType;
 	participants: GetAllParticipantTypes;
 }) => {
 	const {
 		getValues,
 		formState: { errors },
-	} = useFormContext<AddTourInput>();
+	} = useFormContext<UpdateTourInput>();
 
 	const { fields, append, remove } = useFieldArray({
 		control,
@@ -44,6 +44,7 @@ export const TourOptionsCard = ({
 			fields.length > 0 ? (Number(fields[fields.length - 1].sort_order) + 1).toString() : "1";
 
 		append({
+			id: undefined,
 			name: "",
 			inclusions: "",
 			exclusions: "",
@@ -52,6 +53,7 @@ export const TourOptionsCard = ({
 			seat_type: "LIMITED",
 			prices: [
 				{
+					id: undefined,
 					price: "",
 					participant: participants[0].id.toString(),
 				},
@@ -270,7 +272,7 @@ const PricesSubSection = ({
 	optionIndex,
 	participants,
 }: {
-	control: AddFormControlType;
+	control: UpdateFormControlType;
 	optionIndex: number;
 	participants: GetAllParticipantTypes;
 }) => {
@@ -284,7 +286,7 @@ const PricesSubSection = ({
 	});
 
 	const addPrice = () => {
-		append({ price: "", participant: participants[0].id.toString() });
+		append({ id: undefined, price: "", participant: participants[0].id.toString() });
 	};
 
 	const gridCols =
@@ -404,7 +406,7 @@ const AvailabilitiesSubSection = ({
 	control,
 	optionIndex,
 }: {
-	control: AddFormControlType;
+	control: UpdateFormControlType;
 	optionIndex: number;
 }) => {
 	const { fields, append, remove } = useFieldArray({
@@ -473,7 +475,11 @@ const AvailabilitiesSubSection = ({
 		const existingDates = fields.map((f) => f.date);
 
 		const processedTimeslots = newTimeslots.map((ts) => ({
-			...ts,
+			id: undefined,
+			time_slot_id: undefined,
+			time: ts.time,
+			label: ts.label || formatTimeLabel(ts.time),
+			sort_order: ts.sort_order,
 			available_seats: optionSeatType === "UNLIMITED" ? null : ts.available_seats || "0",
 		}));
 
@@ -487,7 +493,7 @@ const AvailabilitiesSubSection = ({
 					.split("T")[0];
 
 				if (!existingDates.includes(dateStr)) {
-					append({ date: dateStr, isActive: "true", timeslots: processedTimeslots });
+					append({ id: undefined, date: dateStr, isActive: "true", timeslots: processedTimeslots });
 				}
 			}
 		} else if (!isRange && singleDate) {
@@ -497,7 +503,12 @@ const AvailabilitiesSubSection = ({
 				.toISOString()
 				.split("T")[0];
 			if (!existingDates.includes(singleDateStr)) {
-				append({ date: singleDateStr, isActive: "true", timeslots: processedTimeslots });
+				append({
+					id: undefined,
+					date: singleDateStr,
+					isActive: "true",
+					timeslots: processedTimeslots,
+				});
 			}
 		}
 
@@ -672,6 +683,15 @@ const AvailabilitiesSubSection = ({
 				</CardHeader>
 				<CardContent className="space-y-5">
 					{/* Seats Type for this option */}
+					<div className="p-3 bg-warning/10 border border-warning/40 rounded-md">
+						<span className="text-warning">
+							This option currently use{" "}
+							{fields[0]?.timeslots[0]?.available_seats === null ? "unlimited" : "limited"}{" "}
+							Seats/Tickets. Change it with caution, this will affect all the existing
+							availabilities and timeslots.
+						</span>
+					</div>
+
 					<FormField
 						control={control}
 						name={`tour_options.${optionIndex}.seat_type`}
@@ -865,7 +885,7 @@ const TimeslotsSubSection = ({
 	optionIndex,
 	availIndex,
 }: {
-	control: AddFormControlType;
+	control: UpdateFormControlType;
 	optionIndex: number;
 	availIndex: number;
 }) => {
@@ -882,6 +902,8 @@ const TimeslotsSubSection = ({
 			fields.length > 0 ? (Number(fields[fields.length - 1].sort_order) + 1).toString() : "1";
 
 		append({
+			id: undefined,
+			time_slot_id: undefined,
 			time: "",
 			label: "",
 			sort_order: newSlotSortOrder,
@@ -906,18 +928,23 @@ const TimeslotsSubSection = ({
 
 						return (
 							<div key={ts.id} className="*:flex *:gap-2 space-y-2">
+								<p className="text-xs text-muted-foreground">
+									#{ts.time_slot_id != undefined ? ts.time_slot_id : "NEW"}
+								</p>
 								<div>
 									<FormField
 										control={control}
 										name={`tour_options.${optionIndex}.availabilities.${availIndex}.timeslots.${tsIndex}.time`}
 										render={({ field }) => (
-											<FormItem className="flex-1">
+											<FormItem
+												className={`flex-1 ${ts.time_slot_id !== undefined && "disabled cursor-not-allowed"}`}
+											>
 												<FormControl>
 													<Input
 														type="time"
 														step="1"
 														placeholder="Time (HH:MM:SS)"
-														className="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+														className="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none  select-none"
 														{...field}
 														onChange={(e) => {
 															field.onChange(e);
@@ -928,6 +955,7 @@ const TimeslotsSubSection = ({
 																{ shouldValidate: true },
 															);
 														}}
+														disabled={ts.time_slot_id !== undefined}
 													/>
 												</FormControl>
 												<FormMessage />

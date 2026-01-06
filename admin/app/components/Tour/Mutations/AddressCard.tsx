@@ -110,7 +110,7 @@ export const AddressCard = ({ control }: { control: AddFormControlType }) => {
 				/>
 
 				<div>
-					{watchedIframe ? (
+					{watchedIframe && typeof window != "undefined" ? (
 						<iframe
 							src={watchedIframe}
 							width="100%"

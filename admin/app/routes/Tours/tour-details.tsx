@@ -39,6 +39,20 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 	return data;
 };
 
+function formatHours(input: number): string {
+	const hours = Math.floor(input);
+	const fractionalPart = input - hours;
+
+	// If no decimal part, return hours only
+	if (fractionalPart === 0) {
+		return `${hours} hour${hours !== 1 ? "s" : ""}`;
+	}
+
+	const minutes = Math.round(fractionalPart * 60);
+
+	return `${hours} hour${hours !== 1 ? "s" : ""} ${minutes} minute${minutes !== 1 ? "s" : ""}`;
+}
+
 export default function TourDetailsPage() {
 	const tour = useLoaderData<typeof loader>();
 	const [selectedOption, setSelectedOption] = useState<TourDetailOption | null>(null);
@@ -158,9 +172,14 @@ export default function TourDetailsPage() {
 			<div className="container mx-auto p-4 space-y-8">
 				{/* Header */}
 				<div className="space-y-2">
-					<div className="flex gap-4 items-center flex-wrap">
-						<BackButton href={"/tours"} />
-						<h1 className="text-3xl font-bold">{tour.name}</h1>
+					<div className="flex gap-2 justify-between items-center">
+						<div className="flex gap-4 items-center flex-wrap">
+							<BackButton href={"/tours"} />
+							<h1 className="text-3xl font-bold text-pretty">{tour.name}</h1>
+						</div>
+						<Link to={`/tours/tour/${tour.id}/update`} className="xl:inline-block hidden">
+							<Button variant={"outline"}>Update</Button>
+						</Link>
 					</div>
 
 					<div className="flex gap-4 flex-wrap items-center">
@@ -220,7 +239,7 @@ export default function TourDetailsPage() {
 							<div className="space-y-4">
 								<h2 className="text-2xl font-semibold">Available Options</h2>
 								{tour.tour_options
-									.sort((a, b) => a.sort_order - b.sort_order)
+									.sort((a, b) => (a.sort_order ?? 1) - (b.sort_order ?? 1))
 									.map((option) => (
 										<Card key={option.id} className="pt-0">
 											<CardHeader className="bg-accent pt-4 pb-3 rounded-t-xl">
@@ -391,74 +410,86 @@ export default function TourDetailsPage() {
 																</DialogTitle>
 															</DialogHeader>
 															{/* Secondary Header */}
-															<div className="bg-accent p-4 rounded-lg">
+															<div className="bg-accent p-4 rounded-lg space-y-2">
 																<h3 className="font-semibold text-base">
 																	{tour.name}
 																</h3>
-																{selectedOption && (
-																	<div className="flex gap-2 justify-between flex-wrap items-center">
-																		<p className="text-sm">
-																			{selectedOption.name}
-																		</p>
-																		{option.isOpenDated && (
-																			<div>
-																				<Badge className="bg-warning">
-																					Open Dated
-																				</Badge>
-																			</div>
-																		)}
-																	</div>
-																)}
-
-																{step === "time" && selectedDate && (
-																	<div className="flex gap-2 items-center justify-between">
-																		<p className="text-sm mt-1">
-																			{format(selectedDate, "PPPP")}
-																		</p>
-																		<Button
-																			type="button"
-																			size={"sm"}
-																			variant={"ghost"}
-																			onClick={handleBack}
-																			className="cursor-pointer flex gap-2"
-																		>
-																			<Edit className="w-4 h-4 " />
-																			<span className="text-sm">
-																				Edit Date
-																			</span>
-																		</Button>
-																	</div>
-																)}
-
-																{step === "participants" &&
-																	selectedDate &&
-																	selectedTimeSlot && (
-																		<div>
+																<div className="space-y-1">
+																	{selectedOption && (
+																		<div className="flex gap-2 justify-between flex-wrap items-center">
 																			<p className="text-sm">
-																				{format(selectedDate, "PPPP")}
+																				{selectedOption.name}
 																			</p>
-																			<div className="flex gap-2 items-center justify-between">
-																				<p className="text-sm">
-																					{
-																						selectedTimeSlot
-																							.time_slot.label
-																					}
-																				</p>
-																				<Button
-																					type="button"
-																					size={"sm"}
-																					variant={"ghost"}
-																					onClick={handleBack}
-																					className="cursor-pointer flex gap-2"
-																				>
-																					<Edit className="w-4 h-4 " />
-																					<span className="text-sm">
-																						Edit TimeSlot
-																					</span>
-																				</Button>
-																			</div>
+																			{option.isOpenDated && (
+																				<div>
+																					<Badge className="bg-warning">
+																						Open Dated
+																					</Badge>
+																				</div>
+																			)}
 																		</div>
 																	)}
+																	{step === "time" && selectedDate && (
+																		<div className="flex gap-2 items-center justify-between">
+																			<p className="text-sm mt-1">
+																				{format(selectedDate, "PPPP")}
+																			</p>
+																			<Button
+																				type="button"
+																				size={"sm"}
+																				variant={"ghost"}
+																				onClick={handleBack}
+																				className="cursor-pointer flex gap-2"
+																			>
+																				<Edit className="w-4 h-4 " />
+																				<span className="text-sm">
+																					Edit Date
+																				</span>
+																			</Button>
+																		</div>
+																	)}
+																	{step === "participants" &&
+																		selectedDate &&
+																		selectedTimeSlot && (
+																			<div className="space-y-1">
+																				<p className="text-sm">
+																					{format(
+																						selectedDate,
+																						"PPPP",
+																					)}
+																				</p>
+																				<div className="flex gap-2 items-center justify-between">
+																					<p className="text-sm">
+																						{
+																							selectedTimeSlot
+																								.time_slot
+																								.label
+																						}
+																					</p>
+																					<button
+																						type="button"
+																						onClick={handleBack}
+																						className="cursor-pointer flex gap-2"
+																					>
+																						<Edit className="w-4 h-4 " />
+																						<span className="text-sm">
+																							Edit TimeSlot
+																						</span>
+																					</button>
+																				</div>
+																				{selectedTimeSlot.seat_type ===
+																					"LIMITED" &&
+																					selectedTimeSlot.available_seats && (
+																						<p className="text-sm">
+																							{
+																								selectedTimeSlot.available_seats
+																							}{" "}
+																							seats available
+																						</p>
+																					)}
+																			</div>
+																		)}
+																</div>
 															</div>
 
 															{step === "date" && (
@@ -673,7 +704,7 @@ export default function TourDetailsPage() {
 								<div className="relative " key={tag.id}>
 									<div className="flex gap-2 items-center pr-6 bg-card rounded-md">
 										<div className="px-4 bg-primary py-2 rounded-l-md">
-											<p>{i + 1}</p>
+											<p className="text-white">{i + 1}</p>
 										</div>
 										<p className="text-base py-2">{tag.name}</p>
 									</div>
@@ -751,12 +782,6 @@ const ParticipantFormComponent = memo(
 											</Label>
 										</div>
 										<p className="text-sm">{price.price} AED</p>
-										{selectedTimeSlot.seat_type === "LIMITED" &&
-											selectedTimeSlot.available_seats && (
-												<p className="text-sm text-muted-foreground">
-													{selectedTimeSlot.available_seats} seats available
-												</p>
-											)}
 									</div>
 									<div className="w-fit h-fit">
 										<Controller
@@ -856,7 +881,7 @@ const AttributesCard = memo(
 							<ClockFading className="h-5 w-5" />
 							<div>
 								<h3 className="font-semibold">
-									Duration Around {tour.duration_minutes} Hours
+									Duration around {formatHours(tour.duration_minutes)}
 								</h3>
 								<p className="text-muted-foreground text-sm">
 									Check availability or contact us for starting times

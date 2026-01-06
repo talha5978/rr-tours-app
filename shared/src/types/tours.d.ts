@@ -78,3 +78,5 @@ export type GetTourDetailsForUpdate = Tables<"tours"> & {
 	tags: Tables<"tour_tags">[];
 	tour_options: TourDetailOption[];
 };
+
+export type TourUpdationPayload = Database["public"]["Tables"]["tours"]["Update"];

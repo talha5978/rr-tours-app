@@ -7,7 +7,7 @@ import { verifyUser } from "@workspace/shared/middlewares/auth.middleware";
 import { asServiceMiddleware } from "@workspace/shared/middlewares/utils";
 import { MetaDetailsService } from "@workspace/shared/services/meta-details.service";
 import type { AddTourActionDate } from "@workspace/shared/schemas/tour.schema";
-import { type TablesInsert } from "@workspace/shared/types/supabase";
+import { Tables, type TablesInsert } from "@workspace/shared/types/supabase";
 import type {
 	GetHighLevelToursResponse,
 	GetTourDetails,
@@ -615,6 +615,516 @@ export class ToursService extends Service {
 			console.error(error);
 
 			throw error instanceof ApiError ? error : new ApiError("Failed to get tours", 500, []);
+		}
+	}
+
+	/** Update tour details */
+	async updateTour(data: any, tour_id: string) {
+		const {
+			tour_update,
+			added_tags,
+			removed_tags,
+			tour_options_updates,
+			cover_image,
+			// removed_cover_image,
+			images = [],
+			removed_images = [],
+			meta_details,
+		} = data;
+
+		// Fetch current tour data (needed for image handling & meta_details_id)
+		const { data: currentTour, error: fetchError } = await this.supabase
+			.from(this.TOURS_TABLE)
+			.select(
+				"*, meta_details_id, images, cover_image, tour_options(*, tour_option_prices(*), tour_availabilities(*, tour_availability_slots(*, tour_time_slots(*))))",
+			)
+			.eq("id", tour_id)
+			.single();
+
+		if (fetchError || !currentTour) {
+			throw new ApiError(fetchError?.message ?? "Failed to fetch current tour", 500, []);
+		}
+
+		const mediaSvc = await this.createSubService(MediaService);
+
+		let newCoverPath: string | null = null;
+		const newImagePaths: string[] = [];
+
+		try {
+			// 1. Update main tour fields
+			if (tour_update && Object.keys(tour_update).length > 0) {
+				const { error } = await this.supabase
+					.from(this.TOURS_TABLE)
+					.update(tour_update)
+					.eq("id", tour_id);
+				if (error) throw new ApiError("Failed to update tour fields", 500, []);
+			}
+
+			// 2. Handle tags
+			if (added_tags?.length > 0) {
+				const tagInserts = added_tags.map((tag_id: number) => ({
+					tour_id,
+					tour_tag_id: tag_id,
+				}));
+				const { error } = await this.supabase.from(this.TOURS_TAGS_LINK_TABLE).insert(tagInserts);
+				if (error) throw new ApiError("Failed to add tags", 500, []);
+			}
+
+			if (removed_tags?.length > 0) {
+				const { error } = await this.supabase
+					.from(this.TOURS_TAGS_LINK_TABLE)
+					.delete()
+					.eq("tour_id", tour_id)
+					.in("tour_tag_id", removed_tags);
+				if (error) throw new ApiError("Failed to remove tags", 500, []);
+			}
+
+			// === COVER IMAGE HANDLING (exact same flow as updateCategory) ===
+			// === COVER IMAGE HANDLING ===
+			let newCoverPath: string | null = null;
+
+			if (cover_image && cover_image instanceof File && cover_image.size > 0) {
+				const { data } = await mediaSvc.uploadImage(cover_image);
+
+				if (!data?.path || data?.path === "") {
+					throw new ApiError("Failed to upload cover image", 500, []);
+				}
+
+				newCoverPath = data.path;
+			}
+
+			// === SECONDARY IMAGES HANDLING ===
+			const newImagePaths: string[] = [];
+
+			if (images.length > 0) {
+				for (const file of images) {
+					if (!(file instanceof File) || file.size === 0) continue;
+
+					const { data } = await mediaSvc.uploadImage(file);
+
+					if (!data?.path || data?.path === "") {
+						throw new ApiError("Failed to upload secondary image", 500, []);
+					}
+
+					newImagePaths.push(data.path);
+				}
+			}
+
+			// === BUILD IMAGE UPDATE OBJECT ===
+			const tourImageUpdate: Partial<any> = {};
+
+			// Handle cover image update
+			if (newCoverPath) {
+				tourImageUpdate.cover_image = newCoverPath;
+			}
+
+			// Handle secondary images update (any combination of add/remove)
+			if (newImagePaths.length > 0 || removed_images.length > 0) {
+				const currentImages = currentTour.images || [];
+				const keptImages = currentImages.filter((img: string) => !removed_images.includes(img));
+				const finalImages = [...keptImages, ...newImagePaths];
+				tourImageUpdate.images = finalImages;
+			}
+
+			// Apply DB update only if something changed
+			if (Object.keys(tourImageUpdate).length > 0) {
+				const { error } = await this.supabase
+					.from(this.TOURS_TABLE)
+					.update(tourImageUpdate)
+					.eq("id", tour_id);
+
+				if (error) {
+					// Rollback all uploaded files on failure
+					if (newCoverPath) await mediaSvc.deleteImage(newCoverPath);
+					for (const path of newImagePaths) await mediaSvc.deleteImage(path);
+					throw new ApiError("Failed to update tour images", 500, []);
+				}
+			}
+
+			// === CLEANUP OLD FILES AFTER SUCCESSFUL UPDATE ===
+
+			// Delete old cover image only if we uploaded a new one
+			if (newCoverPath && currentTour.cover_image) {
+				await mediaSvc.deleteImage(currentTour.cover_image);
+			}
+
+			// Delete removed secondary images
+			if (removed_images.length > 0) {
+				for (const url of removed_images) {
+					if (url && typeof url === "string") {
+						await mediaSvc.deleteImage(url);
+					}
+				}
+			}
+			// 5. Handle meta_details
+			if (meta_details) {
+				const metaDetailsService = await this.createSubService(MetaDetailsService);
+				await metaDetailsService.updateMetaDetails({
+					meta_details,
+					metaDetailsId: currentTour.meta_details_id,
+				});
+			}
+
+			// 6. Handle tour_options_updates
+			if (tour_options_updates) {
+				await this.updateTourOptions(tour_id, tour_options_updates);
+			}
+		} catch (error: any) {
+			// Rollback uploaded images on any failure
+			if (newCoverPath) await mediaSvc.deleteImage(newCoverPath);
+			for (const path of newImagePaths) await mediaSvc.deleteImage(path);
+
+			console.error(error);
+			throw new ApiError(error.message || "Tour update failed", error.statusCode ?? 500, []);
+		}
+	}
+
+	/** Update all details related to tour options */
+	async updateTourOptions(
+		tour_id: string,
+		payload: {
+			new_options?: any[];
+			deleted_options?: number[];
+			updated_options?: any[];
+
+			new_prices?: any[];
+			deleted_prices?: number[];
+			updated_prices?: any[];
+
+			new_availabilities?: any[];
+			deleted_availabilities?: number[];
+			updated_availabilities?: any[];
+
+			new_slots?: any[];
+			deleted_slots?: number[];
+			updated_slots?: any[];
+
+			new_timeslots?: any[];
+			deleted_timeslots?: number[];
+			updated_timeslots?: any[];
+		},
+	) {
+		const {
+			new_options = [],
+			deleted_options = [],
+			updated_options = [],
+
+			new_prices = [],
+			deleted_prices = [],
+			updated_prices = [],
+
+			new_availabilities = [],
+			deleted_availabilities = [],
+			updated_availabilities = [],
+
+			new_slots = [],
+			deleted_slots = [],
+			updated_slots = [],
+
+			new_timeslots = [],
+			deleted_timeslots = [],
+			updated_timeslots = [],
+		} = payload;
+
+		try {
+			// 1. Handle time slots first (global, needed for slots)
+			const timeSlotMap = new Map<string, number>(); // time -> id
+
+			// Process new timeslots
+			for (const ts of new_timeslots) {
+				const { time, label, sort_order } = ts;
+
+				// Check if time exists
+				const { data: existingTs, error: checkErr } = await this.supabase
+					.from(this.TOUR_TIME_SLOTS_TABLE)
+					.select("id, label, sort_order")
+					.eq("time", time)
+					.single();
+
+				if (checkErr && checkErr.code !== "PGRST116") {
+					throw new ApiError(`Failed to check time slot: ${checkErr.message}`, 500);
+				}
+
+				if (existingTs) {
+					// Update if label or sort changed
+					const updateData: any = {};
+					if (label !== existingTs.label) updateData.label = label;
+					if (sort_order !== existingTs.sort_order) updateData.sort_order = sort_order;
+
+					if (Object.keys(updateData).length > 0) {
+						const { error } = await this.supabase
+							.from(this.TOUR_TIME_SLOTS_TABLE)
+							.update(updateData)
+							.eq("id", existingTs.id);
+
+						if (error) throw new ApiError(`Failed to update time slot ${existingTs.id}`, 500);
+					}
+
+					timeSlotMap.set(time, existingTs.id);
+				} else {
+					// Insert new
+					const { data: newTs, error } = await this.supabase
+						.from(this.TOUR_TIME_SLOTS_TABLE)
+						.insert({ time, label, sort_order })
+						.select("id")
+						.single();
+
+					if (error || !newTs)
+						throw new ApiError(`Failed to insert time slot: ${error?.message}`, 500);
+					timeSlotMap.set(time, newTs.id);
+				}
+			}
+
+			// Process updated timeslots
+			for (const ts of updated_timeslots) {
+				const { id, label, sort_order } = ts;
+
+				const updateData: any = {};
+				if (label !== undefined) updateData.label = label;
+				if (sort_order !== undefined) updateData.sort_order = sort_order;
+
+				if (Object.keys(updateData).length > 0) {
+					const { error } = await this.supabase
+						.from(this.TOUR_TIME_SLOTS_TABLE)
+						.update(updateData)
+						.eq("id", id);
+
+					if (error) throw new ApiError(`Failed to update time slot ${id}: ${error.message}`, 500);
+				}
+			}
+
+			// 2. Delete slots
+			if (deleted_slots.length > 0) {
+				const { error } = await this.supabase
+					.from(this.TOUR_AVAILABILITY_SLOTS_TABLE)
+					.delete()
+					.in("id", deleted_slots);
+
+				if (error) throw new ApiError(`Failed to delete slots: ${error.message}`, 500);
+			}
+
+			// 3. Delete availabilities
+			if (deleted_availabilities.length > 0) {
+				const { error } = await this.supabase
+					.from(this.TOUR_AVAILABILITIES_TABLE)
+					.delete()
+					.in("id", deleted_availabilities);
+
+				if (error) throw new ApiError(`Failed to delete availabilities: ${error.message}`, 500);
+			}
+
+			// 4. Delete prices
+			if (deleted_prices.length > 0) {
+				const { error } = await this.supabase
+					.from(this.TOUR_OPTION_PRICES_TABLE)
+					.delete()
+					.in("id", deleted_prices);
+
+				if (error) throw new ApiError(`Failed to delete prices: ${error.message}`, 500);
+			}
+
+			// 5. Delete options (after nested deletes)
+			if (deleted_options.length > 0) {
+				const { error } = await this.supabase
+					.from(this.TOUR_OPTIONS_TABLE)
+					.delete()
+					.in("id", deleted_options);
+
+				if (error) throw new ApiError(`Failed to delete options: ${error.message}`, 500);
+			}
+
+			// 6. Update options
+			for (const opt of updated_options) {
+				const { id, ...updateData } = opt;
+				if (Object.keys(updateData).length > 0) {
+					const { error } = await this.supabase
+						.from(this.TOUR_OPTIONS_TABLE)
+						.update(updateData)
+						.eq("id", id);
+
+					if (error) throw new ApiError(`Failed to update option ${id}: ${error.message}`, 500);
+				}
+			}
+
+			// 7. Insert new options, map temp IDs
+			const optionIdMap = new Map<string, number>(); // temp -> real id
+			if (new_options.length > 0) {
+				const { data: newOpts, error } = await this.supabase
+					.from(this.TOUR_OPTIONS_TABLE)
+					.insert(new_options.map((opt) => ({ ...opt, tour_id })))
+					.select("id");
+
+				if (error || !newOpts)
+					throw new ApiError(`Failed to insert new options: ${error?.message}`, 500);
+
+				new_options.forEach((_, index) => {
+					const tempId = `new-opt-${index + 1}`; // Match frontend counter starting from 1
+					optionIdMap.set(tempId, newOpts[index].id);
+				});
+			}
+			// console.log("Updated Prices: ", updated_prices);
+
+			// 8. Update prices
+			for (const price of updated_prices) {
+				let pl: Partial<Tables<"tour_option_prices">> = {};
+				if (price.price) {
+					pl.price = price.price;
+				}
+
+				if (price.participant_type_id) {
+					pl.participant_type_id = price.participant_type_id;
+				}
+
+				// console.log(pl);
+				const { error } = await this.supabase
+					.from(this.TOUR_OPTION_PRICES_TABLE)
+					.update(pl)
+					.eq("id", price.id);
+
+				if (error) throw new ApiError(`Failed to update price ${price.id}: ${error.message}`, 500);
+			}
+
+			// 9. Insert new prices, resolve tour_option_id
+			if (new_prices.length > 0) {
+				const resolvedNewPrices = new_prices.map((price) => {
+					const resolvedId =
+						typeof price.tour_option_id === "string"
+							? optionIdMap.get(price.tour_option_id)
+							: price.tour_option_id;
+					if (resolvedId === undefined) throw new ApiError(`Unresolved option ID for price`, 500);
+					return { ...price, tour_option_id: resolvedId };
+				});
+
+				const { error } = await this.supabase
+					.from(this.TOUR_OPTION_PRICES_TABLE)
+					.insert(resolvedNewPrices);
+
+				if (error) throw new ApiError(`Failed to insert new prices: ${error.message}`, 500);
+			}
+
+			// 10. Update availabilities
+			for (const avail of updated_availabilities) {
+				const { id, isActive } = avail;
+				const { error } = await this.supabase
+					.from(this.TOUR_AVAILABILITIES_TABLE)
+					.update({ isActive })
+					.eq("id", id);
+
+				if (error) throw new ApiError(`Failed to update availability ${id}: ${error.message}`, 500);
+			}
+
+			// 11. Insert new availabilities, map temp IDs
+			const availIdMap = new Map<string, number>();
+			if (new_availabilities.length > 0) {
+				const resolvedNewAvails = new_availabilities.map((avail) => {
+					const resolvedId =
+						typeof avail.tour_option_id === "string"
+							? optionIdMap.get(avail.tour_option_id)
+							: avail.tour_option_id;
+					if (resolvedId === undefined)
+						throw new ApiError(`Unresolved option ID for availability`, 500);
+					return { ...avail, tour_option_id: resolvedId };
+				});
+
+				const { data: newAvails, error } = await this.supabase
+					.from(this.TOUR_AVAILABILITIES_TABLE)
+					.insert(resolvedNewAvails)
+					.select("id");
+
+				if (error || !newAvails)
+					throw new ApiError(`Failed to insert new availabilities: ${error?.message}`, 500);
+
+				new_availabilities.forEach((_, index) => {
+					// Frontend counter for avail starts after opt, but we can calculate based on order
+					// Since order preserved, map by index
+					availIdMap.set(`new-avail-${new_options.length + index + 1}`, newAvails[index].id); // Adjust counter based on frontend logic
+					// NOTE: Frontend uses ++tempCounter across opt and avail, so if 2 new opt, then new avail will be new-avail-3 etc.
+					// But to make robust, perhaps use unique temp, but since sequential, and we know new_opt count, but to simplify, assume order of processing matches
+				});
+			}
+
+			// 12. Update slots
+			for (const slot of updated_slots) {
+				const { id, ...updateData } = slot;
+				if (Object.keys(updateData).length > 0) {
+					const { error } = await this.supabase
+						.from(this.TOUR_AVAILABILITY_SLOTS_TABLE)
+						.update(updateData)
+						.eq("id", id);
+
+					if (error) throw new ApiError(`Failed to update slot ${id}: ${error.message}`, 500);
+				}
+			}
+
+			// 13. Insert new slots, resolve IDs
+			if (new_slots.length > 0) {
+				const resolvedNewSlots = [];
+				for (const slot of new_slots) {
+					const resolvedAvailId =
+						typeof slot.availability_id === "string"
+							? availIdMap.get(slot.availability_id)
+							: slot.availability_id;
+					if (resolvedAvailId === undefined)
+						throw new ApiError(`Unresolved availability ID for slot`, 500);
+
+					// ALWAYS create a NEW time_slot row — NO REUSE
+					const { data: newTs, error: insErr } = await this.supabase
+						.from(this.TOUR_TIME_SLOTS_TABLE)
+						.insert({
+							time: slot.time,
+							label: slot.label,
+							sort_order: slot.sort_order,
+						})
+						.select("id")
+						.single();
+
+					if (insErr || !newTs)
+						throw new ApiError(`Failed to create time slot: ${insErr?.message}`, 500);
+
+					const timeSlotId = newTs.id;
+
+					resolvedNewSlots.push({
+						availability_id: resolvedAvailId,
+						time_slot_id: timeSlotId,
+						available_seats: slot.available_seats,
+						seat_type: slot.seat_type,
+					});
+				}
+
+				const { error } = await this.supabase
+					.from(this.TOUR_AVAILABILITY_SLOTS_TABLE)
+					.insert(resolvedNewSlots);
+
+				if (error) throw new ApiError(`Failed to insert new slots: ${error.message}`, 500);
+			}
+
+			// 14. Delete unused time slots
+			for (const id of deleted_timeslots) {
+				// Check usage
+				console.log("DEleted timeslot: ", id);
+
+				const { count, error: countErr } = await this.supabase
+					.from(this.TOUR_AVAILABILITY_SLOTS_TABLE)
+					.select("id", { count: "exact", head: true })
+					.eq("time_slot_id", id);
+
+				if (countErr) {
+					console.warn(`Failed to check usage for time slot ${id}: ${countErr.message}`);
+					continue;
+				}
+
+				if (count === 0) {
+					const { error } = await this.supabase
+						.from(this.TOUR_TIME_SLOTS_TABLE)
+						.delete()
+						.eq("id", id);
+
+					if (error) console.warn(`Failed to delete unused time slot ${id}: ${error.message}`);
+				}
+			}
+		} catch (error: any) {
+			console.error("Tour options update failed:", error);
+			throw new ApiError(error.message || "Failed to update tour options", 500);
 		}
 	}
 }

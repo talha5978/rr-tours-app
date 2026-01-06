@@ -246,16 +246,38 @@ export default function AddTourPage() {
 			const seat_type = option.seat_type;
 			if (option.availabilities) {
 				for (const availability of option.availabilities) {
+					const seenTimes = new Set<string>();
+
 					for (const timeslot of availability.timeslots) {
 						if (
 							seat_type === "LIMITED" &&
 							(timeslot.available_seats == null || timeslot.available_seats === "")
 						) {
+							console.log(timeslot);
+
 							toast.error(
 								`Please add available seats for ${format(availability.date, "PP")} ${timeslot.label} timeslot in the tour option "${option.name}".`,
 							);
 							return;
 						}
+
+						const time = timeslot.time?.trim();
+
+						if (!time) {
+							toast.error(
+								`Time is missing for a timeslot on ${format(availability.date, "PP")} in tour option "${option.name}".`,
+							);
+							return;
+						}
+
+						if (seenTimes.has(time)) {
+							toast.error(
+								`Duplicate timeslot "${time}" found on ${format(availability.date, "PP")} in tour option "${option.name}". Each date must have unique times.`,
+							);
+							return;
+						}
+
+						seenTimes.add(time);
 
 						if (timeslot.label != null) {
 							timeslot.label = timeslot.label.trim();
