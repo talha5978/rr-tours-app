@@ -71,7 +71,7 @@ const createdAtLabel = (date: string | null) => {
 
 const CityCard = memo(({ city }: { city: HighLevelCity }) => {
 	return (
-		<Link to={`/product/${city.id}/${city.url_key}`} prefetch="intent">
+		<Link to={`/tours?cities=${city.id}`} prefetch="intent" viewTransition>
 			<div className="h-88 flex flex-col max-w-60 rounded-xl shadow-lg overflow-hidden relative group">
 				<div className="flex-1 w-full relative overflow-hidden">
 					<img

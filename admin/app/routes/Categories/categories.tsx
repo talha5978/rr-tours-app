@@ -175,11 +175,7 @@ export default function CategoriesPage() {
 								<Link to={`${rowData.id}/sub-categories`} viewTransition prefetch="intent">
 									<DropdownMenuItem>View Live</DropdownMenuItem>
 								</Link>
-								<Link
-									to={`${rowData.id}/view-tours-for-this-category`}
-									viewTransition
-									prefetch="intent"
-								>
+								<Link to={`/tours?categories=${rowData.id}`} viewTransition prefetch="intent">
 									<DropdownMenuItem>View Tours</DropdownMenuItem>
 								</Link>
 								<Link to={`${rowData.id}/update`} viewTransition prefetch="intent">

@@ -76,18 +76,18 @@ export default function TagsPage() {
 															<DropdownMenuItem>View Live</DropdownMenuItem>
 														</Link>
 														<Link
+															to={`/tours?tags=${tag.id}`}
+															viewTransition
+															prefetch="intent"
+														>
+															<DropdownMenuItem>View Tours</DropdownMenuItem>
+														</Link>
+														<Link
 															to={`${tag.id}/update`}
 															viewTransition
 															prefetch="intent"
 														>
 															<DropdownMenuItem>Update</DropdownMenuItem>
-														</Link>
-														<Link
-															to={`tours?tags=${tag.id}`}
-															viewTransition
-															prefetch="intent"
-														>
-															<DropdownMenuItem>View Tours</DropdownMenuItem>
 														</Link>
 													</DropdownMenuContent>
 												</DropdownMenu>
