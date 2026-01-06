@@ -11,10 +11,6 @@ import { GetCurrentUser } from "@workspace/shared/types/auth";
 import { extractAuthId } from "@workspace/shared/utils/auth-utils.server";
 import { currentUserQuery } from "@workspace/shared/queries/auth.q";
 
-if (process.env.VITE_ENV == "production") {
-	console.log = function () {};
-}
-
 export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
 	{

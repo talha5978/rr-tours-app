@@ -11,7 +11,7 @@ export async function verifyRecaptcha(token: string) {
 		method: "POST",
 		headers: { "Content-Type": "application/x-www-form-urlencoded" },
 		body: new URLSearchParams({
-			secret: process.env.VITE_RECAPTCHA_SECRET_KEY as string,
+			secret: process.env.RECAPTCHA_SECRET_KEY as string,
 			response: token,
 		}),
 	});

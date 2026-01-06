@@ -5,8 +5,13 @@ import { ServerRouter } from "react-router";
 import { isbot } from "isbot";
 import type { RenderToPipeableStreamOptions } from "react-dom/server";
 import { renderToPipeableStream } from "react-dom/server";
+import { config as dotenvConfig } from "dotenv";
+import path from "path";
 
 export const streamTimeout = 15_000;
+
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
+dotenvConfig({ path: path.resolve(__dirname, "../../../../.env"), quiet: true });
 
 export default function handleRequest(
 	request: Request,
