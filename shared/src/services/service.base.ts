@@ -48,6 +48,8 @@ export class Service implements ServiceBase {
 	protected readonly TOUR_AVAILABILITY_SLOTS_TABLE = "tour_availability_slots";
 	protected readonly TOUR_TIME_SLOTS_TABLE = "tour_time_slots";
 
+	protected readonly HERO_SECTIONS_TABLE = "hero_sections";
+
 	constructor(request: Request, opts?: { supabase?: SupabaseClient<Database>; headers?: Headers }) {
 		if (opts?.supabase && opts?.headers) {
 			this.supabase = opts.supabase;

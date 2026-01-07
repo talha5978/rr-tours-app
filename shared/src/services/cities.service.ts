@@ -11,12 +11,15 @@ import type {
 	CityUpdationPayload,
 	GetCityDetailsForUpdateResponse,
 	GetCityList,
+	GetFPHighLevelCitiesResponse,
 	GetHighLevelCitiesResponse,
 } from "@workspace/shared/types/cities";
+import { UseMiddleware } from "@workspace/shared/decorators/useMiddleware";
 
-@UseClassMiddleware(loggerMiddleware, asServiceMiddleware<CityService>(verifyUser))
+@UseClassMiddleware(loggerMiddleware)
 export class CityService extends Service {
 	/** Add city */
+	@UseMiddleware(asServiceMiddleware<CityService>(verifyUser))
 	async addCity(input: AddCityActionData): Promise<void> {
 		const { card_image, full_image, meta_details, name } = input;
 		const mediaSvc = await this.createSubService(MediaService);
@@ -73,6 +76,7 @@ export class CityService extends Service {
 	}
 
 	/** Get all high level cities */
+	@UseMiddleware(asServiceMiddleware<CityService>(verifyUser))
 	async getHighLevelCities(): Promise<GetHighLevelCitiesResponse> {
 		let query = this.supabase
 			.from(this.CITIES_TABLE)
@@ -109,7 +113,40 @@ export class CityService extends Service {
 		};
 	}
 
+	/** Get front panel cities */
+	async getFPHighLevelCities(): Promise<GetFPHighLevelCitiesResponse> {
+		let query = this.supabase
+			.from(this.CITIES_TABLE)
+			.select(
+				`
+				id, name, card_image,
+				${this.META_DETAILS_TABLE}(url_key)
+			`,
+			)
+			.order("created_at", { ascending: false });
+
+		const { data, error: dbError } = await query;
+
+		let error: ApiError | null = null;
+
+		if (dbError) {
+			error = new ApiError(dbError.message, 500, [dbError.details || ""]);
+		}
+
+		return {
+			data:
+				data?.map((i) => ({
+					id: i.id,
+					name: i.name,
+					card_image: i.card_image,
+					url_key: i.meta_details.url_key,
+				})) || [],
+			error,
+		};
+	}
+
 	/** Get full city list */
+	@UseMiddleware(asServiceMiddleware<CityService>(verifyUser))
 	async getCitiesList(): Promise<GetCityList> {
 		const { data, error: dbError } = await this.supabase
 			.from(this.CITIES_TABLE)
@@ -124,6 +161,7 @@ export class CityService extends Service {
 	}
 
 	/** Get full details of a city to update */
+	@UseMiddleware(asServiceMiddleware<CityService>(verifyUser))
 	async getCityDetailsForUpdate(cityId: number): Promise<GetCityDetailsForUpdateResponse> {
 		const { data, error: dbError } = await this.supabase
 			.from(this.CITIES_TABLE)
@@ -149,6 +187,7 @@ export class CityService extends Service {
 	}
 
 	/** Update city */
+	@UseMiddleware(asServiceMiddleware<CityService>(verifyUser))
 	async updateCity(
 		categoryId: number | string,
 		input: Partial<UpdateCityActionData>,

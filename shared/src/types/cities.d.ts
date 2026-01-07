@@ -36,3 +36,15 @@ export type GetCityList = {
 	id: number;
 	name: string;
 }[];
+
+export type FPHighLevelCity = {
+	id: number;
+	name: string;
+	card_image: string;
+	url_key: string;
+};
+
+export type GetFPHighLevelCitiesResponse = {
+	data: FPHighLevelCity[];
+	error: ApiError | null;
+};

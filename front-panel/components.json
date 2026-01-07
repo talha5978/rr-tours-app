@@ -13,9 +13,9 @@
 	"iconLibrary": "lucide",
 	"aliases": {
 		"components": "~/components",
-		"utils": "~/lib/utils",
+		"utils": "@workspace/shared/utils/ui",
 		"ui": "~/components/ui",
-		"lib": "~/lib",
+		"lib": "@workspace/shared/utils/ui",
 		"hooks": "~/hooks"
 	},
 	"registries": {}

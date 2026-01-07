@@ -185,9 +185,9 @@ export default function UpdateCategory() {
 			<Sheet defaultOpen onOpenChange={() => navigate(-1)}>
 				<SheetContent>
 					<SheetHeader>
-						<SheetTitle>Create Tag</SheetTitle>
+						<SheetTitle>Update Tag</SheetTitle>
 						<SheetDescription>
-							Create a new tag here. Click update when you are done.
+							Update {data?.name} tag here. Click update when you are done.
 						</SheetDescription>
 					</SheetHeader>
 					<Separator />

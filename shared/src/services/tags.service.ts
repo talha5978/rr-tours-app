@@ -7,10 +7,12 @@ import { ApiError } from "@workspace/shared/utils/ApiError";
 import type { GetAllTourTags, GetTag, TagUpdationPayload } from "@workspace/shared/types/tour-tags";
 import type { AddTagInput, UpdateTagActionData } from "@workspace/shared/schemas/tag.schema";
 import { MediaService } from "@workspace/shared/services/media.service";
+import { UseMiddleware } from "@workspace/shared/decorators/useMiddleware";
 
-@UseClassMiddleware(loggerMiddleware, asServiceMiddleware<TourTagsService>(verifyUser))
+@UseClassMiddleware(loggerMiddleware)
 export class TourTagsService extends Service {
 	/** Get All Participant Types */
+	@UseMiddleware(asServiceMiddleware<TourTagsService>(verifyUser))
 	async getAllTags(): Promise<GetAllTourTags> {
 		const { data, error } = await this.supabase
 			.from(this.TOUR_TAGS_TABLE)
@@ -25,6 +27,7 @@ export class TourTagsService extends Service {
 	}
 
 	/** Get single tag details */
+	@UseMiddleware(asServiceMiddleware<TourTagsService>(verifyUser))
 	async getTagById(tagId: number): Promise<GetTag> {
 		const { data, error } = await this.supabase
 			.from(this.TOUR_TAGS_TABLE)
@@ -40,6 +43,7 @@ export class TourTagsService extends Service {
 	}
 
 	/** Add tag */
+	@UseMiddleware(asServiceMiddleware<TourTagsService>(verifyUser))
 	async addTag(input: AddTagInput): Promise<void> {
 		const { image, name } = input;
 		const mediaSvc = await this.createSubService(MediaService);
@@ -73,6 +77,7 @@ export class TourTagsService extends Service {
 	}
 
 	/** Update tag */
+	@UseMiddleware(asServiceMiddleware<TourTagsService>(verifyUser))
 	async updateTag(tagId: number, input: Partial<UpdateTagActionData>): Promise<{ error: ApiError | null }> {
 		const { image, removed_image, name } = input;
 

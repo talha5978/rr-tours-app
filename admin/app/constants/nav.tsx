@@ -7,6 +7,7 @@ import {
 	// Gift,
 	House,
 	MapPin,
+	RectangleHorizontal,
 	// Megaphone,
 	// RectangleHorizontal,
 	// Siren,
@@ -61,21 +62,16 @@ export const mainNavItems: NavItem[] = [
 			},
 		],
 	},
-	// {
-	// 	title: "Bookings",
-	// 	items: [
-	// 		{
-	// 			title: "All Bookings",
-	// 			url: "/bookings",
-	// 			icon: <Archive />,
-	// 		},
-	// 		{
-	// 			title: "Customers",
-	// 			url: "/customers",
-	// 			icon: <Users />,
-	// 		},
-	// 	],
-	// },
+	{
+		title: "Content",
+		items: [
+			{
+				title: "Hero Sections",
+				url: "/hero-sections",
+				icon: <RectangleHorizontal />,
+			},
+		],
+	},
 	// {
 	// 	title: "Promotion",
 	// 	items: [

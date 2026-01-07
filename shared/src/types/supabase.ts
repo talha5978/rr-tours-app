@@ -136,6 +136,24 @@ export type Database = {
 					},
 				];
 			};
+			hero_sections: {
+				Row: {
+					id: number;
+					image: string;
+					name: string;
+				};
+				Insert: {
+					id?: number;
+					image: string;
+					name: string;
+				};
+				Update: {
+					id?: number;
+					image?: string;
+					name?: string;
+				};
+				Relationships: [];
+			};
 			meta_details: {
 				Row: {
 					created_at: string | null;

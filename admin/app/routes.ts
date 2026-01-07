@@ -33,6 +33,12 @@ export default [
 			]),
 		]),
 
+		route("hero-sections", "./routes/HeroSections/hero-sections.tsx", [
+			route("add", "./routes/HeroSections/add-hero-section.tsx"),
+			route(":id/update", "./routes/HeroSections/update-hero-section.tsx"),
+			route(":id/delete", "./routes/_actions/delete-hero-section.tsx"),
+		]),
+
 		route("*", "./routes/Error/404.tsx"),
 	]),
 ] satisfies RouteConfig;

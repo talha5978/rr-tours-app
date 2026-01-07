@@ -15,10 +15,14 @@ import type {
 	HighLevelTour,
 } from "@workspace/shared/types/tours";
 import { type TourFilters } from "@workspace/shared/schemas/tours-filter.schema";
+import { type FPTourFilters } from "@workspace/shared/schemas/fp-tours-filter.schema";
+import type { FP_HighLevelTour, GetFPHighLevelToursResponse } from "@workspace/shared/types/fp-tours";
+import { UseMiddleware } from "@workspace/shared/decorators/useMiddleware";
 
-@UseClassMiddleware(loggerMiddleware, asServiceMiddleware<ToursService>(verifyUser))
+@UseClassMiddleware(loggerMiddleware)
 export class ToursService extends Service {
 	/** Add tour details */
+	@UseMiddleware(asServiceMiddleware<ToursService>(verifyUser))
 	async addTour(input: AddTourActionDate): Promise<string | null> {
 		if (this.currentUser == null || this.currentUser.id == null) {
 			throw new ApiError("Unauthorized", 401, []);
@@ -308,6 +312,7 @@ export class ToursService extends Service {
 	}
 
 	/** Get tour details for preview page */
+	@UseMiddleware(asServiceMiddleware<ToursService>(verifyUser))
 	async getTourDetails(tourId: string): Promise<GetTourDetails | null> {
 		if (!tourId) {
 			throw new ApiError("Tour ID is required", 400, []);
@@ -379,6 +384,7 @@ export class ToursService extends Service {
 	}
 
 	/** Get tour details for update page */
+	@UseMiddleware(asServiceMiddleware<ToursService>(verifyUser))
 	async getTourDetailsForUpdate(tourId: string): Promise<GetTourDetailsForUpdate | null> {
 		if (!tourId) {
 			throw new ApiError("Tour ID is required", 400, []);
@@ -446,6 +452,7 @@ export class ToursService extends Service {
 	}
 
 	/** Get tours for main tours page in the admin panel  */
+	@UseMiddleware(asServiceMiddleware<ToursService>(verifyUser))
 	async getHighLevelTours(
 		q = "",
 		pageIndex = 0,
@@ -618,7 +625,158 @@ export class ToursService extends Service {
 		}
 	}
 
+	/** Get tours for searching, for main page and for handling all the filters for front panel  */
+	async getFPHighLevelTours(
+		q = "",
+		pageIndex = 0,
+		pageSize = 10,
+		filters: FPTourFilters = {},
+	): Promise<GetFPHighLevelToursResponse> {
+		const from = pageIndex * pageSize;
+		const to = from + pageSize - 1;
+
+		try {
+			let query = this.supabase
+				.from(this.TOURS_TABLE)
+				.select(
+					`
+						id, name, cover_image,
+						${this.META_DETAILS_TABLE}(url_key),
+						${this.CITIES_TABLE}(id, name, ${this.META_DETAILS_TABLE}(url_key)),
+						${this.CATEGORIES_TABLE}(id, name, ${this.META_DETAILS_TABLE}(url_key)),
+						${this.TOUR_OPTIONS_TABLE} (
+							prices: ${this.TOUR_OPTION_PRICES_TABLE} (price),
+							${this.TOUR_AVAILABILITIES_TABLE} (
+								date, isActive,
+								${this.TOUR_AVAILABILITY_SLOTS_TABLE} (
+									seat_type, available_seats
+								)
+							)
+						)
+					`,
+					{ count: "exact" },
+				)
+				.range(from, to)
+				.eq("isActive", true);
+
+			if (q.trim().length > 0) {
+				query = query.ilike("name", `%${q}%`);
+			}
+
+			if (filters.isFeatured != null) {
+				query = query.eq("isFeatured", filters.isFeatured);
+			}
+
+			if (filters.categories && filters.categories.length > 0) {
+				query = query.in(
+					"tour_category_id",
+					filters.categories.map((i) => Number(i)),
+				);
+			}
+
+			if (filters.cities && filters.cities.length > 0) {
+				query = query.in(
+					"city_id",
+					filters.cities.map((i) => Number(i)),
+				);
+			}
+
+			if (filters.providers && filters.providers.length > 0) {
+				query = query.in(
+					"provider",
+					filters.providers.map((i) => Number(i)),
+				);
+			}
+
+			if (filters.tags && filters.tags.length > 0) {
+				const { data: tagTourIds, error: tagError } = await this.supabase
+					.from(this.TOURS_TAGS_LINK_TABLE)
+					.select("tour_id")
+					.in(
+						"tour_tag_id",
+						filters.tags.map((i) => Number(i)),
+					);
+
+				if (tagError) {
+					throw new ApiError(tagError.message, 500, [tagError.details || ""]);
+				}
+
+				const uniqueTourIds = [...new Set(tagTourIds.map((t) => t.tour_id))];
+				if (uniqueTourIds.length > 0) {
+					query = query.in("id", uniqueTourIds);
+				} else {
+					// No matching tours, return empty
+					return { tours: [], total: 0 };
+				}
+			}
+
+			if (filters.sortBy) {
+				query = query.order(filters.sortBy, { ascending: filters.sortType === "asc" });
+			} else {
+				query = query.order("created_at", { ascending: false });
+			}
+
+			const { data, error, count } = await query;
+
+			if (error) {
+				throw new ApiError(error.message, 500, [error.details || ""]);
+			}
+
+			const computeToBeSoldOutScore = (tour: (typeof data)[0]): number => {
+				const now = new Date().toISOString().split("T")[0];
+				let totalLimited = 0;
+				let soldOut = 0;
+				for (const option of tour.tour_options || []) {
+					for (const avail of option.tour_availabilities || []) {
+						if (avail.date >= now && avail.isActive) {
+							for (const slot of avail.tour_availability_slots || []) {
+								if (slot.seat_type === "LIMITED" && slot.available_seats != null) {
+									totalLimited++;
+									if (slot.available_seats <= 0) {
+										soldOut++;
+									}
+								}
+							}
+						}
+					}
+				}
+				return totalLimited > 0 ? soldOut / totalLimited : 0;
+			};
+
+			const getMinPrice = (option: any) => {
+				if (!option.prices?.length) return 0;
+				return Math.min(...option.prices.map((p: any) => p.price));
+			};
+
+			const tours: FP_HighLevelTour[] = data.map((tour: (typeof data)[0]) => ({
+				id: tour.id,
+				name: tour.name,
+				cover_image: tour.cover_image,
+				url_key: tour.meta_details.url_key,
+				toBeSoldOutScore: computeToBeSoldOutScore(tour),
+				price: Math.min(...tour.tour_options.map(getMinPrice)),
+				city: {
+					id: tour.cities.id,
+					name: tour.cities.name,
+					url_key: tour.cities.meta_details.url_key,
+				},
+				category: {
+					id: tour.tours_categories.id,
+					name: tour.tours_categories.name,
+					url_key: tour.tours_categories.meta_details.url_key,
+				},
+			}));
+
+			return { tours, total: count ?? 0 };
+		} catch (error) {
+			console.error(error);
+
+			throw error instanceof ApiError ? error : new ApiError("Failed to get tours", 500, []);
+		}
+	}
+
 	/** Update tour details */
+	@UseMiddleware(asServiceMiddleware<ToursService>(verifyUser))
 	async updateTour(data: any, tour_id: string) {
 		const {
 			tour_update,

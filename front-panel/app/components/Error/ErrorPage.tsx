@@ -8,7 +8,7 @@ export default function ErrorPage() {
 	const error = useRouteError();
 	// console.log(error);
 	let errorText = "";
-	const isProdEnv: boolean = import.meta!.env!.VITE_ENV === "production";
+	const isProdEnv: boolean = process.env.VITE_ENV === "production";
 
 	if (isRouteErrorResponse(error)) {
 		if (error.status === 404) {

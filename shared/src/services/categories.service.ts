@@ -14,12 +14,15 @@ import type {
 	CategoryUpdationPayload,
 	GetCategoryDetailsForUpdateResponse,
 	GetCategoryList,
+	GetFPHighLevelCategories,
 	GetHighLevelCategoriesResponse,
 } from "@workspace/shared/types/categories";
+import { UseMiddleware } from "@workspace/shared/decorators/useMiddleware";
 
-@UseClassMiddleware(loggerMiddleware, asServiceMiddleware<CategoryService>(verifyUser))
+@UseClassMiddleware(loggerMiddleware)
 export class CategoryService extends Service {
 	/** Add category */
+	@UseMiddleware(asServiceMiddleware<CategoryService>(verifyUser))
 	async addCategory(input: AddCategoryActionData): Promise<void> {
 		const { image, meta_details, name, sort_order } = input;
 		const mediaSvc = await this.createSubService(MediaService);
@@ -62,6 +65,7 @@ export class CategoryService extends Service {
 	}
 
 	/** Get all high level categories */
+	@UseMiddleware(asServiceMiddleware<CategoryService>(verifyUser))
 	async getHighLevelCategories(
 		q = "",
 		pageIndex = 0,
@@ -110,7 +114,39 @@ export class CategoryService extends Service {
 		};
 	}
 
+	/** Get all high level categories for front panel */
+	async getFPHighLevelCategories(): Promise<GetFPHighLevelCategories> {
+		const { data, error: dbError } = await this.supabase
+			.from(this.CATEGORIES_TABLE)
+			.select(
+				`
+				id, name, image,
+				${this.META_DETAILS_TABLE}(url_key)
+			`,
+			)
+			.range(0, 20)
+			.order("sort_order", { ascending: true });
+
+		let error: ApiError | null = null;
+
+		if (dbError) {
+			error = new ApiError(dbError.message, 500, [dbError.details || ""]);
+		}
+
+		return {
+			data:
+				data?.map((i) => ({
+					id: i.id,
+					name: i.name,
+					image: i.image,
+					url_key: i.meta_details.url_key,
+				})) || [],
+			error,
+		};
+	}
+
 	/** Get full categories list */
+	@UseMiddleware(asServiceMiddleware<CategoryService>(verifyUser))
 	async getCategoryList(): Promise<GetCategoryList> {
 		const { data, error: dbError } = await this.supabase
 			.from(this.CATEGORIES_TABLE)
@@ -126,6 +162,7 @@ export class CategoryService extends Service {
 	}
 
 	/** Get full details of a category to update */
+	@UseMiddleware(asServiceMiddleware<CategoryService>(verifyUser))
 	async getCategoryDetails(categoryId: number): Promise<GetCategoryDetailsForUpdateResponse> {
 		const { data, error: dbError } = await this.supabase
 			.from(this.CATEGORIES_TABLE)
@@ -151,6 +188,7 @@ export class CategoryService extends Service {
 	}
 
 	/** Update category */
+	@UseMiddleware(asServiceMiddleware<CategoryService>(verifyUser))
 	async updateCategory(
 		categoryId: number | string,
 		input: Partial<UpdateCategoryActionData>,

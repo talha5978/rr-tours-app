@@ -1,5 +1,7 @@
 import { Constants } from "@workspace/shared/types/supabase";
 
+export const CONTACT_NUMBER_1 = "971501234567" as const;
+
 export const STORAGE_BUCKETS = {
 	images: "images",
 } as const;
@@ -39,12 +41,21 @@ export const TAG_IMG_DIMENSIONS = {
 	max: { width: 500, height: 500 },
 };
 
+export const HERO_SECTION_IMG_DIMENSIONS = {
+	min: { width: 800, height: 800 },
+	max: { width: 3500, height: 3500 },
+};
+
 export const MAX_META_KEYWORDS = 25;
 
 export const TIMESLOT_SEAT_TYPE = Constants.public.Enums.timeslot_seat_type;
 
 export const sortTypeEnums = ["asc", "desc"] as const;
 
-export const defaultTourSortByFilter = "created_at";
-export const defaultTourSortTypeFilter = "desc";
+export const defaultTourSortByFilter = "created_at" as const;
+export const defaultTourSortTypeFilter = "desc" as const;
 export const tourSortByEnums = ["created_at", "updated_at", "isFeatured", "isActive"] as const;
+
+export const fpDefaultTourSortByFilter = "recommended" as const;
+export const fpDefaultTourSortTypeFilter = "desc" as const;
+export const fpTourSortByEnums = ["recommended", "price"] as const;

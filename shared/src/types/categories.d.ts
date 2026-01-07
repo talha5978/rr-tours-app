@@ -36,3 +36,15 @@ export type GetCategoryList = {
 	id: number;
 	name: string;
 }[];
+
+export type FPHighLevelCategory = {
+	id: number;
+	name: string;
+	image: string;
+	url_key: string;
+};
+
+export type GetFPHighLevelCategories = {
+	data: FPHighLevelCategory[];
+	error: ApiError | null;
+};
