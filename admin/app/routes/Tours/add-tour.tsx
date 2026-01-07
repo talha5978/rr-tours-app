@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { MAX_META_KEYWORDS } from "@workspace/shared/constants/constants";
 import { AddTourActionSchema, type AddTourInput, AddTourSchema } from "@workspace/shared/schemas/tour.schema";
+import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
 import { ToursService } from "@workspace/shared/services/tours.service";
 import type { ActionResponse } from "@workspace/shared/types/action-data";
 import { ApiError } from "@workspace/shared/utils/ApiError";
@@ -95,6 +96,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 		await queryClient.invalidateQueries({ queryKey: ["high_level_tours"] });
 		await queryClient.invalidateQueries({ queryKey: ["highLvlCategories"] });
+
+		const cacheSvc = new CacheInvalidationService(request);
+		await cacheSvc.pushCacheInvalidationEvent({
+			keys: ["fp_tours"],
+			target: "front",
+		});
 
 		return { success: true, tour_id };
 	} catch (error: any) {

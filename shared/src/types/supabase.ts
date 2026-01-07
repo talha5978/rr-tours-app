@@ -86,6 +86,30 @@ export type Database = {
 					},
 				];
 			};
+			cache_invalidation_events: {
+				Row: {
+					created_at: string;
+					id: string;
+					keys: string[];
+					processed: boolean;
+					target: Database["public"]["Enums"]["cache_invalidation_target"];
+				};
+				Insert: {
+					created_at?: string;
+					id?: string;
+					keys: string[];
+					processed?: boolean;
+					target: Database["public"]["Enums"]["cache_invalidation_target"];
+				};
+				Update: {
+					created_at?: string;
+					id?: string;
+					keys?: string[];
+					processed?: boolean;
+					target?: Database["public"]["Enums"]["cache_invalidation_target"];
+				};
+				Relationships: [];
+			};
 			cancellation_policies: {
 				Row: {
 					id: number;
@@ -631,6 +655,7 @@ export type Database = {
 			[_ in never]: never;
 		};
 		Enums: {
+			cache_invalidation_target: "front" | "admin" | "both";
 			timeslot_seat_type: "UNLIMITED" | "LIMITED";
 		};
 		CompositeTypes: {
@@ -760,6 +785,7 @@ export const Constants = {
 	},
 	public: {
 		Enums: {
+			cache_invalidation_target: ["front", "admin", "both"],
 			timeslot_seat_type: ["UNLIMITED", "LIMITED"],
 		},
 	},

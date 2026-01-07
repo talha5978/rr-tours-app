@@ -6,6 +6,8 @@ import { TopLoadingBar } from "~/components/Loaders/TopLoadingBar";
 import { Toaster } from "~/components/ui/sonner";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@workspace/shared/utils/query-client";
+import { getCacheInvalidationEvents } from "@workspace/shared/queries/cache-events.q";
+import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
 
 export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -20,8 +22,41 @@ export const links: Route.LinksFunction = () => [
 	},
 ];
 
-export async function loader({ request: __request }: Route.LoaderArgs) {
+export async function loader({ request }: Route.LoaderArgs) {
 	console.log("🌸 ROOT LOADER RUNNING!");
+	const cacheEvents = await queryClient.fetchQuery(
+		getCacheInvalidationEvents({ request, target: "front" }),
+	);
+
+	if (cacheEvents.length > 0) {
+		const eventIdsToMark: string[] = [];
+
+		for (const event of cacheEvents) {
+			eventIdsToMark.push(event.id);
+
+			for (const serializedKey of event.keys) {
+				if (serializedKey.includes("||")) {
+					// e.g., "fp_tour_details||459"
+					const parts = serializedKey.split("||");
+					queryClient.invalidateQueries({
+						queryKey: parts, // ["fp_tour_details", "123"]
+						exact: false,
+					});
+				} else {
+					// simple key like "fp_tours"
+					queryClient.invalidateQueries({
+						queryKey: [serializedKey],
+					});
+				}
+			}
+		}
+
+		if (eventIdsToMark.length > 0) {
+			const cacheSvc = new CacheInvalidationService(request);
+			cacheSvc.markEventsAsProcessed(eventIdsToMark);
+		}
+	}
+
 	return null;
 }
 

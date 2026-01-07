@@ -6,10 +6,10 @@ import type { GetFPHighLevelToursResponse } from "@workspace/shared/types/fp-tou
 
 export const tourDetailsQuery = ({ request, tour_id }: { request: Request; tour_id: string }) => {
 	return queryOptions<GetTourDetails | null>({
-		queryKey: ["tour_details", tour_id],
+		queryKey: ["fp_tour_details", tour_id],
 		queryFn: async () => {
 			const svc = new ToursService(request);
-			const result = await svc.getTourDetails(tour_id);
+			const result = await svc.getFPTourDetails(tour_id);
 			return result;
 		},
 		staleTime: 10 * 60 * 1000,

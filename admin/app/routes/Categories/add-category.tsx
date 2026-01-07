@@ -5,6 +5,7 @@ import {
 	type AddCategoryInput,
 	AddCategorySchema,
 } from "@workspace/shared/schemas/category.schema";
+import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
 import { CategoryService } from "@workspace/shared/services/categories.service";
 import type { ActionResponse } from "@workspace/shared/types/action-data";
 import { ApiError } from "@workspace/shared/utils/ApiError";
@@ -62,6 +63,12 @@ export const action = async ({ request }: { request: Request }) => {
 		await svc.addCategory(parseResult.data);
 		await queryClient.invalidateQueries({ queryKey: ["highLvlCategories"] });
 		await queryClient.invalidateQueries({ queryKey: ["categoryList"] });
+
+		const cacheSvc = new CacheInvalidationService(request);
+		await cacheSvc.pushCacheInvalidationEvent({
+			target: "front",
+			keys: ["FP_highLvlCategories"],
+		});
 
 		return { success: true };
 	} catch (error: any) {

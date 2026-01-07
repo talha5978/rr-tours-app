@@ -26,6 +26,8 @@ export class Service implements ServiceBase {
 
 	protected readonly IMAGES_BUCKET = STORAGE_BUCKETS.images;
 
+	protected readonly CACHE_EVENTS_TABLE = "cache_invalidation_events";
+
 	protected readonly USERS_TABLE = "app_users";
 	protected readonly USER_ROLES_TABLE = "user_roles";
 

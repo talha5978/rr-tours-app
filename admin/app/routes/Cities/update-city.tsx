@@ -10,6 +10,7 @@ import {
 	type UpdateCityInput,
 	UpdateCitySchema,
 } from "@workspace/shared/schemas/city.schema";
+import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
 import { CityService } from "@workspace/shared/services/cities.service";
 import type { ActionResponse } from "@workspace/shared/types/action-data";
 import { ApiError } from "@workspace/shared/utils/ApiError";
@@ -95,6 +96,12 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 		await queryClient.invalidateQueries({ queryKey: ["highLvlCities"] });
 		await queryClient.invalidateQueries({ queryKey: ["citiesList"] });
 		await queryClient.invalidateQueries({ queryKey: ["cityDetailsForUpdate", Number(cityId)] });
+
+		const cacheSvc = new CacheInvalidationService(request);
+		await cacheSvc.pushCacheInvalidationEvent({
+			target: "front",
+			keys: ["FP_highLvlCities"],
+		});
 
 		return { success: true };
 	} catch (error: any) {

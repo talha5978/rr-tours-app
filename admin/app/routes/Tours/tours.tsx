@@ -290,20 +290,22 @@ const ToursMainPage = memo(() => {
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end">
-							<Link
-								to={`/tours/tour/${rowData.id}/${rowData.url_key}`}
-								viewTransition
-								prefetch="intent"
-							>
-								<DropdownMenuItem>See Preview</DropdownMenuItem>
-							</Link>
-							<Link
-								to={`/LIVE/tours/tour/${rowData.id}/${rowData.url_key}`}
-								viewTransition
-								prefetch="intent"
-							>
-								<DropdownMenuItem>See Live</DropdownMenuItem>
-							</Link>
+							{rowData.isActive ? (
+								<a
+									href={`${process.env.VITE_MAIN_APP_URL}/tours/tour/${rowData.id}/${rowData.url_key}`}
+									target="_blank"
+								>
+									<DropdownMenuItem>See Live</DropdownMenuItem>
+								</a>
+							) : (
+								<Link
+									to={`/tours/tour/${rowData.id}/${rowData.url_key}`}
+									viewTransition
+									prefetch="intent"
+								>
+									<DropdownMenuItem>See Preview</DropdownMenuItem>
+								</Link>
+							)}
 							<Link to={`tour/${rowData.id}/update`} viewTransition prefetch="intent">
 								<DropdownMenuItem>Update</DropdownMenuItem>
 							</Link>
@@ -1068,20 +1070,22 @@ function TourCard({ tour, className }: { tour: HighLevelTour; className?: string
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end">
-							<Link
-								to={`/tours/tour/${tour.id}/${tour.url_key}`}
-								viewTransition
-								prefetch="intent"
-							>
-								<DropdownMenuItem>See Preview</DropdownMenuItem>
-							</Link>
-							<Link
-								to={`/LIVE/tours/tour/${tour.id}/${tour.url_key}`}
-								viewTransition
-								prefetch="intent"
-							>
-								<DropdownMenuItem>See Live</DropdownMenuItem>
-							</Link>
+							{tour.isActive ? (
+								<a
+									href={`${process.env.VITE_MAIN_APP_URL}/tours/tour/${tour.id}/${tour.url_key}`}
+									target="_blank"
+								>
+									<DropdownMenuItem>See Live</DropdownMenuItem>
+								</a>
+							) : (
+								<Link
+									to={`/tours/tour/${tour.id}/${tour.url_key}`}
+									viewTransition
+									prefetch="intent"
+								>
+									<DropdownMenuItem>See Preview</DropdownMenuItem>
+								</Link>
+							)}
 							<Link to={`tour/${tour.id}/update`} viewTransition prefetch="intent">
 								<DropdownMenuItem>Update</DropdownMenuItem>
 							</Link>
