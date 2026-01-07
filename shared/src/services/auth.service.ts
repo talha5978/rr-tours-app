@@ -8,7 +8,7 @@ import { ApiError } from "@workspace/shared/utils/ApiError";
 
 @UseClassMiddleware(loggerMiddleware)
 export class AuthService extends Service {
-	async getCurrentUser(): Promise<GetCurrentUser> {
+	async getCurrentUser(isAdmin = true): Promise<GetCurrentUser> {
 		console.log("🌸 Running the GET current user service");
 		try {
 			const {
@@ -25,7 +25,7 @@ export class AuthService extends Service {
 
 			// console.log("Reached here 😀😀😀", authUser.id);
 
-			const { data: userDetails, error: userDetailsErr } = await this.supabase
+			let query = this.supabase
 				.from(this.USERS_TABLE)
 				.select(
 					`
@@ -38,10 +38,28 @@ export class AuthService extends Service {
 				`,
 				)
 				.eq("user_id", authUser.id)
-				.eq("status", true)
-				.single();
+				.eq("status", true);
+			// .single();
 
+			if (isAdmin) {
+				const { data: adminRoleId, error: adminRoleIdError } = await this.supabase
+					.from(this.USER_ROLES_TABLE)
+					.select("id")
+					.eq("role_name", "admin")
+					.limit(1)
+					.single();
+
+				if (adminRoleIdError || adminRoleId == null) {
+					error = new ApiError(adminRoleIdError?.message || "Admin role not found", 401, []);
+					return { user: null, error };
+				}
+
+				query = query.eq("role", adminRoleId.id);
+			}
+
+			const { data, error: userDetailsErr } = await query;
 			// console.log("Reached at next level 😀😀😀", userDetails ?? "NOT FOUND 🌋");
+			const userDetails = data != null ? data[0] : null;
 
 			if (userDetailsErr || userDetails == null) {
 				error = new ApiError(userDetailsErr?.message || "User not found", 401, []);

@@ -5,9 +5,10 @@ import type { GetCurrentUser } from "@workspace/shared/types/auth.d";
 type currentUserQueryArgs = {
 	request: Request;
 	authId: string | null;
+	isAdmin?: boolean;
 };
 
-export const currentUserQuery = ({ request, authId }: currentUserQueryArgs) => {
+export const currentUserQuery = ({ request, authId, isAdmin = true }: currentUserQueryArgs) => {
 	const customStaleTime = 60 * 1000 * (process.env.VITE_ENV === "production" ? 10 : 25);
 
 	return queryOptions<GetCurrentUser>({
@@ -17,7 +18,7 @@ export const currentUserQuery = ({ request, authId }: currentUserQueryArgs) => {
 
 			const authSvc = new AuthService(request);
 			// await authSvc.getSession();
-			const result = await authSvc.getCurrentUser();
+			const result = await authSvc.getCurrentUser(isAdmin);
 			return result;
 		},
 		staleTime: customStaleTime,

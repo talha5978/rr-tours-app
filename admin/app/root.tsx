@@ -56,11 +56,11 @@ export async function loader({ request }: Route.LoaderArgs) {
 	const error = resp?.error ?? null;
 
 	if (!user || error) {
-		console.warn("❌ No user, redirecting to /login");
+		console.warn("❌ No admin, redirecting to /login");
 		return redirect("/login", { headers });
 	}
 
-	console.log("✅ User found:", user?.email);
+	console.log("✅ Admin found:", user?.email);
 	return { user, error, headers };
 }
 
