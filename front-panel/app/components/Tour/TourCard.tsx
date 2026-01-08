@@ -10,7 +10,7 @@ export const TourCard = memo(
 		return (
 			<Link to={"/tours/tour/" + tour.id + "/" + tour.url_key} prefetch="intent" viewTransition>
 				<div
-					className={`group overflow-hidden bg-card rounded-xl cursor-pointer ${className ?? ""}`}
+					className={`h-full group overflow-hidden bg-card rounded-xl cursor-pointer ${className ?? ""}`}
 					{...props}
 				>
 					<div className="relative overflow-hidden select-none">

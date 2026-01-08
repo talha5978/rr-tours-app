@@ -5,7 +5,7 @@ import { Link } from "react-router";
 
 export const CityCard = memo(({ city }: { city: FPHighLevelCity }) => {
 	return (
-		<Link to={`/tours?cities=${city.id}`} prefetch="intent" viewTransition>
+		<Link to={`/city/${city.id}/${city.url_key}`} prefetch="intent" viewTransition>
 			<div className="select-none h-88 flex flex-col max-w-60 rounded-xl shadow-lg overflow-hidden relative group">
 				<div className="relative w-full h-full">
 					<img

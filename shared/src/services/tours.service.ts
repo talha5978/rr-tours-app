@@ -1136,7 +1136,7 @@ export class ToursService extends Service {
 		}
 	}
 
-	/** Get tours for searching, for main page and for handling all the filters for front panel  */
+	/** Get tours for searching, for main page and for handling all the filters for front panel */
 	async getFPHighLevelTours(
 		q = "",
 		pageIndex = 0,
@@ -1158,13 +1158,13 @@ export class ToursService extends Service {
 						${this.TOUR_OPTIONS_TABLE} (
 							prices: ${this.TOUR_OPTION_PRICES_TABLE} (price),
 							${this.TOUR_AVAILABILITIES_TABLE} (
-								date, isActive,
-								${this.TOUR_AVAILABILITY_SLOTS_TABLE} (
-									seat_type, available_seats
-								)
+							date, isActive,
+							${this.TOUR_AVAILABILITY_SLOTS_TABLE} (
+								seat_type, available_seats
+							)
 							)
 						)
-					`,
+						`,
 					{ count: "exact" },
 				)
 				.range(from, to)
@@ -1216,16 +1216,27 @@ export class ToursService extends Service {
 				if (uniqueTourIds.length > 0) {
 					query = query.in("id", uniqueTourIds);
 				} else {
-					// No matching tours, return empty
 					return { tours: [], total: 0 };
 				}
 			}
 
-			if (filters.sortBy) {
-				query = query.order(filters.sortBy, { ascending: filters.sortType === "asc" });
-			} else {
-				query = query.order("created_at", { ascending: false });
+			// Available date filter
+			if (filters.availableDate) {
+				const dateStr = filters.availableDate.toISOString().split("T")[0];
+				query = query.or(
+					`tour_options.tour_availabilities.date.eq.${dateStr}, and(tour_options.tour_availabilities.isActive.eq.true, or(tour_options.tour_availabilities.tour_availability_slots.seat_type.eq.UNLIMITED, tour_options.tour_availabilities.tour_availability_slots.available_seats.gt.0))`,
+				);
 			}
+
+			// Price range filter (min price across options)
+			if (filters.price && filters.price.length === 2) {
+				const [minP, maxP] = filters.price.sort((a, b) => a - b);
+				const minPriceSubquery = `(tour_options!inner(tour_option_prices!inner(price))).price`;
+				query = query.gte(minPriceSubquery, minP).lte(minPriceSubquery, maxP);
+			}
+
+			// Default DB sort (only by created_at - price sort will be done in JS)
+			query = query.order("created_at", { ascending: false });
 
 			const { data, error, count } = await query;
 
@@ -1233,6 +1244,13 @@ export class ToursService extends Service {
 				throw new ApiError(error.message, 500, [error.details || ""]);
 			}
 
+			// Helper: min price of one option
+			const getOptionMinPrice = (option: any): number => {
+				if (!option.prices?.length) return Infinity;
+				return Math.min(...option.prices.map((p: any) => p.price));
+			};
+
+			// Helper: sold-out score
 			const computeToBeSoldOutScore = (tour: (typeof data)[0]): number => {
 				const now = new Date().toISOString().split("T")[0];
 				let totalLimited = 0;
@@ -1243,9 +1261,7 @@ export class ToursService extends Service {
 							for (const slot of avail.tour_availability_slots || []) {
 								if (slot.seat_type === "LIMITED" && slot.available_seats != null) {
 									totalLimited++;
-									if (slot.available_seats <= 0) {
-										soldOut++;
-									}
+									if (slot.available_seats <= 0) soldOut++;
 								}
 							}
 						}
@@ -1254,34 +1270,43 @@ export class ToursService extends Service {
 				return totalLimited > 0 ? soldOut / totalLimited : 0;
 			};
 
-			const getMinPrice = (option: any) => {
-				if (!option.prices?.length) return 0;
-				return Math.min(...option.prices.map((p: any) => p.price));
-			};
+			// Map raw data → enriched tours with min price
+			let tours: FP_HighLevelTour[] = data.map((tour: (typeof data)[0]) => {
+				const minPrice = Math.min(...tour.tour_options.map(getOptionMinPrice), Infinity);
 
-			const tours: FP_HighLevelTour[] = data.map((tour: (typeof data)[0]) => ({
-				id: tour.id,
-				name: tour.name,
-				cover_image: tour.cover_image,
-				url_key: tour.meta_details.url_key,
-				toBeSoldOutScore: computeToBeSoldOutScore(tour),
-				price: Math.min(...tour.tour_options.map(getMinPrice)),
-				city: {
-					id: tour.cities.id,
-					name: tour.cities.name,
-					url_key: tour.cities.meta_details.url_key,
-				},
-				category: {
-					id: tour.tours_categories.id,
-					name: tour.tours_categories.name,
-					url_key: tour.tours_categories.meta_details.url_key,
-				},
-			}));
+				return {
+					id: tour.id,
+					name: tour.name,
+					cover_image: tour.cover_image,
+					url_key: tour.meta_details.url_key,
+					toBeSoldOutScore: computeToBeSoldOutScore(tour),
+					price: minPrice === Infinity ? 0 : minPrice,
+					city: {
+						id: tour.cities.id,
+						name: tour.cities.name,
+						url_key: tour.cities.meta_details.url_key,
+					},
+					category: {
+						id: tour.tours_categories.id,
+						name: tour.tours_categories.name,
+						url_key: tour.tours_categories.meta_details.url_key,
+					},
+				};
+			});
+
+			// Apply price sorting in JavaScript (simple & reliable)
+			if (filters.sortBy === "price") {
+				tours.sort((a, b) => {
+					if (filters.sortType === "asc") {
+						return a.price - b.price;
+					}
+					return b.price - a.price;
+				});
+			}
 
 			return { tours, total: count ?? 0 };
 		} catch (error) {
 			console.error(error);
-
 			throw error instanceof ApiError ? error : new ApiError("Failed to get tours", 500, []);
 		}
 	}

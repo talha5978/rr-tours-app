@@ -13,7 +13,7 @@ export default function HeroSection({ hero_sections }: { hero_sections: GetAllHe
 			<div className="absolute inset-0 bg-black/40 z-10 rounded-xl" />
 
 			{/* Carousel */}
-			<Carousel className="h-full w-full" plugins={[Autoplay({ delay: 5000 }), Fade({ active: true })]}>
+			<Carousel className="h-full w-full" plugins={[Autoplay({ delay: 7000 }), Fade({ active: true })]}>
 				<CarouselContent className="h-full">
 					{[...hero_sections].map((s) => (
 						<CarouselItem key={s.id} className="h-[80vh] rounded-xl basis-full">

@@ -11,6 +11,7 @@ import type {
 	CityUpdationPayload,
 	GetCityDetailsForUpdateResponse,
 	GetCityList,
+	GetFPCityDetailResponse,
 	GetFPHighLevelCitiesResponse,
 	GetHighLevelCitiesResponse,
 } from "@workspace/shared/types/cities";
@@ -141,6 +142,31 @@ export class CityService extends Service {
 					card_image: i.card_image,
 					url_key: i.meta_details.url_key,
 				})) || [],
+			error,
+		};
+	}
+
+	/** Get city details for front panel page */
+	async getCityDetailsFrontPanel(cityId: number): Promise<GetFPCityDetailResponse> {
+		const { data, error: dbError } = await this.supabase
+			.from(this.CITIES_TABLE)
+			.select(
+				`
+					id, name, card_image, full_image,
+					${this.META_DETAILS_TABLE}(*)
+				`,
+			)
+			.eq("id", cityId)
+			.single();
+
+		let error: ApiError | null = null;
+
+		if (dbError) {
+			error = new ApiError(dbError.message, 500, [dbError.details || ""]);
+		}
+
+		return {
+			data: data,
 			error,
 		};
 	}

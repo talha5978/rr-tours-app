@@ -48,3 +48,16 @@ export type GetFPHighLevelCitiesResponse = {
 	data: FPHighLevelCity[];
 	error: ApiError | null;
 };
+
+export type FPCityDetail = {
+	id: number;
+	name: string;
+	card_image: string | null;
+	full_image: string | null;
+	meta_details: MetaDetailsRow;
+};
+
+export type GetFPCityDetailResponse = {
+	data: FPCityDetail | null;
+	error: ApiError | null;
+};

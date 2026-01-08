@@ -100,7 +100,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 		const cacheSvc = new CacheInvalidationService(request);
 		await cacheSvc.pushCacheInvalidationEvent({
 			target: "front",
-			keys: ["FP_highLvlCities"],
+			keys: ["FP_highLvlCities", `FP_cityDetails||${cityId}`],
 		});
 
 		return { success: true };

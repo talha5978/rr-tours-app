@@ -19,7 +19,6 @@ import type {
 @UseClassMiddleware(loggerMiddleware)
 export class HeroSectionsService extends Service {
 	/** Get All Hero sections */
-	@UseMiddleware(asServiceMiddleware<HeroSectionsService>(verifyUser))
 	async getAllHeroSections(): Promise<GetAllHeroSections> {
 		const { data, error } = await this.supabase
 			.from(this.HERO_SECTIONS_TABLE)

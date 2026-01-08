@@ -7,6 +7,8 @@ export default [
 		index("routes/Home/home.tsx"),
 
 		...prefix("tours", [route("tour/:id/:url_key", "./routes/Tour/tour-details.tsx")]),
+
+		route("city/:id/:url_key", "./routes/City/city.tsx"),
 	]),
 
 	route("*", "./routes/Error/404.tsx"),
