@@ -364,12 +364,6 @@ export default function TourDetailsPage() {
 																		containerClassName="[&>ul]:mt-1"
 																	/>
 																	<MainBodySection
-																		content={option.inclusions}
-																		title="Inclusions"
-																		titleClassName="text-lg"
-																		containerClassName="[&>ul]:mt-1"
-																	/>
-																	<MainBodySection
 																		content={option.exclusions}
 																		title="Exclusions"
 																		titleClassName="text-lg"

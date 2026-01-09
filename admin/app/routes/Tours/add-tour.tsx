@@ -185,9 +185,7 @@ export default function AddTourPage() {
 		if (actionData) {
 			if (actionData.success) {
 				toast.success("New tour added successfully");
-				if (actionData.tour_id) {
-					navigate("/tours/tour/" + actionData.tour_id);
-				}
+				navigate("/tours");
 			} else if (actionData.error) {
 				toast.error(actionData.error);
 			} else if (actionData.validationErrors) {
