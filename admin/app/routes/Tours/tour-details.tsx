@@ -799,7 +799,7 @@ const ParticipantFormComponent = memo(
 					)}
 				<p className="font-semibold text-base mt-8">Total: {totalPrice.toFixed(2)} AED</p>
 				<div className="w-fit ml-auto">
-					<Button type="submit">Checkout</Button>
+					<Button type="submit">Book Now</Button>
 				</div>
 			</form>
 		);

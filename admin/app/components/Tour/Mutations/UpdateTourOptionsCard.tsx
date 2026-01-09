@@ -646,32 +646,49 @@ const AvailabilitiesSubSection = ({
 
 			{/* Pagination Controls */}
 			{totalPages > 1 && (
-				<div className="flex justify-center items-center gap-4 mt-6">
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-						disabled={currentPage === 1}
-						type="button"
-					>
-						<IconChevronLeft className="sm:hidden" />
-						<span className="sm:inline hidden">Previous</span>
-					</Button>
-
-					<span className="text-sm text-muted-foreground">
-						Page {currentPage} of {totalPages}
-					</span>
-
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-						disabled={currentPage === totalPages}
-						type="button"
-					>
-						<IconChevronRight className="sm:hidden" />
-						<span className="sm:inline hidden">Next</span>
-					</Button>
+				<div>
+					<div className="flex justify-center items-center gap-4 mt-6">
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+							disabled={currentPage === 1}
+							type="button"
+						>
+							<IconChevronLeft className="sm:hidden" />
+							<span className="sm:inline hidden">Previous</span>
+						</Button>
+						<span className="text-sm text-muted-foreground">
+							Page {currentPage} of {totalPages}
+						</span>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+							disabled={currentPage === totalPages}
+							type="button"
+						>
+							<IconChevronRight className="sm:hidden" />
+							<span className="sm:inline hidden">Next</span>
+						</Button>
+					</div>
+					<div className="sm:flex hidden gap-2">
+						<Label>Go To</Label>
+						<Input
+							type="number"
+							onChange={(e) =>
+								setCurrentPage(
+									parseInt(e.target.value) > totalPages
+										? totalPages
+										: parseInt(e.target.value),
+								)
+							}
+							className="w-16"
+							max={totalPages}
+							min={1}
+							value={currentPage ?? 1}
+						/>
+					</div>
 				</div>
 			)}
 
@@ -986,12 +1003,15 @@ const TimeslotsSubSection = ({
 										control={control}
 										name={`tour_options.${optionIndex}.availabilities.${availIndex}.timeslots.${tsIndex}.sort_order`}
 										render={({ field }) => (
-											<FormItem className="flex-1">
+											<FormItem
+												className={`flex-1 ${ts.time_slot_id !== undefined && "disabled cursor-not-allowed"}`}
+											>
 												<FormControl>
 													<Input
 														type="number"
 														min={0}
 														placeholder="Sort Order"
+														disabled={ts.time_slot_id !== undefined}
 														{...field}
 													/>
 												</FormControl>
@@ -1027,6 +1047,7 @@ const TimeslotsSubSection = ({
 									size={"sm"}
 									onClick={() => remove(tsIndex)}
 									className="ml-auto"
+									hidden={ts.time_slot_id !== undefined}
 								>
 									Remove Timeslot
 								</Button>

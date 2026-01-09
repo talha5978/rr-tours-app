@@ -102,6 +102,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 				},
 			);
 		}
+		console.log(parseResult.data);
 
 		const tours_svc = new ToursService(request);
 		await tours_svc.updateTour(
@@ -271,8 +272,6 @@ export default function UpdateTourPage() {
 
 	async function onFormSubmit(values: UpdateTourInput) {
 		console.log(values);
-
-		toast.info("Updating the tour...");
 
 		if (tour == null) {
 			toast.error("Tour data not found. Please try again later.");
@@ -901,6 +900,8 @@ export default function UpdateTourPage() {
 			toast.info("No changes to update.");
 			return;
 		}
+
+		toast.info("Updating the tour...");
 
 		// === BUILD FINAL PAYLOAD ===
 		const payload: any = {};
