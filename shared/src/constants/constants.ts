@@ -18,22 +18,22 @@ export const getSimpleImgFormats = () => {
 
 export const CATEGORY_IMG_DIMENSIONS = {
 	min: { width: 500, height: 600 },
-	max: { width: 1200, height: 1200 },
+	max: { width: 2000, height: 2000 },
 } as const;
 
 export const CITY_CARD_IMG_DIMENSTIONS = {
 	min: { width: 500, height: 600 },
-	max: { width: 1700, height: 1700 },
+	max: { width: 2000, height: 2000 },
 } as const;
 
 export const CITY_FULL_IMG_DIMENSTIONS = {
 	min: { width: 700, height: 700 },
-	max: { width: 1700, height: 1700 },
+	max: { width: 2000, height: 2000 },
 } as const;
 
 export const TOUR_IMG_DIMENSTIONS = {
 	min: { width: 500, height: 500 },
-	max: { width: 1700, height: 1700 },
+	max: { width: 2000, height: 2000 },
 };
 
 export const TAG_IMG_DIMENSIONS = {
