@@ -163,4 +163,33 @@ export class TourTagsService extends Service {
 
 		return data ?? [];
 	}
+
+	/** Get All tags related to a city for city page in front panel */
+	async getAllTagsForCity(cityId: number): Promise<GetAllTourTags> {
+		const { data, error } = await this.supabase
+			.from(this.TOURS_TABLE)
+			.select(
+				`
+				join: ${this.TOURS_TAGS_LINK_TABLE} (
+					${this.TOUR_TAGS_TABLE} (id, name, image)
+				)	
+			`,
+			)
+			.limit(100)
+			.eq("city_id", cityId);
+
+		if (error) {
+			throw new ApiError(error.message, 500, []);
+		}
+		const tags =
+			data?.flatMap((tour) =>
+				tour.join.map((link) => ({
+					id: link.tour_tags.id,
+					name: link.tour_tags.name,
+					image: link.tour_tags.image,
+				})),
+			) ?? [];
+
+		return Array.from(new Map(tags.map((tag) => [tag.id, tag])).values()).sort((a, b) => a.id - b.id);
+	}
 }

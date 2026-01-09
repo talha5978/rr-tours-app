@@ -34,7 +34,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 				ogUrl={`${process.env.VITE_MAIN_APP_URL}`}
 				ogImage={SUPABASE_IMAGE_BUCKET_PATH + "/" + loaderData.heroSectionsResp![0].image}
 			/>
-			<section className="pb-60 sm:space-y-16 space-y-8">
+			<section className="pb-20 sm:space-y-16 space-y-8">
 				<HeroSection hero_sections={loaderData.heroSectionsResp ?? []} />
 				<FeaturedToursSection tours={loaderData.featuredToursResp.tours ?? []} />
 				<CitiesSection cities={loaderData.citiesResp.data ?? []} />

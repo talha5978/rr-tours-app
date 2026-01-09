@@ -1,11 +1,12 @@
 import { Link } from "react-router";
 import { Facebook, Heart, Instagram } from "lucide-react";
+import type { FPHighLevelCategory } from "@workspace/shared/types/categories";
 
-export default function Footer() {
+export default function Footer({ categories }: { categories: FPHighLevelCategory[] }) {
 	return (
 		<footer className="border-t bg-background max-container ">
 			<div className="mx-auto py-10">
-				<div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+				<div className="grid gap-8 md:grid-cols-[2fr_1fr_1fr_1fr]">
 					{/* Brand */}
 					<div className="space-y-4">
 						<div className="flex items-center gap-2">
@@ -35,9 +36,9 @@ export default function Footer() {
 						</div>
 					</div>
 
-					{/* Company */}
-					<div className="sm:mx-auto">
-						<h4 className="mb-3 text-sm font-semibold">Company</h4>
+					{/* Agency */}
+					<div>
+						<h4 className="mb-3 text-sm font-semibold">Agency</h4>
 						<ul className="space-y-2 text-sm text-muted-foreground">
 							<li>
 								<Link to="#" className="hover:text-foreground">
@@ -45,7 +46,12 @@ export default function Footer() {
 								</Link>
 							</li>
 							<li>
-								<Link to="#" className="hover:text-foreground">
+								<Link
+									to="/tours"
+									className="hover:text-foreground"
+									viewTransition
+									prefetch="intent"
+								>
 									Our Tours
 								</Link>
 							</li>
@@ -76,6 +82,31 @@ export default function Footer() {
 									Privacy Policy
 								</Link>
 							</li>
+						</ul>
+					</div>
+
+					{/* Tour Categories */}
+					<div>
+						<h4 className="mb-3 text-sm font-semibold">Tour Categories</h4>
+						<ul className="space-y-2 text-sm text-muted-foreground">
+							{categories.slice(0, 5).map((category) => (
+								<li key={category.id}>
+									<Link
+										to={`/tours?category=${category.id}`}
+										className="hover:text-foreground"
+										viewTransition
+									>
+										{category.name}
+									</Link>
+								</li>
+							))}
+							{categories.length > 5 && (
+								<li>
+									<Link to={`/tours`} className="hover:text-foreground" viewTransition>
+										See More
+									</Link>
+								</li>
+							)}
 						</ul>
 					</div>
 				</div>

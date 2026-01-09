@@ -119,8 +119,13 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 		await queryClient.invalidateQueries({ queryKey: ["tour_details_update", tour_id] });
 
 		const cacheSvc = new CacheInvalidationService(request);
+		let invalidationKeys = [`fp_tour_details||${tour_id}`, "fp_tours"];
+		if (parseResult.data.tour_update?.city_id) {
+			invalidationKeys.push(`fp_city_tags||${parseResult.data.tour_update.city_id}`);
+		}
+
 		await cacheSvc.pushCacheInvalidationEvent({
-			keys: [`fp_tour_details||${tour_id}`, "fp_tours"],
+			keys: invalidationKeys,
 			target: "front",
 		});
 

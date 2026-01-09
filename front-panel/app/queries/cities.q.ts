@@ -13,6 +13,17 @@ export const FPhighLevelCitiesQuery = ({ request }: { request: Request }) => {
 	});
 };
 
+export const cityRelatedTagsQuery = ({ request }: { request: Request }) => {
+	return queryOptions<GetFPHighLevelCitiesResponse>({
+		queryKey: ["FP_highLvlCities"],
+		queryFn: async () => {
+			const svc = new CityService(request);
+			const result = await svc.getFPHighLevelCities();
+			return result;
+		},
+	});
+};
+
 export const cityDetailsQuery = (request: Request, cityId: number) => {
 	return queryOptions<GetFPCityDetailResponse>({
 		queryKey: ["FP_cityDetails", `${cityId}`],

@@ -12,3 +12,14 @@ export const allTagsQuery = ({ request }: { request: Request }) => {
 		},
 	});
 };
+
+export const cityTagsQuery = ({ request, cityId }: { request: Request; cityId: number }) => {
+	return queryOptions<GetAllTourTags>({
+		queryKey: ["fp_city_tags", `${cityId}`],
+		queryFn: async () => {
+			const svc = new TourTagsService(request);
+			const result = await svc.getAllTagsForCity(cityId);
+			return result;
+		},
+	});
+};

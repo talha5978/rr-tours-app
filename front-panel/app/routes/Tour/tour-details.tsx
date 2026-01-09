@@ -738,14 +738,19 @@ export default function TourDetailsPage() {
 					)}
 				</div>
 			</section>
-			<section className="mt-10">
-				<RelatedTours
-					tours={loaderData?.relatedToursByCity ?? []}
-					title={"Exlore More in " + tour.city?.name}
-				/>
-			</section>
-			<section className="mt-10">
-				<RelatedTours tours={loaderData?.relatedToursByCategory ?? []} title={"See Related Tours"} />
+			<section className="py-20 space-y-10">
+				<section>
+					<RelatedTours
+						tours={loaderData?.relatedToursByCity ?? []}
+						title={"Exlore More in " + tour.city?.name}
+					/>
+				</section>
+				<section>
+					<RelatedTours
+						tours={loaderData?.relatedToursByCategory ?? []}
+						title={"See Related Tours"}
+					/>
+				</section>
 			</section>
 		</>
 	);
