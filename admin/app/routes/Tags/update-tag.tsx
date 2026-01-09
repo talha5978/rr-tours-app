@@ -6,6 +6,7 @@ import {
 	type UpdateTagInput,
 	UpdateTagSchema,
 } from "@workspace/shared/schemas/tag.schema";
+import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
 import { TourTagsService } from "@workspace/shared/services/tags.service";
 import { ActionResponse } from "@workspace/shared/types/action-data";
 import { ApiError } from "@workspace/shared/utils/ApiError";
@@ -76,6 +77,12 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 		await svc.updateTag(Number(id), parseResult.data);
 		await queryClient.invalidateQueries({ queryKey: ["tour_tags"] });
 		await queryClient.invalidateQueries({ queryKey: ["tour_tag", Number(id)] });
+
+		const cacheSvc = new CacheInvalidationService(request);
+		await cacheSvc.pushCacheInvalidationEvent({
+			keys: ["fp_tour_tags"],
+			target: "front",
+		});
 
 		return { success: true };
 	} catch (error: any) {

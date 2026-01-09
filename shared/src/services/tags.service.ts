@@ -149,4 +149,18 @@ export class TourTagsService extends Service {
 			};
 		}
 	}
+
+	/** Get All tags for front panel */
+	async getAllTagsForFrontPanel(): Promise<GetAllTourTags> {
+		const { data, error } = await this.supabase
+			.from(this.TOUR_TAGS_TABLE)
+			.select("id, name, image")
+			.limit(100);
+
+		if (error) {
+			throw new ApiError(error.message, 500, []);
+		}
+
+		return data ?? [];
+	}
 }

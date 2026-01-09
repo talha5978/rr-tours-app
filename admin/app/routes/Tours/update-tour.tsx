@@ -247,16 +247,7 @@ export default function UpdateTourPage() {
 	useEffect(() => {
 		if (actionData) {
 			if (actionData.success) {
-				toast.success(tour?.name + " tour updated successfully", {
-					action: {
-						label: "View tour",
-						onClick: () => {
-							if (actionData.tour_id) {
-								navigate("/tours/tour/" + actionData.tour_id);
-							}
-						},
-					},
-				});
+				toast.success(tour?.name + " tour updated successfully");
 				if (actionData.tour_id) {
 					navigate("/tours");
 				}

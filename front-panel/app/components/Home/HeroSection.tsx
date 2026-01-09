@@ -5,8 +5,12 @@ import { Button } from "~/components/ui/button";
 import Autoplay from "embla-carousel-autoplay";
 import Fade from "embla-carousel-fade";
 import type { GetAllHeroSections } from "@workspace/shared/types/hero-sections";
+import { Form, useSearchParams } from "react-router";
 
 export default function HeroSection({ hero_sections }: { hero_sections: GetAllHeroSections }) {
+	const [searchParams] = useSearchParams();
+	let currentQuery = searchParams.get("q") ?? "";
+
 	return (
 		<section className="relative h-[80vh] w-full overflow-hidden rounded-xl">
 			{/* Dark overlay */}
@@ -38,16 +42,20 @@ export default function HeroSection({ hero_sections }: { hero_sections: GetAllHe
 				</p>
 
 				{/* Search Input */}
-				<div className="flex flex-col min-[30rem]:flex-row gap-2 w-full max-w-xl mx-auto">
-					<Input
-						type="text"
-						placeholder="Search destinations, tours, or activities"
-						className=" bg-white/90!"
-					/>
-					<Button className="w-full min-[30rem]:w-auto" type="submit">
-						Search
-					</Button>
-				</div>
+				<Form method="get" action="/tours" className="min-w-full">
+					<div className="flex flex-col min-[30rem]:flex-row gap-2 w-full max-w-xl mx-auto">
+						<Input
+							type="text"
+							name="q"
+							placeholder={"Search destinations, tours, or activities"}
+							className="bg-white/90!"
+							defaultValue={currentQuery}
+						/>
+						<Button className="w-full min-[30rem]:w-auto" type="submit">
+							Search
+						</Button>
+					</div>
+				</Form>
 			</div>
 		</section>
 	);

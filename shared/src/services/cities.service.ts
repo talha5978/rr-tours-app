@@ -124,6 +124,7 @@ export class CityService extends Service {
 				${this.META_DETAILS_TABLE}(url_key)
 			`,
 			)
+			.range(0, 20)
 			.order("created_at", { ascending: false });
 
 		const { data, error: dbError } = await query;

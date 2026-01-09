@@ -652,7 +652,12 @@ export type Database = {
 			[_ in never]: never;
 		};
 		Functions: {
-			[_ in never]: never;
+			get_tours_with_active_availability_on_date: {
+				Args: { p_date: string };
+				Returns: {
+					tour_id: string;
+				}[];
+			};
 		};
 		Enums: {
 			cache_invalidation_target: "front" | "admin" | "both";

@@ -1109,7 +1109,7 @@ export class ToursService extends Service {
 			// 14. Delete unused time slots
 			for (const id of deleted_timeslots) {
 				// Check usage
-				console.log("DEleted timeslot: ", id);
+				// console.log("DEleted timeslot: ", id);
 
 				const { count, error: countErr } = await this.supabase
 					.from(this.TOUR_AVAILABILITY_SLOTS_TABLE)
@@ -1158,10 +1158,10 @@ export class ToursService extends Service {
 						${this.TOUR_OPTIONS_TABLE} (
 							prices: ${this.TOUR_OPTION_PRICES_TABLE} (price),
 							${this.TOUR_AVAILABILITIES_TABLE} (
-							date, isActive,
-							${this.TOUR_AVAILABILITY_SLOTS_TABLE} (
-								seat_type, available_seats
-							)
+								date, isActive,
+								${this.TOUR_AVAILABILITY_SLOTS_TABLE} (
+									seat_type, available_seats
+								)
 							)
 						)
 						`,
@@ -1220,20 +1220,43 @@ export class ToursService extends Service {
 				}
 			}
 
+			function formatLocalDate(date: Date) {
+				const yyyy = date.getFullYear();
+				const mm = String(date.getMonth() + 1).padStart(2, "0");
+				const dd = String(date.getDate()).padStart(2, "0");
+				return `${yyyy}-${mm}-${dd}`;
+			}
+
 			// Available date filter
 			if (filters.availableDate) {
-				const dateStr = filters.availableDate.toISOString().split("T")[0];
-				query = query.or(
-					`tour_options.tour_availabilities.date.eq.${dateStr}, and(tour_options.tour_availabilities.isActive.eq.true, or(tour_options.tour_availabilities.tour_availability_slots.seat_type.eq.UNLIMITED, tour_options.tour_availabilities.tour_availability_slots.available_seats.gt.0))`,
-				);
+				const dateStr = formatLocalDate(filters.availableDate);
+				console.log("Filtering for date:", dateStr);
+
+				const { data: matchingTourIds, error: idError } = await this.supabase
+					.rpc("get_tours_with_active_availability_on_date", { p_date: dateStr })
+					.select("tour_id");
+
+				if (idError) {
+					throw new ApiError(`Failed to fetch tours for date: ${idError.message}`, 500);
+				}
+
+				// console.log("Filtering for date:", dateStr);
+				// console.log("Matching tour IDs from RPC:", matchingTourIds);
+
+				if (matchingTourIds && matchingTourIds.length > 0) {
+					const tourIds = matchingTourIds.map((row: any) => row.tour_id);
+					query = query.in("id", tourIds);
+				} else {
+					return { tours: [], total: 0 };
+				}
 			}
 
 			// Price range filter (min price across options)
-			if (filters.price && filters.price.length === 2) {
-				const [minP, maxP] = filters.price.sort((a, b) => a - b);
-				const minPriceSubquery = `(tour_options!inner(tour_option_prices!inner(price))).price`;
-				query = query.gte(minPriceSubquery, minP).lte(minPriceSubquery, maxP);
-			}
+			// if (filters.price && filters.price.length === 2) {
+			// 	const [minP, maxP] = filters.price.sort((a, b) => a - b);
+			// 	const minPriceSubquery = `(tour_options!inner(tour_option_prices!inner(price))).price`;
+			// 	query = query.gte(minPriceSubquery, minP).lte(minPriceSubquery, maxP);
+			// }
 
 			// Default DB sort (only by created_at - price sort will be done in JS)
 			query = query.order("created_at", { ascending: false });
@@ -1245,9 +1268,19 @@ export class ToursService extends Service {
 			}
 
 			// Helper: min price of one option
-			const getOptionMinPrice = (option: any): number => {
-				if (!option.prices?.length) return Infinity;
-				return Math.min(...option.prices.map((p: any) => p.price));
+			// const getOptionMinPrice = (option: any): number => {
+			// 	if (!option.prices?.length) return Infinity;
+			// 	return Math.min(...option.prices.map((p: any) => p.price));
+			// };
+
+			const getTourMinPrice = (tour: (typeof data)[0]): number => {
+				let min = Infinity;
+				for (const option of tour.tour_options || []) {
+					for (const price of option.prices || []) {
+						if (price.price < min) min = price.price;
+					}
+				}
+				return min === Infinity ? 0 : min;
 			};
 
 			// Helper: sold-out score
@@ -1272,8 +1305,8 @@ export class ToursService extends Service {
 
 			// Map raw data → enriched tours with min price
 			let tours: FP_HighLevelTour[] = data.map((tour: (typeof data)[0]) => {
-				const minPrice = Math.min(...tour.tour_options.map(getOptionMinPrice), Infinity);
-
+				// const minPrice = Math.min(...tour.tour_options.map(getOptionMinPrice), Infinity);
+				const minPrice = getTourMinPrice(tour);
 				return {
 					id: tour.id,
 					name: tour.name,
@@ -1302,6 +1335,11 @@ export class ToursService extends Service {
 					}
 					return b.price - a.price;
 				});
+			}
+
+			if (filters.price && filters.price.length === 2) {
+				const [minP, maxP] = filters.price.sort((a, b) => a - b);
+				tours = tours.filter((tour) => tour.price >= minP && tour.price <= maxP);
 			}
 
 			return { tours, total: count ?? 0 };

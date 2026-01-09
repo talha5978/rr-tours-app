@@ -6,7 +6,10 @@ export default [
 	layout("./routes/layout.tsx", [
 		index("routes/Home/home.tsx"),
 
-		...prefix("tours", [route("tour/:id/:url_key", "./routes/Tour/tour-details.tsx")]),
+		...prefix("tours", [
+			index("./routes/Tour/tours.tsx"),
+			route("tour/:id/:url_key", "./routes/Tour/tour-details.tsx"),
+		]),
 
 		route("city/:id/:url_key", "./routes/City/city.tsx"),
 	]),

@@ -15,7 +15,7 @@ import { Separator } from "~/components/ui/separator";
 import { queryClient } from "@workspace/shared/utils/query-client";
 import { tourDetailsQuery, toursQuery } from "~/queries/tours.q";
 import type { GetTourDetails, TourDetailAvailability, TourDetailOption } from "@workspace/shared/types/tours";
-import { cn } from "@workspace/shared/utils/ui";
+import { cn, formatTourDurationHours } from "@workspace/shared/utils/ui";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
 import { CONTACT_NUMBER_1, SUPABASE_IMAGE_BUCKET_PATH } from "@workspace/shared/constants/constants";
 import { Tables } from "@workspace/shared/types/supabase";
@@ -63,20 +63,6 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 		relatedToursByCategory: relatedToursByCategory ?? [],
 	};
 };
-
-function formatHours(input: number): string {
-	const hours = Math.floor(input);
-	const fractionalPart = input - hours;
-
-	// If no decimal part, return hours only
-	if (fractionalPart === 0) {
-		return `${hours} hour${hours !== 1 ? "s" : ""}`;
-	}
-
-	const minutes = Math.round(fractionalPart * 60);
-
-	return `${hours} hour${hours !== 1 ? "s" : ""} ${minutes} minute${minutes !== 1 ? "s" : ""}`;
-}
 
 const getMinPrice = (option: any) => {
 	if (!option.prices?.length) return 0;
@@ -228,14 +214,7 @@ export default function TourDetailsPage() {
 						<div className="flex gap-4 flex-wrap items-center">
 							{tour.tour_category && (
 								<>
-									<Link
-										to={
-											`/FRONTPANEL/tour-categories/tour-category` +
-											tour.tour_category.id +
-											"/" +
-											tour.tour_category.url_key
-										}
-									>
+									<Link to={`/tours?categories=${tour.tour_category.id}`}>
 										<div>
 											<p className="text-sm text-muted-foreground">
 												{tour.tour_category.name}
@@ -738,14 +717,21 @@ export default function TourDetailsPage() {
 							<h2 className="text-2xl font-semibold">Related Tags</h2>
 							<div className="flex gap-2 flex-wrap mt-4">
 								{tour.tags.map((tag, i) => (
-									<div className="relative " key={tag.id}>
-										<div className="flex gap-2 items-center pr-6 bg-card rounded-md">
-											<div className="px-4 bg-primary py-2 rounded-l-md">
-												<p className="text-white">{i + 1}</p>
+									<Link
+										key={tag.id}
+										viewTransition
+										prefetch="intent"
+										to={`/tours?tags=${tag.id}`}
+									>
+										<div className="relative">
+											<div className="flex gap-2 items-center pr-6 bg-card rounded-md">
+												<div className="px-4 bg-primary py-2 rounded-l-md">
+													<p className="text-white">{i + 1}</p>
+												</div>
+												<p className="text-base py-2">{tag.name}</p>
 											</div>
-											<p className="text-base py-2">{tag.name}</p>
 										</div>
-									</div>
+									</Link>
 								))}
 							</div>
 						</section>
@@ -792,7 +778,7 @@ const ParticipantFormComponent = memo(
 		const onSubmit = (data: ParticipantForm) => {
 			// Stub for checkout
 			console.log("Proceed to checkout", data);
-			toast.error("This page is just for preview. Real checkout functionality is not implemented here");
+			toast.warning("Functionality Under Development!!");
 		};
 
 		return (
@@ -856,7 +842,7 @@ const ParticipantFormComponent = memo(
 					)}
 				<p className="font-semibold text-base mt-8">Total: {totalPrice.toFixed(2)} AED</p>
 				<div className="w-fit ml-auto">
-					<Button type="submit">Checkout</Button>
+					<Button type="submit">Book Now</Button>
 				</div>
 			</form>
 		);
@@ -906,7 +892,7 @@ const AttributesCard = memo(
 							<ClockFading className="h-5 w-5" />
 							<div>
 								<h3 className="font-semibold">
-									Duration around {formatHours(tour.duration_minutes)}
+									Duration around {formatTourDurationHours(tour.duration_minutes)}
 								</h3>
 								<p className="text-muted-foreground text-sm">
 									Check availability or contact us for starting times

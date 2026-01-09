@@ -20,12 +20,11 @@ import { cityDetailsQuery } from "~/queries/cities.q";
 import { toast } from "sonner";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
-import { useMemo } from "react";
 import { TourCard } from "~/components/Tour/TourCard";
 import WhyUsSection from "~/components/Home/WhyUsSection";
-import { CityTourSort } from "~/components/City/CitySort";
-import { FPTourFilters } from "@workspace/shared/schemas/fp-tours-filter.schema";
-import { MoveUpRight, SquareArrowOutUpRight } from "lucide-react";
+import { TourSort } from "~/components/Tour/TourSort";
+import { type FPTourFilters } from "@workspace/shared/schemas/fp-tours-filter.schema";
+import { SquareArrowOutUpRight } from "lucide-react";
 
 const pageSize = 20;
 
@@ -72,8 +71,6 @@ export default function CityPage() {
 		return;
 	}
 
-	const subHeading = useMemo(() => getHeroSubHeading(), []);
-
 	const navigation = useNavigation();
 	const location = useLocation();
 
@@ -114,10 +111,13 @@ export default function CityPage() {
 					{/* Overlay Text + Search */}
 					<div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center px-4">
 						<h1 className="text-white text-3xl sm:text-4xl md:text-5xl font-bold mb-4 drop-shadow-lg">
-							Explore Activites in {cityData.data.name}
+							{"Explore Activites in "}
+							<span className="inset-0 bg-primary/80 bg-opacity-30 px-2 rounded-sm text-pretty">
+								{cityData.data.name}
+							</span>
 						</h1>
 						<p className="text-white text-md sm:text-lg md:text-xl mb-6 drop-shadow-md">
-							{subHeading}
+							Turn your travel dreams into unforgettable adventures.
 						</p>
 
 						{/* Search Input */}
@@ -150,10 +150,7 @@ export default function CityPage() {
 				<section className="sm:space-y-6 space-y-4">
 					<div className="flex gap-4 justify-between items-center flex-wrap">
 						<h2 className="section-heading">Explore {cityData.data.name}</h2>
-						<CityTourSort
-							cityId={cityData.data.id}
-							citySlug={cityData.data.meta_details.url_key}
-						/>
+						<TourSort url={`/city/${cityData.data.id}/${cityData.data.meta_details.url_key}`} />
 					</div>
 
 					{toursData.tours.length === 0 && (
@@ -189,26 +186,4 @@ export default function CityPage() {
 			</div>
 		</>
 	);
-}
-
-function getHeroSubHeading() {
-	const statements = [
-		"Turn your travel dreams into unforgettable adventures.",
-		"Embark on a journey that will leave you breathless.",
-		"Explore the world and create memories that will last a lifetime.",
-		"Discover hidden gems and experience the beauty of nature.",
-		"Unleash your sense of adventure and challenge yourself to new heights.",
-		"Immerse yourself in different cultures and learn from their traditions.",
-		"Find solace in the tranquility of a peaceful retreat.",
-		"Indulge in the flavors of local cuisine and savor the taste of adventure.",
-		"Witness breathtaking sunrises and sunsets that will leave you in awe.",
-		"Meet fascinating people and forge lifelong connections.",
-		"Unravel the mysteries of ancient ruins and uncover the secrets of the past.",
-		"Go off the beaten path and discover hidden treasures.",
-		"Challenge yourself to try new activities and push your limits.",
-		"Relax and rejuvenate in the serenity of a tranquil oasis.",
-		"Capture the essence of a place and preserve it in your memories forever.",
-	];
-
-	return statements[Math.floor(Math.random() * statements.length)];
 }

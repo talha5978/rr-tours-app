@@ -11,7 +11,7 @@ export const FPTourFilterFormSchema = z.object({
 	providers: z.array(z.string()).optional(),
 	tags: z.array(z.string()).optional(),
 	availableDate: z.date().optional(),
-	price: z.array(z.number()).optional(),
+	price: z.array(z.number(), z.number()).optional(),
 	sortBy: z.enum(fpTourSortByEnums).optional(),
 	sortType: z.enum(sortTypeEnums).optional(),
 });

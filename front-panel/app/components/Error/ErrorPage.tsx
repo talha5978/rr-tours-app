@@ -1,14 +1,10 @@
-import { Link } from "react-router";
-import { useRouteError, isRouteErrorResponse } from "react-router";
+import { useRouteError, isRouteErrorResponse, Link } from "react-router";
 import { Button } from "~/components/ui/button";
-import { ArrowLeft } from "lucide-react";
-import { Badge } from "~/components/ui/badge";
 
 export default function ErrorPage() {
 	const error = useRouteError();
 	// console.log(error);
 	let errorText = "";
-	const isProdEnv: boolean = process.env.VITE_ENV === "production";
 
 	if (isRouteErrorResponse(error)) {
 		if (error.status === 404) {
@@ -19,54 +15,29 @@ export default function ErrorPage() {
 	}
 
 	return (
-		<section className="bg-current grid h-screen place-items-center px-6 py-14 sm:py-24 lg:px-8">
-			{isRouteErrorResponse(error) ? (
-				<div className="text-center">
-					<Badge variant="destructive">
-						<p className="font-semibold">{error.status || "500"}</p>
-					</Badge>
-					<h1 className="mt-4 text-5xl font-semibold tracking-tight text-balance sm:text-5xl text-primary-foreground">
-						{error.data || "Something went wrong"}
-					</h1>
-					<p className="mt-6 text-lg font-medium text-pretty text-muted-foreground sm:text-xl/8">
-						{errorText}
-					</p>
-					e
-					<div className="mt-10 flex items-center justify-center gap-x-6">
-						<Link to="/">
-							<Button>
-								<ArrowLeft />
-								<span>Go back home</span>
-							</Button>
-						</Link>
-					</div>
-				</div>
-			) : error instanceof Error ? (
-				<div className="text-center">
-					<Badge variant="destructive">
-						<p className="font-semibold">500</p>
-					</Badge>
-					<h1 className="mt-4 text-5xl font-semibold tracking-tight text-balance sm:text-5xl text-primary-foreground">
-						{error.name}
-					</h1>
-					<p className="mt-6 text-lg font-medium text-pretty text-muted-foreground sm:text-xl/8">
-						{error.message || "Something went wrong."}
-					</p>
-					{isProdEnv ? (
-						<p className="mt-3 text-sm font-medium text-pretty text-muted-foreground break-all">
-							{error?.stack}
-						</p>
-					) : null}
-					<div className="mt-10 flex items-center justify-center gap-x-6">
-						<Link to="/">
-							<Button>
-								<ArrowLeft />
-								<span>Go back home</span>
-							</Button>
-						</Link>
-					</div>
-				</div>
-			) : null}
-		</section>
+		<div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
+			<div className="flex flex-col items-center justify-center px-4 py-8 text-center">
+				<h2 className="mb-6 text-5xl font-semibold">Whoops!</h2>
+				<h3 className="mb-1.5 text-3xl font-semibold">Something went wrong</h3>
+				<p className="text-muted-foreground mb-6 max-w-sm">
+					{errorText ??
+						(error as any)?.message ??
+						"The page you&apos;re looking for isn&apos;t found, we suggest you back to home."}
+				</p>
+				<Link to="/" viewTransition>
+					<Button asChild className="rounded-lg text-base">
+						<a href="#">Back to home page</a>
+					</Button>
+				</Link>
+			</div>
+			<div className="relative max-h-screen w-full p-2 max-lg:hidden">
+				<div className="h-full w-full rounded-2xl bg-primary" />
+				<img
+					src="https://cdn.shadcnstudio.com/ss-assets/blocks/marketing/error/image-1.png"
+					alt="404 illustration"
+					className="absolute top-1/2 left-1/2 h-[clamp(260px,25vw,406px)] -translate-x-1/2 -translate-y-1/2"
+				/>
+			</div>
+		</div>
 	);
 }

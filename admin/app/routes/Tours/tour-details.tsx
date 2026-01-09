@@ -15,7 +15,7 @@ import { Separator } from "~/components/ui/separator";
 import { queryClient } from "@workspace/shared/utils/query-client";
 import { tourDetailsQuery } from "~/queries/tours.q";
 import type { GetTourDetails, TourDetailAvailability, TourDetailOption } from "@workspace/shared/types/tours";
-import { cn } from "@workspace/shared/utils/ui";
+import { cn, formatTourDurationHours } from "@workspace/shared/utils/ui";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
 import { SUPABASE_IMAGE_BUCKET_PATH } from "@workspace/shared/constants/constants";
 import { Tables } from "@workspace/shared/types/supabase";
@@ -36,22 +36,12 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 	if (!params.id || params.id === "") return null;
 
 	const data = await queryClient.fetchQuery(tourDetailsQuery({ request, tour_id: params.id }));
-	return data;
-};
-
-function formatHours(input: number): string {
-	const hours = Math.floor(input);
-	const fractionalPart = input - hours;
-
-	// If no decimal part, return hours only
-	if (fractionalPart === 0) {
-		return `${hours} hour${hours !== 1 ? "s" : ""}`;
+	if (data != null && data.isActive) {
+		return null;
 	}
 
-	const minutes = Math.round(fractionalPart * 60);
-
-	return `${hours} hour${hours !== 1 ? "s" : ""} ${minutes} minute${minutes !== 1 ? "s" : ""}`;
-}
+	return data;
+};
 
 export default function TourDetailsPage() {
 	const tour = useLoaderData<typeof loader>();
@@ -881,7 +871,7 @@ const AttributesCard = memo(
 							<ClockFading className="h-5 w-5" />
 							<div>
 								<h3 className="font-semibold">
-									Duration around {formatHours(tour.duration_minutes)}
+									Duration around {formatTourDurationHours(tour.duration_minutes)}
 								</h3>
 								<p className="text-muted-foreground text-sm">
 									Check availability or contact us for starting times

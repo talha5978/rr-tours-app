@@ -1,6 +1,6 @@
 import { SUPABASE_IMAGE_BUCKET_PATH } from "@workspace/shared/constants/constants";
 import type { FP_HighLevelTour } from "@workspace/shared/types/fp-tours";
-import { Flame, MapPin, TicketX } from "lucide-react";
+import { Flame, MapPin } from "lucide-react";
 import { memo } from "react";
 import { Link } from "react-router";
 import { Badge } from "~/components/ui/badge";
@@ -10,7 +10,7 @@ export const TourCard = memo(
 		return (
 			<Link to={"/tours/tour/" + tour.id + "/" + tour.url_key} prefetch="intent" viewTransition>
 				<div
-					className={`h-full group overflow-hidden bg-card rounded-xl cursor-pointer ${className ?? ""}`}
+					className={`h-full border-2 group overflow-hidden bg-card rounded-xl cursor-pointer ${className ?? ""}`}
 					{...props}
 				>
 					<div className="relative overflow-hidden select-none">
@@ -32,21 +32,14 @@ export const TourCard = memo(
 						<div className="mt-2 flex flex-col gap-2 flex-1">
 							<div className="flex gap-2 flex-wrap">
 								<Badge variant="outline">{tour.category.name}</Badge>
-								{tour.toBeSoldOutScore === 1 ? (
+								{tour.toBeSoldOutScore >= 0.7 && (
 									<div>
-										<Badge className="bg-destructive">
-											<TicketX />
-											<span>Sold Out</span>
-										</Badge>
-									</div>
-								) : tour.toBeSoldOutScore >= 0.7 ? (
-									<div>
-										<Badge className="bg-warning">
+										<Badge className="bg-warning/90">
 											<Flame />
 											<span>Likely to Sell Out</span>
 										</Badge>
 									</div>
-								) : null}
+								)}
 							</div>
 							<div className="mt-auto">
 								<p className="font-bold text-md">From {tour.price} AED</p>

@@ -5,9 +5,10 @@ import { Button } from "~/components/ui/button";
 
 const NAV_LINKS = [
 	{ label: "Home", to: "/" },
-	{ label: "Tours", to: "/tours" },
-	{ label: "Destinations", to: "/destinations" },
+	{ label: "All Tours", to: "/tours" },
 	{ label: "About", to: "/about" },
+	{ label: "Contact Us", to: "/contact-us" },
+	{ label: "Track Booking", to: "/track-booking" },
 ];
 
 export default function Header() {
@@ -68,11 +69,11 @@ export default function Header() {
 							key={link.to}
 							to={link.to}
 							className={({ isActive }) =>
-								`text-sm ${
+								`text-sm hover:underline underline-offset-4 ${
 									isActive
 										? "font-medium text-foreground"
 										: "text-muted-foreground hover:text-foreground"
-								}`
+								} ${isActive ? "underline underline-offset-4" : ""}`
 							}
 						>
 							{link.label}

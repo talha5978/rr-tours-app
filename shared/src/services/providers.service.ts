@@ -1,12 +1,10 @@
 import { Service } from "@workspace/shared/services/service.base";
 import { UseClassMiddleware } from "@workspace/shared/decorators/useClassMiddleware";
 import { loggerMiddleware } from "@workspace/shared/middlewares/logger.middleware";
-import { verifyUser } from "@workspace/shared/middlewares/auth.middleware";
-import { asServiceMiddleware } from "@workspace/shared/middlewares/utils";
 import { ApiError } from "@workspace/shared/utils/ApiError";
 import type { GetAllProviders } from "@workspace/shared/types/providers";
 
-@UseClassMiddleware(loggerMiddleware, asServiceMiddleware<TourProvidersService>(verifyUser))
+@UseClassMiddleware(loggerMiddleware)
 export class TourProvidersService extends Service {
 	/** Get All Activity PRoviders */
 	async getAllTourProviders(): Promise<GetAllProviders> {

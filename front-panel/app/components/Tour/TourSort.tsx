@@ -15,11 +15,10 @@ import { FormControl, FormField, FormItem, Form as ShadcnForm } from "~/componen
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 
 type Props = {
-	cityId: number;
-	citySlug: string;
+	url: string;
 };
 
-export function CityTourSort({ cityId, citySlug }: Props) {
+export function TourSort({ url }: Props) {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const [searchParams] = useSearchParams();
@@ -69,7 +68,7 @@ export function CityTourSort({ cityId, citySlug }: Props) {
 			params.delete("sortBy");
 			params.delete("sortType");
 
-			navigate(`/city/${cityId}/${citySlug}?${params.toString()}`);
+			navigate(`${url}?${params.toString()}`);
 			return;
 		}
 
@@ -81,7 +80,7 @@ export function CityTourSort({ cityId, citySlug }: Props) {
 		params.set("sortBy", sortBy);
 		params.set("sortType", sortType);
 
-		navigate(`/city/${cityId}/${citySlug}?${params.toString()}`);
+		navigate(`${url}?${params.toString()}`);
 	}, [selected]);
 
 	return (
