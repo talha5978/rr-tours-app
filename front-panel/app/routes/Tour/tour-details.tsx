@@ -1,4 +1,4 @@
-import { Link, type LoaderFunctionArgs, useLoaderData } from "react-router";
+import { Link, type LoaderFunctionArgs, useLoaderData, useNavigate } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "~/components/ui/dialog";
@@ -639,12 +639,14 @@ export default function TourDetailsPage() {
 																	)}
 																{step === "participants" &&
 																	selectedOption &&
-																	selectedTimeSlot && (
+																	selectedTimeSlot &&
+																	selectedDate && (
 																		<ParticipantFormComponent
 																			option={selectedOption}
 																			selectedTimeSlot={
 																				selectedTimeSlot
 																			}
+																			selectedDate={selectedDate}
 																		/>
 																	)}
 															</DialogContent>
@@ -751,7 +753,18 @@ export default function TourDetailsPage() {
 }
 
 const ParticipantFormComponent = memo(
-	({ option, selectedTimeSlot }: { option: TourDetailOption; selectedTimeSlot: AvailabilitySlot }) => {
+	({
+		option,
+		selectedTimeSlot,
+		selectedDate,
+	}: {
+		option: TourDetailOption;
+		selectedTimeSlot: AvailabilitySlot;
+		selectedDate: Date;
+	}) => {
+		const navigate = useNavigate();
+		const loaderData = useLoaderData<typeof loader>();
+
 		const { control, handleSubmit } = useForm<ParticipantForm>({
 			resolver: zodResolver(participantSchema),
 			defaultValues: {
@@ -777,7 +790,19 @@ const ParticipantFormComponent = memo(
 		const onSubmit = (data: ParticipantForm) => {
 			// Stub for checkout
 			console.log("Proceed to checkout", data);
-			toast.warning("Functionality Under Development!!");
+			if (loaderData == null || loaderData?.tour == null) {
+				toast.error("Something went wrong. Please try again.");
+			}
+
+			navigate("/booking", {
+				state: {
+					tour: loaderData?.tour,
+					option,
+					date: selectedDate,
+					timeSlot: selectedTimeSlot,
+					quantities: data.quantities,
+				},
+			});
 		};
 
 		return (

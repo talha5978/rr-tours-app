@@ -414,6 +414,7 @@ export default function UpdateCategory() {
 												<FormControl>
 													<Input
 														placeholder="e.g. cultural-and-heritage-tours"
+														disabled
 														{...field}
 													/>
 												</FormControl>

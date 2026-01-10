@@ -12,8 +12,6 @@ export const tourDetailsQuery = ({ request, tour_id }: { request: Request; tour_
 			const result = await svc.getFPTourDetails(tour_id);
 			return result;
 		},
-		staleTime: 10 * 60 * 1000,
-		gcTime: 20 * 60 * 1000,
 	});
 };
 
@@ -37,7 +35,5 @@ export const toursQuery = ({
 			const result = await svc.getFPHighLevelTours(q, pageIndex, pageSize, filters);
 			return result;
 		},
-		staleTime: 10 * 60 * 1000,
-		gcTime: 20 * 60 * 1000,
 	});
 };

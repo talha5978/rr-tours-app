@@ -13,7 +13,7 @@ export default function Footer({ categories }: { categories: FPHighLevelCategory
 							<div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
 								TA
 							</div>
-							<span className="text-lg font-semibold">Top Attractions</span>
+							<span className="text-lg font-semibold">Top Attractions Dubai</span>
 						</div>
 
 						<p className="max-w-sm text-sm text-muted-foreground">
@@ -95,6 +95,7 @@ export default function Footer({ categories }: { categories: FPHighLevelCategory
 										to={`/tours?category=${category.id}`}
 										className="hover:text-foreground"
 										viewTransition
+										title={category.name}
 									>
 										{category.name}
 									</Link>
@@ -102,7 +103,12 @@ export default function Footer({ categories }: { categories: FPHighLevelCategory
 							))}
 							{categories.length > 5 && (
 								<li>
-									<Link to={`/tours`} className="hover:text-foreground" viewTransition>
+									<Link
+										to={`/tours`}
+										className="hover:text-foreground"
+										title="See More"
+										viewTransition
+									>
 										See More
 									</Link>
 								</li>
@@ -113,7 +119,7 @@ export default function Footer({ categories }: { categories: FPHighLevelCategory
 
 				{/* Bottom bar */}
 				<div className="mt-8 flex flex-col gap-3 border-t pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-					<p>© {new Date().getFullYear()} Top Attractions. All rights reserved.</p>
+					<p>© {new Date().getFullYear()} Top Attractions Dubai. All rights reserved.</p>
 
 					<span className="flex gap-2 items-center">
 						<span>Made with care for travelers</span>

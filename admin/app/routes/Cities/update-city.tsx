@@ -455,7 +455,7 @@ export default function UpdateCategory() {
 													</span>
 												</div>
 												<FormControl>
-													<Input placeholder="e.g. dubai" {...field} />
+													<Input placeholder="e.g. dubai" disabled {...field} />
 												</FormControl>
 												<FormMessage />
 											</FormItem>

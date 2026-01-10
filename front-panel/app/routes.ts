@@ -12,6 +12,8 @@ export default [
 		]),
 
 		route("city/:id/:url_key", "./routes/City/city.tsx"),
+
+		route("booking", "./routes/Booking/booking.tsx"),
 	]),
 
 	route("*", "./routes/Error/404.tsx"),

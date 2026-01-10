@@ -1074,6 +1074,7 @@ export default function UpdateTourPage() {
 											</div>
 											<FormControl>
 												<Input
+													disabled
 													placeholder="e.g. ferrari-world-abu-dhabi-tour"
 													{...field}
 												/>

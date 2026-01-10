@@ -86,6 +86,150 @@ export type Database = {
 					},
 				];
 			};
+			booking_participants: {
+				Row: {
+					booking_id: string;
+					id: string;
+					participant_type_id: number;
+					quantity: number;
+					unit_price: number;
+				};
+				Insert: {
+					booking_id: string;
+					id?: string;
+					participant_type_id: number;
+					quantity: number;
+					unit_price: number;
+				};
+				Update: {
+					booking_id?: string;
+					id?: string;
+					participant_type_id?: number;
+					quantity?: number;
+					unit_price?: number;
+				};
+				Relationships: [
+					{
+						foreignKeyName: "booking_participants_booking_id_fkey";
+						columns: ["booking_id"];
+						isOneToOne: false;
+						referencedRelation: "bookings";
+						referencedColumns: ["id"];
+					},
+					{
+						foreignKeyName: "booking_participants_participant_type_id_fkey";
+						columns: ["participant_type_id"];
+						isOneToOne: false;
+						referencedRelation: "participant_types";
+						referencedColumns: ["id"];
+					},
+				];
+			};
+			bookings: {
+				Row: {
+					admin_note: string | null;
+					booking_ref: string;
+					booking_status: Database["public"]["Enums"]["booking_status_enum"];
+					cancelled_at: string | null;
+					confirmed_at: string | null;
+					confirmed_date: string | null;
+					confirmed_timeslot: string | null;
+					created_at: string;
+					customer_email: string | null;
+					customer_name: string | null;
+					customer_phone: string | null;
+					discount: number;
+					id: string;
+					payment_ref: string | null;
+					payment_status: Database["public"]["Enums"]["payment_status_enum"];
+					preferred_date: string | null;
+					preferred_timeslot: string | null;
+					price_overriden: boolean;
+					pricing_note: string | null;
+					subtotal_amount: number;
+					taxes: number;
+					total: number;
+					tour_id: string | null;
+					tour_name: string | null;
+					tour_option_id: number | null;
+					tour_option_name: string | null;
+					updated_at: string;
+				};
+				Insert: {
+					admin_note?: string | null;
+					booking_ref: string;
+					booking_status?: Database["public"]["Enums"]["booking_status_enum"];
+					cancelled_at?: string | null;
+					confirmed_at?: string | null;
+					confirmed_date?: string | null;
+					confirmed_timeslot?: string | null;
+					created_at?: string;
+					customer_email?: string | null;
+					customer_name?: string | null;
+					customer_phone?: string | null;
+					discount?: number;
+					id?: string;
+					payment_ref?: string | null;
+					payment_status?: Database["public"]["Enums"]["payment_status_enum"];
+					preferred_date?: string | null;
+					preferred_timeslot?: string | null;
+					price_overriden?: boolean;
+					pricing_note?: string | null;
+					subtotal_amount?: number;
+					taxes?: number;
+					total?: number;
+					tour_id?: string | null;
+					tour_name?: string | null;
+					tour_option_id?: number | null;
+					tour_option_name?: string | null;
+					updated_at?: string;
+				};
+				Update: {
+					admin_note?: string | null;
+					booking_ref?: string;
+					booking_status?: Database["public"]["Enums"]["booking_status_enum"];
+					cancelled_at?: string | null;
+					confirmed_at?: string | null;
+					confirmed_date?: string | null;
+					confirmed_timeslot?: string | null;
+					created_at?: string;
+					customer_email?: string | null;
+					customer_name?: string | null;
+					customer_phone?: string | null;
+					discount?: number;
+					id?: string;
+					payment_ref?: string | null;
+					payment_status?: Database["public"]["Enums"]["payment_status_enum"];
+					preferred_date?: string | null;
+					preferred_timeslot?: string | null;
+					price_overriden?: boolean;
+					pricing_note?: string | null;
+					subtotal_amount?: number;
+					taxes?: number;
+					total?: number;
+					tour_id?: string | null;
+					tour_name?: string | null;
+					tour_option_id?: number | null;
+					tour_option_name?: string | null;
+					updated_at?: string;
+				};
+				Relationships: [
+					{
+						foreignKeyName: "bookings_tour_id_fkey";
+						columns: ["tour_id"];
+						isOneToOne: false;
+						referencedRelation: "tours";
+						referencedColumns: ["id"];
+					},
+					{
+						foreignKeyName: "bookings_tour_option_id_fkey";
+						columns: ["tour_option_id"];
+						isOneToOne: false;
+						referencedRelation: "tour_options";
+						referencedColumns: ["id"];
+					},
+				];
+			};
 			cache_invalidation_events: {
 				Row: {
 					created_at: string;
@@ -660,7 +804,9 @@ export type Database = {
 			};
 		};
 		Enums: {
+			booking_status_enum: "PENDING" | "CONFIRMED" | "CANCELLED";
 			cache_invalidation_target: "front" | "admin" | "both";
+			payment_status_enum: "UNPAID" | "PENDING" | "PARTIAL" | "PAID" | "REFUNDED";
 			timeslot_seat_type: "UNLIMITED" | "LIMITED";
 		};
 		CompositeTypes: {
@@ -790,7 +936,9 @@ export const Constants = {
 	},
 	public: {
 		Enums: {
+			booking_status_enum: ["PENDING", "CONFIRMED", "CANCELLED"],
 			cache_invalidation_target: ["front", "admin", "both"],
+			payment_status_enum: ["UNPAID", "PENDING", "PARTIAL", "PAID", "REFUNDED"],
 			timeslot_seat_type: ["UNLIMITED", "LIMITED"],
 		},
 	},

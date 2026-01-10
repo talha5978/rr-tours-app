@@ -2,13 +2,12 @@ import { ColumnDef, getCoreRowModel, useReactTable } from "@tanstack/react-table
 import { SUPABASE_IMAGE_BUCKET_PATH } from "@workspace/shared/constants/constants";
 import { HighLevelCategory } from "@workspace/shared/types/categories";
 import { queryClient } from "@workspace/shared/utils/query-client";
-import { Loader2, MoreHorizontal, PlusCircle, Search, TriangleAlert } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Search, TriangleAlert } from "lucide-react";
 import { useEffect } from "react";
 import {
 	Form,
 	Link,
 	type LoaderFunctionArgs,
-	useFetcher,
 	useLoaderData,
 	useLocation,
 	useNavigation,
@@ -60,30 +59,6 @@ export default function CategoriesPage() {
 			toast.error(`${data.error.statusCode} - ${data.error.message}`);
 		}
 	}, [data.error]);
-
-	const fetcher = useFetcher();
-
-	// Handle fetcher state for toasts and query invalidation
-	useEffect(() => {
-		if (fetcher.data) {
-			if (fetcher.data.success) {
-				toast.success("Category deleted successfully");
-				queryClient.invalidateQueries({ queryKey: ["categories"] });
-			} else if (fetcher.data.error) {
-				toast.error(fetcher.data.error);
-			}
-		}
-		console.log(fetcher.data);
-	}, [fetcher.data, queryClient]);
-
-	const handleDeleteClick = (categoryId: string) => {
-		const formData = new FormData();
-		formData.append("categoryId", categoryId);
-		fetcher.submit(formData, {
-			method: "POST",
-			action: `/categories/${categoryId}/delete`,
-		});
-	};
 
 	const tableColumns: ColumnDef<HighLevelCategory, unknown>[] = [
 		{
@@ -172,7 +147,12 @@ export default function CategoriesPage() {
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="end">
 								<DropdownMenuItem onClick={handleCopy}>Copy Id</DropdownMenuItem>
-								<Link to={`${rowData.id}/sub-categories`} viewTransition prefetch="intent">
+								<Link
+									to={`${process.env.VITE_MAIN_APP_URL}/tours?categories=${rowData.id}`}
+									viewTransition
+									prefetch="intent"
+									target="_blank"
+								>
 									<DropdownMenuItem>View Live</DropdownMenuItem>
 								</Link>
 								<Link to={`/tours?categories=${rowData.id}`} viewTransition prefetch="intent">
@@ -181,16 +161,6 @@ export default function CategoriesPage() {
 								<Link to={`${rowData.id}/update`} viewTransition prefetch="intent">
 									<DropdownMenuItem>Update</DropdownMenuItem>
 								</Link>
-								<DropdownMenuItem
-									disabled={fetcher.state === "submitting"}
-									variant="destructive"
-									onClick={() => handleDeleteClick(rowData.id.toString())}
-								>
-									{fetcher.state === "submitting" ? (
-										<Loader2 className="animate-spin" color="white" />
-									) : null}
-									Delete
-								</DropdownMenuItem>
 							</DropdownMenuContent>
 						</DropdownMenu>
 					</>
