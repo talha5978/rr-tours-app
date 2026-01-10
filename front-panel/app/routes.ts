@@ -2,6 +2,7 @@ import { type RouteConfig, index, layout, prefix, route } from "@react-router/de
 
 export default [
 	route("robots.txt", "./routes/robots.txt.ts"),
+	route("sitemap.xml", "./routes/sitemap.xml.ts"),
 
 	layout("./routes/layout.tsx", [
 		index("routes/Home/home.tsx"),
@@ -15,6 +16,8 @@ export default [
 
 		route("booking", "./routes/Booking/booking.tsx"),
 		route("track-booking", "./routes/Booking/track-booking.tsx"),
+
+		route("contact-us", "./routes/Contact/contact-us.tsx"),
 	]),
 
 	route("*", "./routes/Error/404.tsx"),

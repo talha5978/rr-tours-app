@@ -68,7 +68,7 @@ export default function Footer({ categories }: { categories: FPHighLevelCategory
 						<h4 className="mb-3 text-sm font-semibold">Support</h4>
 						<ul className="space-y-2 text-sm text-muted-foreground">
 							<li>
-								<Link to="#" className="hover:text-foreground">
+								<Link to="/contact-us" className="hover:text-foreground">
 									Contact
 								</Link>
 							</li>
