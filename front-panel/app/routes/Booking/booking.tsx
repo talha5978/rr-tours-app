@@ -204,7 +204,7 @@ export default function BookingPage() {
 							<p className="font-semibold">Booking Reference ID: {bookingRef}</p>
 							<p>Use this ID to track your booking.</p>
 						</div>
-						<Link to="track-booking" viewTransition>
+						<Link to="/track-booking" viewTransition>
 							<Button type="button">Track Booking</Button>
 						</Link>
 					</div>

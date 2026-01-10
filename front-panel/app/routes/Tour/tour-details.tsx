@@ -789,9 +789,13 @@ const ParticipantFormComponent = memo(
 
 		const onSubmit = (data: ParticipantForm) => {
 			// Stub for checkout
-			console.log("Proceed to checkout", data);
 			if (loaderData == null || loaderData?.tour == null) {
 				toast.error("Something went wrong. Please try again.");
+			}
+
+			if (Object.values(data.quantities).some((qty) => qty > 0) === false) {
+				toast.error("Please select at least one participant.");
+				return;
 			}
 
 			navigate("/booking", {
