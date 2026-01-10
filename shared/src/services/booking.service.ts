@@ -4,6 +4,7 @@ import { loggerMiddleware } from "@workspace/shared/middlewares/logger.middlewar
 import { ApiError } from "@workspace/shared/utils/ApiError";
 import { CreateBookingInput } from "@workspace/shared/schemas/booking.schema";
 import { Database } from "@workspace/shared/types/supabase";
+import type { FPBookingByRefDetail } from "@workspace/shared/types/booking";
 
 @UseClassMiddleware(loggerMiddleware)
 export class BookingService extends Service {
@@ -108,6 +109,58 @@ export class BookingService extends Service {
 			return booking_ref;
 		} catch (error) {
 			throw error instanceof ApiError ? error : new ApiError("Failed to create booking", 500, []);
+		}
+	}
+
+	/** Get booking by ref */
+	async getBookingByRef(bookingRef: string): Promise<FPBookingByRefDetail> {
+		try {
+			if (!bookingRef || bookingRef === "") {
+				throw new ApiError("Missing booking reference", 400, []);
+			}
+
+			const { data, error } = await this.supabase
+				.from(this.BOOKINGS_TABLE)
+				.select(
+					`
+					*, 
+					participants:booking_participants!inner(
+						*,
+						participant_type:participant_types!inner(
+							*
+						)
+					)
+				`,
+				)
+				.eq("booking_ref", bookingRef)
+				.limit(1)
+				.maybeSingle();
+
+			if (error) {
+				throw new ApiError(error.message, 500, []);
+			}
+
+			let booking: FPBookingByRefDetail | null =
+				data == null
+					? null
+					: {
+							...data,
+							booking_participants: data.participants.map((p) => ({
+								id: p.id,
+								participant: {
+									id: p.participant_type.id,
+									name: p.participant_type.name,
+									age_max: p.participant_type.age_max,
+									age_min: p.participant_type.age_min,
+								},
+								quantity: p.quantity,
+								unit_price: p.unit_price,
+							})),
+						};
+
+			return booking;
+		} catch (error) {
+			throw error instanceof ApiError ? error : new ApiError("Failed to get booking data", 500, []);
 		}
 	}
 }
