@@ -29,31 +29,37 @@ export async function loader({ request }: Route.LoaderArgs) {
 	);
 
 	if (cacheEvents.length > 0) {
+		const uniqueSerializedKeys = new Set<string>();
 		const eventIdsToMark: string[] = [];
 
 		for (const event of cacheEvents) {
 			eventIdsToMark.push(event.id);
 
 			for (const serializedKey of event.keys) {
-				if (serializedKey.includes("||")) {
-					// e.g., "fp_tour_details||459"
-					const parts = serializedKey.split("||");
-					queryClient.invalidateQueries({
-						queryKey: parts, // ["fp_tour_details", "123"]
-						exact: false,
-					});
-				} else {
-					// simple key like "fp_tours"
-					queryClient.invalidateQueries({
-						queryKey: [serializedKey],
-					});
-				}
+				uniqueSerializedKeys.add(serializedKey);
+			}
+		}
+		console.log(uniqueSerializedKeys);
+
+		for (const serializedKey of uniqueSerializedKeys) {
+			if (serializedKey.includes("||")) {
+				// e.g., "fp_tour_details||459"
+				const parts = serializedKey.split("||");
+				queryClient.invalidateQueries({
+					queryKey: parts, // ["fp_tour_details", "123"]
+					exact: false,
+				});
+			} else {
+				// simple key like "fp_tours"
+				queryClient.invalidateQueries({
+					queryKey: [serializedKey],
+				});
 			}
 		}
 
 		if (eventIdsToMark.length > 0) {
 			const cacheSvc = new CacheInvalidationService(request);
-			cacheSvc.markEventsAsProcessed(eventIdsToMark);
+			await cacheSvc.markEventsAsProcessed(eventIdsToMark);
 		}
 	}
 

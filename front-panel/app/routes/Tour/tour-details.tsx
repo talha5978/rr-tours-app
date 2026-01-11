@@ -529,6 +529,10 @@ export default function TourDetailsPage() {
 																							months
 																						}
 																						value={selectedDate}
+																						defaultMonth={
+																							selectedDate ||
+																							new Date()
+																						}
 																						onDateChange={
 																							handleDateSelect
 																						}

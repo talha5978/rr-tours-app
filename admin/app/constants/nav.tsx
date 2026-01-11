@@ -2,6 +2,7 @@
 import {
 	// Archive,
 	Blocks,
+	CalendarCheck2,
 	// CalendarCheck2,
 	FerrisWheel,
 	// Gift,
@@ -30,11 +31,6 @@ export const mainNavItems: NavItem[] = [
 				url: "/tours/add",
 				icon: <FerrisWheel />,
 			},
-			// {
-			// 	title: "Bookings",
-			// 	url: "/bookings",
-			// 	icon: <CalendarCheck2 />,
-			// },
 		],
 	},
 	{
@@ -59,6 +55,16 @@ export const mainNavItems: NavItem[] = [
 				title: "Cities",
 				url: "/cities",
 				icon: <MapPin />,
+			},
+		],
+	},
+	{
+		title: "Bookings",
+		items: [
+			{
+				title: "Bookings",
+				url: "/bookings",
+				icon: <CalendarCheck2 />,
 			},
 		],
 	},

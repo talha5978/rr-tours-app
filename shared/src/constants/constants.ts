@@ -46,6 +46,11 @@ export const HERO_SECTION_IMG_DIMENSIONS = {
 	max: { width: 3500, height: 3500 },
 };
 
+export const PAYMENT_REF_DIMENSIONS = {
+	min: { width: 100, height: 100 },
+	max: { width: 2000, height: 2000 },
+};
+
 export const MAX_META_KEYWORDS = 25;
 
 export const TIMESLOT_SEAT_TYPE = Constants.public.Enums.timeslot_seat_type;
@@ -59,3 +64,6 @@ export const tourSortByEnums = ["created_at", "updated_at", "isFeatured", "isAct
 export const fpDefaultTourSortByFilter = "recommended" as const;
 export const fpDefaultTourSortTypeFilter = "desc" as const;
 export const fpTourSortByEnums = ["recommended", "price"] as const;
+
+export const BOOKING_STATUS = Constants.public.Enums.booking_status_enum;
+export const PAYMENT_STATUS = Constants.public.Enums.payment_status_enum;

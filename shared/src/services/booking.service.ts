@@ -2,9 +2,18 @@ import { Service } from "@workspace/shared/services/service.base";
 import { UseClassMiddleware } from "@workspace/shared/decorators/useClassMiddleware";
 import { loggerMiddleware } from "@workspace/shared/middlewares/logger.middleware";
 import { ApiError } from "@workspace/shared/utils/ApiError";
-import { CreateBookingInput } from "@workspace/shared/schemas/booking.schema";
+import { CreateBookingInput, UpdateBookingActionData } from "@workspace/shared/schemas/booking.schema";
 import { Database } from "@workspace/shared/types/supabase";
-import type { FPBookingByRefDetail } from "@workspace/shared/types/booking";
+import type {
+	BookingDetailById,
+	FPBookingByRefDetail,
+	GetBookingDetailByID,
+	GetHighLevelBookings,
+	HighLevelBooking,
+} from "@workspace/shared/types/booking";
+import { UseMiddleware } from "@workspace/shared/decorators/useMiddleware";
+import { verifyUser } from "@workspace/shared/middlewares/auth.middleware";
+import { MediaService } from "@workspace/shared/services/media.service";
 
 @UseClassMiddleware(loggerMiddleware)
 export class BookingService extends Service {
@@ -158,9 +167,303 @@ export class BookingService extends Service {
 							})),
 						};
 
+			if (booking && (booking as any).payment_ref != null) {
+				(booking as any).payment_ref = null;
+			}
+			if (booking && booking.admin_note != null) {
+				booking.admin_note = null;
+			}
 			return booking;
 		} catch (error) {
 			throw error instanceof ApiError ? error : new ApiError("Failed to get booking data", 500, []);
+		}
+	}
+
+	/** Get high level bookings for admin page */
+	@UseMiddleware(verifyUser)
+	async getHighLevelBookings(q = "", pageIndex = 0, pageSize = 10): Promise<GetHighLevelBookings> {
+		const from = pageIndex * pageSize;
+		const to = from + pageSize - 1;
+
+		try {
+			let query = this.supabase
+				.from(this.BOOKINGS_TABLE)
+				.select(
+					`
+					id, booking_ref, booking_status, payment_status, created_at, tour_id, tour_name, tour_option_id, tour_option_name, preferred_date, preferred_timeslot, confirmed_date, confirmed_timeslot, total, customer_name, customer_phone
+				`,
+					{ count: "exact" },
+				)
+				.range(from, to)
+				.order("created_at", { ascending: false });
+
+			if (q.length > 0) {
+				query = query.like("booking_ref", `%${q}%`);
+			}
+
+			const { data, error, count } = await query;
+
+			if (error) {
+				return { bookings: [], total: 0 };
+			}
+
+			let payload: HighLevelBooking[] = data.map((b) => ({
+				id: b.id,
+				booking_ref: b.booking_ref,
+				booking_status: b.booking_status,
+				payment_status: b.payment_status,
+				created_at: b.created_at,
+				tour_id: b.tour_id,
+				tour_name: b.tour_name,
+				tour_option_id: b.tour_option_id,
+				tour_option_name: b.tour_option_name,
+				preffered_date: b.preferred_date,
+				preffered_timeslot: b.preferred_timeslot,
+				confirmed_date: b.confirmed_date,
+				confirmed_timeslot: b.confirmed_timeslot,
+				total: b.total,
+				customer_name: b.customer_name,
+				customer_phone: b.customer_phone,
+			}));
+
+			return { bookings: payload, total: Number(count) };
+		} catch (error) {
+			return {
+				bookings: [],
+				total: 0,
+			};
+		}
+	}
+
+	/** Get booking detail for admin page */
+	@UseMiddleware(verifyUser)
+	async getBookingById(booking_id: string): Promise<GetBookingDetailByID> {
+		if (!booking_id || booking_id === "") {
+			throw new ApiError("Missing booking id", 400, []);
+		}
+
+		const { data, error } = await this.supabase
+			.from(this.BOOKINGS_TABLE)
+			.select(
+				`
+					*,
+					${this.BOOKING_PARTICIPANTS_TABLE}!inner(*, ${this.PARTICIPANT_TYPES_TABLE}!inner(*))				`,
+			)
+			.eq("id", booking_id)
+			.limit(1)
+			.maybeSingle();
+
+		if (error) {
+			return {
+				booking: null,
+				error: new ApiError(error.message, 500, []),
+			};
+		}
+
+		// @ts-ignore
+		let payload: BookingDetailById = {
+			...data,
+			booking_participants: data![this.BOOKING_PARTICIPANTS_TABLE].map((p) => ({
+				id: p.id,
+				booking_id: p.booking_id,
+				quantity: p.quantity,
+				unit_price: p.unit_price,
+				participant_type_id: p.participant_type_id,
+				participant_type: p[this.PARTICIPANT_TYPES_TABLE],
+			})),
+		};
+
+		return {
+			booking: payload ?? null,
+			error: null,
+		};
+	}
+
+	/** update booking detail for admin page */
+	@UseMiddleware(verifyUser)
+	async updateBooking(id: string, input: UpdateBookingActionData): Promise<void> {
+		try {
+			// Fetch current booking to get existing values if needed
+			const { data: currentBooking, error: fetchError } = await this.supabase
+				.from("bookings")
+				.select("*")
+				.eq("id", id)
+				.single();
+
+			if (fetchError || !currentBooking) {
+				throw new ApiError("Booking not found", 404, []);
+			}
+
+			let payload: Database["public"]["Tables"]["bookings"]["Update"] = {};
+
+			// Check for confirmed at
+			let temp_booking_status = currentBooking.booking_status;
+			if (input.booking_status !== undefined) {
+				temp_booking_status = input.booking_status;
+			}
+
+			let temp_payment_status = currentBooking.payment_status;
+			if (input.payment_status !== undefined) {
+				temp_payment_status = input.payment_status;
+			}
+
+			let temp_confirmed_date = currentBooking.confirmed_date;
+			if (input.confirmed_date !== undefined) {
+				temp_confirmed_date = input.confirmed_date;
+			}
+
+			let temp_confirmed_timeslot = currentBooking.confirmed_timeslot;
+			if (input.confirmed_time !== undefined) {
+				temp_confirmed_timeslot = input.confirmed_time;
+			}
+
+			console.log(
+				temp_booking_status,
+				temp_payment_status,
+				temp_confirmed_date,
+				temp_confirmed_timeslot,
+			);
+
+			// Simple fields
+			if (input.booking_status !== undefined) {
+				payload.booking_status = input.booking_status;
+			}
+
+			if (
+				temp_booking_status === "CONFIRMED" &&
+				temp_payment_status === "PAID" &&
+				temp_confirmed_date !== null &&
+				temp_confirmed_timeslot !== null
+			) {
+				payload.confirmed_at = new Date().toISOString();
+			}
+
+			if (input.booking_status === "CANCELLED") {
+				payload.cancelled_at = new Date().toISOString();
+			}
+
+			if (input.payment_status !== undefined) {
+				payload.payment_status = input.payment_status;
+			}
+
+			if (input.customer_name !== undefined) {
+				payload.customer_name = input.customer_name;
+			}
+
+			if (input.customer_email !== undefined) {
+				payload.customer_email = input.customer_email;
+			}
+
+			if (input.customer_phone !== undefined) {
+				payload.customer_phone = input.customer_phone;
+			}
+
+			if (input.preffered_date !== undefined) {
+				payload.preferred_date = input.preffered_date;
+			}
+
+			if (input.preffered_time !== undefined) {
+				payload.preferred_timeslot = input.preffered_time;
+			}
+
+			if (input.confirmed_date !== undefined) {
+				payload.confirmed_date = input.confirmed_date;
+			}
+
+			if (input.confirmed_time !== undefined) {
+				payload.confirmed_timeslot = input.confirmed_time;
+			}
+
+			if (input.admin_note !== undefined) {
+				payload.admin_note = input.admin_note;
+			}
+
+			let subtotal_amount = currentBooking.subtotal_amount;
+			let discount = currentBooking.discount;
+			let taxes = currentBooking.taxes;
+			let total = currentBooking.total;
+
+			// Handle participants updates and subtotal recalc
+			if (input.participants_unit_prices && input.participants_unit_prices.length > 0) {
+				payload.price_overriden = true;
+
+				for (const p of input.participants_unit_prices) {
+					const { error: updateError } = await this.supabase
+						.from(this.BOOKING_PARTICIPANTS_TABLE)
+						.update({
+							quantity: p.quantity,
+							unit_price: p.unit_price,
+						})
+						.eq("id", p.booking_participant_id);
+
+					if (updateError) {
+						throw new ApiError("Failed to update participant", 500, []);
+					}
+				}
+
+				// Recalc subtotal from updated participants
+				const { data: updatedParticipants, error: fetchPartsError } = await this.supabase
+					.from(this.BOOKING_PARTICIPANTS_TABLE)
+					.select("quantity, unit_price")
+					.eq("booking_id", id);
+
+				if (fetchPartsError) {
+					throw new ApiError("Failed to fetch updated participants", 500, []);
+				}
+
+				subtotal_amount = updatedParticipants.reduce((sum, p) => sum + p.quantity * p.unit_price, 0);
+				payload.subtotal_amount = subtotal_amount;
+			}
+
+			// Discount & Taxes
+			if (input.discount !== undefined) {
+				discount = input.discount;
+				payload.discount = discount;
+			}
+
+			if (input.taxes !== undefined) {
+				taxes = input.taxes;
+				payload.taxes = taxes;
+			}
+
+			// Recalc total if any pricing changed
+			if (input.participants_unit_prices || input.discount !== undefined || input.taxes !== undefined) {
+				total = subtotal_amount - discount + taxes;
+				payload.total = total;
+			}
+
+			const mediaSvc = await this.createSubService(MediaService);
+
+			// Handle payment_ref upload if File
+			if (input.payment_ref instanceof File) {
+				const { data } = await mediaSvc.uploadImage(input.payment_ref);
+				payload.payment_ref = data.path;
+			} else if (input.payment_ref === null) {
+				payload.payment_ref = null;
+			}
+			console.log(payload);
+
+			// Perform update if payload has changes
+			if (Object.keys(payload).length > 0) {
+				const { error: updateError } = await this.supabase
+					.from("bookings")
+					.update(payload)
+					.eq("id", id);
+
+				if (updateError) {
+					throw new ApiError("Failed to update booking", 500, []);
+				}
+			}
+
+			if (
+				currentBooking.payment_ref !== null &&
+				currentBooking.payment_ref.length > 0 &&
+				payload.payment_ref != undefined
+			) {
+				await mediaSvc.deleteImage(currentBooking.payment_ref);
+			}
+		} catch (error) {
+			throw error instanceof ApiError ? error : new ApiError("Failed to update booking", 500, []);
 		}
 	}
 }

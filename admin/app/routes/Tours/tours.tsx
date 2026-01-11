@@ -284,7 +284,7 @@ const ToursMainPage = memo(() => {
 				return (
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
-							<Button variant="ghost" className="h-8 w-8 p-0 cursor-pointer">
+							<Button variant="secondary" className="h-8 w-8 p-0 cursor-pointer">
 								<span className="sr-only">Open menu</span>
 								<MoreHorizontal className="h-4 w-4" />
 							</Button>

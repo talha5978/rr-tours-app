@@ -10,6 +10,8 @@ import { queryClient } from "@workspace/shared/utils/query-client";
 import { GetCurrentUser } from "@workspace/shared/types/auth";
 import { extractAuthId } from "@workspace/shared/utils/auth-utils.server";
 import { currentUserQuery } from "@workspace/shared/queries/auth.q";
+import { getCacheInvalidationEvents } from "@workspace/shared/queries/cache-events.q";
+import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
 
 export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -23,6 +25,44 @@ export const links: Route.LinksFunction = () => [
 		href: "https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap",
 	},
 ];
+
+async function handleCacheInvalidationEvents({ request }: { request: Request }) {
+	const cacheEvents = await queryClient.fetchQuery(
+		getCacheInvalidationEvents({ request, target: "admin" }),
+	);
+
+	if (cacheEvents.length > 0) {
+		const uniqueSerializedKeys = new Set<string>();
+		const eventIdsToMark: string[] = [];
+
+		for (const event of cacheEvents) {
+			eventIdsToMark.push(event.id);
+
+			for (const serializedKey of event.keys) {
+				uniqueSerializedKeys.add(serializedKey);
+			}
+		}
+
+		for (const serializedKey of uniqueSerializedKeys) {
+			if (serializedKey.includes("||")) {
+				const parts = serializedKey.split("||");
+				queryClient.invalidateQueries({
+					queryKey: parts,
+					exact: false,
+				});
+			} else {
+				queryClient.invalidateQueries({
+					queryKey: [serializedKey],
+				});
+			}
+		}
+
+		if (eventIdsToMark.length > 0) {
+			const cacheSvc = new CacheInvalidationService(request);
+			await cacheSvc.markEventsAsProcessed(eventIdsToMark);
+		}
+	}
+}
 
 export async function loader({ request }: Route.LoaderArgs) {
 	const url = new URL(request.url);
@@ -61,6 +101,8 @@ export async function loader({ request }: Route.LoaderArgs) {
 	}
 
 	console.log("✅ Admin found:", user?.email);
+	handleCacheInvalidationEvents({ request });
+
 	return { user, error, headers };
 }
 

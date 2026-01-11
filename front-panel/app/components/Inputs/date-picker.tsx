@@ -17,6 +17,7 @@ type DatePickerProps = {
 	calender_mode?: CalendarProps["mode"];
 	numberOfMonths?: CalendarProps["numberOfMonths"];
 	popover_align?: PopoverContentProps["align"];
+	defaultMonth?: CalendarProps["defaultMonth"];
 };
 
 export default function DatePicker({
@@ -28,6 +29,7 @@ export default function DatePicker({
 	calender_mode = "single",
 	numberOfMonths,
 	popover_align = "start",
+	defaultMonth,
 	...rest
 }: DatePickerProps) {
 	const isControlled = controlledOnChange != null;
@@ -69,6 +71,7 @@ export default function DatePicker({
 						disabled={date_disabled}
 						numberOfMonths={numberOfMonths}
 						autoFocus
+						defaultMonth={defaultMonth}
 					/>
 				</PopoverContent>
 			</Popover>

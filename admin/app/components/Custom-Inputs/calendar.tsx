@@ -66,6 +66,7 @@ function Calendar({
 	yearRange = 12,
 	numberOfMonths,
 	components,
+	month,
 	...props
 }: CalendarProps) {
 	const [navView, setNavView] = useState<NavView>("days");
@@ -148,6 +149,7 @@ function Calendar({
 	return (
 		<DayPicker
 			showOutsideDays={showOutsideDays}
+			month={month}
 			className={cn("p-3", className)}
 			style={{
 				width: 248.8 * (columnsDisplayed ?? 1) + "px",

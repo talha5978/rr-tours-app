@@ -180,7 +180,9 @@ export default function TrackBookingPage() {
 												? "bg-red-100 text-destructive"
 												: booking.payment_status === "REFUNDED"
 													? ""
-													: "bg-yellow-100 text-yellow-800"
+													: booking.payment_status === "PARTIAL"
+														? "bg-yellow-100 text-yellow-800"
+														: "bg-green-100 text-green-800"
 										}
 									>
 										{booking.payment_status}
@@ -189,15 +191,8 @@ export default function TrackBookingPage() {
 							</div>
 							<Separator />
 							<div className="space-y-2">
-								<h2 className="text-sm font-medium text-muted-foreground">
-									Additional Notes
-								</h2>
-								<p className="text-sm">{booking.admin_note ?? "No additional notes."}</p>
-							</div>
-							<Separator />
-							<div className="space-y-2">
 								<h2 className="text-sm font-medium text-muted-foreground">Timeline</h2>
-								<div className="grid grid-cols-2 gap-2 text-sm">
+								<div className="grid grid-cols-[2.5fr_3fr] gap-2 text-sm">
 									<h3>Created At</h3>
 									<span className="font-medium">
 										{format(new Date(booking.created_at), "PPPP p")}
@@ -206,18 +201,26 @@ export default function TrackBookingPage() {
 									<span className="font-medium">
 										{format(new Date(booking.updated_at), "PPPP p")}
 									</span>
-									<h3>Confirmed At</h3>
-									<span className="font-medium">
-										{booking.confirmed_at
-											? format(new Date(booking.confirmed_at), "PPPP p")
-											: "N/A"}
-									</span>
-									<h3>Cancelled At</h3>
-									<span className="font-medium">
-										{booking.cancelled_at
-											? format(new Date(booking.cancelled_at), "PPPP p")
-											: "N/A"}
-									</span>
+									{booking.confirmed_at && (
+										<>
+											<h3>Confirmed At</h3>
+											<span className="font-medium">
+												{booking.confirmed_at
+													? format(new Date(booking.confirmed_at), "PPPP p")
+													: "N/A"}
+											</span>
+										</>
+									)}
+									{booking.cancelled_at && (
+										<>
+											<h3>Confirmed At</h3>
+											<span className="font-medium">
+												{booking.cancelled_at
+													? format(new Date(booking.cancelled_at), "PPPP p")
+													: "N/A"}
+											</span>
+										</>
+									)}
 								</div>
 							</div>
 						</CardContent>

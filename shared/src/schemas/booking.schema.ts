@@ -1,3 +1,11 @@
+import {
+	ALLOWED_IMAGE_FORMATS,
+	BOOKING_STATUS,
+	getSimpleImgFormats,
+	MAX_IMAGE_SIZE,
+	PAYMENT_STATUS,
+} from "@workspace/shared/constants/constants";
+import type { Database } from "@workspace/shared/types/supabase";
 import z from "zod";
 
 const participantSchema = z.object({
@@ -38,3 +46,72 @@ export const customerBookingSchema = createBookingSchema.pick({
 });
 
 export type CustomerInput = z.infer<typeof customerBookingSchema>;
+
+export const UpdateBookingSchema = z.object({
+	booking_status: z.enum(BOOKING_STATUS),
+	payment_status: z.enum(PAYMENT_STATUS),
+
+	customer_name: z
+		.string()
+		.min(1, "Name is required")
+		.refine((value) => value.trim().length > 0, {
+			message: "Name is required",
+		}),
+	customer_email: z.string().email("Invalid email address").min(1, "Email is required"),
+	customer_phone: z.string().min(10, "Phone number must be at least 10 digits"),
+	preffered_date: z.date().nullable().optional(),
+	preffered_time: z.string().nullable().optional(),
+	confirmed_date: z.date().nullable().optional(),
+	confirmed_time: z.string().nullable().optional(),
+
+	payment_ref: z.union([
+		z
+			.instanceof(File)
+			.refine((file) => file.size <= MAX_IMAGE_SIZE, "Image must be less than 1MB.")
+			.refine(
+				(file) => ALLOWED_IMAGE_FORMATS.includes(file.type),
+				`Only ${getSimpleImgFormats()} image formats are allowed.`,
+			)
+			.optional()
+			.nullable(),
+		z.string().optional().nullable(),
+	]),
+
+	admin_note: z.string().nullable().optional(),
+
+	discount: z.string(),
+	taxes: z.string(),
+
+	participants_unit_prices: z.array(
+		z.object({
+			booking_participant_id: z.string(),
+			quantity: z.number().int().positive(),
+			unit_price: z.number().nonnegative(),
+		}),
+	),
+});
+
+export type UpdateBookingInput = z.infer<typeof UpdateBookingSchema>;
+
+export type UpdateBookingActionData = {
+	booking_status?: Database["public"]["Enums"]["booking_status_enum"];
+	payment_status?: Database["public"]["Enums"]["payment_status_enum"];
+	customer_name?: string | null;
+	customer_email?: string | null;
+	customer_phone?: string | null;
+	discount?: number;
+	taxes?: number;
+	participants_unit_prices?:
+		| {
+				booking_participant_id: string;
+				quantity: number;
+				unit_price: number;
+		  }[]
+		| null;
+	preffered_date?: string | null;
+	preffered_time?: string | null;
+	confirmed_date?: string | null;
+	confirmed_time?: string | null;
+	payment_ref?: File;
+	admin_note?: string | null;
+};

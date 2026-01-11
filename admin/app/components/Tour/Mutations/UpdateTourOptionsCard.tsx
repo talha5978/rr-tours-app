@@ -600,6 +600,9 @@ const AvailabilitiesSubSection = ({
 												<div className="w-full pointer-events-none">
 													<DatePicker
 														value={field.value ? new Date(field.value) : null}
+														defaultMonth={
+															field.value ? new Date(field.value) : new Date()
+														}
 														onDateChange={field.onChange}
 														date_disabled={{ before: startOfToday() }}
 														className={`${cardCollapsed ? "pointer-events-none disabled" : ""}`}
@@ -766,6 +769,7 @@ const AvailabilitiesSubSection = ({
 					) : (
 						<DatePicker
 							value={singleDate ? new Date(singleDate) : undefined}
+							defaultMonth={singleDate ? new Date(singleDate) : new Date()}
 							onDateChange={(date) => setSingleDate(date ? date.toISOString() : "")}
 							date_disabled={{ before: startOfToday() }}
 						/>

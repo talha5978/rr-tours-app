@@ -440,6 +440,7 @@ const FiltersForm = () => {
 							<FormControl>
 								<DatePicker
 									value={field.value ? field.value : null}
+									defaultMonth={field.value || new Date()}
 									onDateChange={(date) => {
 										if (!date) {
 											field.onChange(undefined);

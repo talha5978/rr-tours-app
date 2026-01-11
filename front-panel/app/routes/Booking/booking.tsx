@@ -31,6 +31,7 @@ import {
 	CustomerInput,
 } from "@workspace/shared/schemas/booking.schema";
 import { BookingService } from "@workspace/shared/services/booking.service";
+import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
 	try {
@@ -44,6 +45,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 		const svc = new BookingService(request);
 		const booking_ref = await svc.createBooking(rawBody);
+
+		const cacheSvc = new CacheInvalidationService(request);
+		await cacheSvc.pushCacheInvalidationEvent({
+			target: "admin",
+			keys: [`high_level_bookings`],
+		});
 
 		return { success: true, booking_ref };
 	} catch (error: any) {
