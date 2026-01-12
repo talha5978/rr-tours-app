@@ -21,6 +21,7 @@ export default [
 
 		route("contact-us", "./routes/Contact/contact-us.tsx"),
 		route("about", "./routes/About/about.tsx"),
+		route("faqs", "./routes/FAQs/faqs.tsx"),
 	]),
 
 	route("*", "./routes/Error/404.tsx"),

@@ -27,12 +27,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
             </url>
         `);
 
-	["contact-us", "track-booking", "booking", "my-favourites", "about"].forEach((url, idx) => {
+	["contact-us", "faqs", "track-booking", "booking", "my-favourites", "about"].forEach((url, idx) => {
 		urls.push(
 			`
             <url>
             <loc>${baseUrl}/${url}</loc>
-            <priority>${idx === 0 ? "1.0" : "0.9"}</priority>
+            <priority>${idx <= 1 ? "1.0" : "0.9"}</priority>
             </url>
             `,
 		);

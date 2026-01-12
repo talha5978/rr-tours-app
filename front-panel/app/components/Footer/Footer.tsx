@@ -56,7 +56,7 @@ export default function Footer({ categories }: { categories: FPHighLevelCategory
 								</Link>
 							</li>
 							<li>
-								<Link to="#" className="hover:text-foreground">
+								<Link to="/faqs" className="hover:text-foreground">
 									FAQs
 								</Link>
 							</li>
