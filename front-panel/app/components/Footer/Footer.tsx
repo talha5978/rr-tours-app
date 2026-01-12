@@ -36,7 +36,12 @@ export default function Footer({ categories }: { categories: FPHighLevelCategory
 						<h4 className="mb-3 text-sm font-semibold">Agency</h4>
 						<ul className="space-y-2 text-sm text-muted-foreground">
 							<li>
-								<Link to="#" className="hover:text-foreground">
+								<Link
+									to="/about"
+									viewTransition
+									prefetch="intent"
+									className="hover:text-foreground"
+								>
 									About Us
 								</Link>
 							</li>

@@ -20,6 +20,7 @@ export default [
 		route("my-favourites", "./routes/Favourites/my-favourites.tsx"),
 
 		route("contact-us", "./routes/Contact/contact-us.tsx"),
+		route("about", "./routes/About/about.tsx"),
 	]),
 
 	route("*", "./routes/Error/404.tsx"),

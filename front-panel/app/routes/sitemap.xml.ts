@@ -27,7 +27,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
             </url>
         `);
 
-	["contact-us", "track-booking", "booking"].forEach((url, idx) => {
+	["contact-us", "track-booking", "booking", "my-favourites", "about"].forEach((url, idx) => {
 		urls.push(
 			`
             <url>
