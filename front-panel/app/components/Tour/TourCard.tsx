@@ -13,7 +13,7 @@ export const TourCard = memo(
 		const active = isFavourite(tour.id);
 
 		return (
-			<div {...props} className="relative">
+			<div {...props} className="relative h-full">
 				<Link to={"/tours/tour/" + tour.id + "/" + tour.url_key} prefetch="intent" viewTransition>
 					<div
 						className={`h-full border-2 group overflow-hidden bg-card rounded-xl cursor-pointer ${className ?? ""}`}
