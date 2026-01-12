@@ -71,7 +71,7 @@ export const TopAnalyticsBar = ({
 	const data = getTopAnalytics(total_revenue, total_bookings, total_tours, total_categories);
 
 	return (
-		<div className="*:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-4 shrink-0 gap-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:shadow-xs @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+		<div className="*:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid  shrink-0 gap-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:shadow-xs @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
 			{data.map((i, idx) => {
 				return <AnalyticsCard title={i.title} value={i.value} footer={i.footer} key={idx} />;
 			})}
@@ -93,6 +93,6 @@ const formatCurrencyCompact = (num: number): string => {
 		notation: "compact",
 		compactDisplay: "short",
 		minimumFractionDigits: 0,
-		maximumFractionDigits: 1,
+		maximumFractionDigits: 2,
 	}).format(num);
 };

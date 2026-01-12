@@ -96,6 +96,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 		await queryClient.invalidateQueries({ queryKey: ["high_level_tours"] });
 		await queryClient.invalidateQueries({ queryKey: ["highLvlCategories"] });
+		await queryClient.invalidateQueries({ queryKey: ["dashboard_main_stats"] });
 
 		const cacheSvc = new CacheInvalidationService(request);
 		await cacheSvc.pushCacheInvalidationEvent({

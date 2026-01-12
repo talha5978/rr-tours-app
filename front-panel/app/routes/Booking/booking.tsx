@@ -49,7 +49,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 		const cacheSvc = new CacheInvalidationService(request);
 		await cacheSvc.pushCacheInvalidationEvent({
 			target: "admin",
-			keys: [`high_level_bookings`],
+			keys: [`high_level_bookings`, "dashboard_main_stats"],
 		});
 
 		return { success: true, booking_ref };

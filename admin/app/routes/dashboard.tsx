@@ -1,17 +1,20 @@
 import { queryClient } from "@workspace/shared/utils/query-client";
 import { useLoaderData, type LoaderFunctionArgs } from "react-router";
 import { TopAnalyticsBar } from "~/components/Dashboard/AnalyticsBar";
+import { RecentBookingsCard } from "~/components/Dashboard/RecentBookings";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
+import { highLevelBookingsQuery } from "~/queries/bookings.q";
 import { dashboardMainstatsQuery } from "~/queries/stats.q";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
 	const dashboardMainStats = await queryClient.fetchQuery(dashboardMainstatsQuery({ request }));
+	const recentBookings = await queryClient.fetchQuery(highLevelBookingsQuery({ request, pageSize: 5 }));
 
-	return { dashboardMainStats };
+	return { dashboardMainStats, recentBookings };
 };
 
 export default function Home() {
-	const { dashboardMainStats } = useLoaderData<typeof loader>();
+	const { dashboardMainStats, recentBookings } = useLoaderData<typeof loader>();
 
 	return (
 		<>
@@ -19,13 +22,14 @@ export default function Home() {
 				metaTitle="Dashboard | Top Attractions Dubai"
 				metaDescription="See stats and overview of the system in dashboard"
 			/>
-			<section>
+			<section className="space-y-4">
 				<TopAnalyticsBar
 					total_bookings={dashboardMainStats.total_bookings.toString()}
 					total_revenue={dashboardMainStats.total_revenue.toString()}
 					total_tours={dashboardMainStats.total_tours.toString()}
 					total_categories={dashboardMainStats.total_categories.toString()}
 				/>
+				<RecentBookingsCard recentBookings={recentBookings.bookings ?? []} />
 			</section>
 		</>
 	);
