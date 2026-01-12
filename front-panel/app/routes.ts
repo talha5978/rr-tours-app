@@ -17,6 +17,8 @@ export default [
 		route("booking", "./routes/Booking/booking.tsx"),
 		route("track-booking", "./routes/Booking/track-booking.tsx"),
 
+		route("my-favourites", "./routes/Favourites/my-favourites.tsx"),
+
 		route("contact-us", "./routes/Contact/contact-us.tsx"),
 	]),
 

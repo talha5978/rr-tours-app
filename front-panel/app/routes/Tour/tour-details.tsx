@@ -25,6 +25,7 @@ import { Badge } from "~/components/ui/badge";
 import { FP_HighLevelTour } from "@workspace/shared/types/fp-tours";
 import RelatedTours from "~/components/Tour/RelatedTours";
 import { ShareDialog } from "~/components/Tour/ShareButton";
+import { useFavourites } from "~/utils/favourites.utils";
 
 const participantSchema = z.object({
 	quantities: z.record(z.number().min(0).int()),
@@ -198,14 +199,7 @@ export default function TourDetailsPage() {
 						<div className="flex gap-2 justify-between">
 							<h1 className="text-3xl font-bold text-pretty">{tour.name}</h1>
 							<div className="max-lg:hidden flex gap-2">
-								<Button
-									variant={"ghost"}
-									type="submit"
-									className="group hover:bg-destructive/40!"
-								>
-									<Heart className="h-4 w-4 group-hover:text-destructive group-hover:fill-destructive" />
-									<span className="mt-1">Add To Favourites</span>
-								</Button>
+								<AddToFavouriteBtn tour_id={tour.id} />
 								<ShareDialog
 									url={`www.topattractionsdubai.com/tours/tour/${tour.id}/${tour.meta_details?.url_key}`}
 								/>
@@ -987,10 +981,7 @@ const AttributesCard = memo(
 
 				<CardContent>
 					<div className="lg:hidden flex gap-2 ml-auto w-fit">
-						<Button variant={"ghost"} type="submit" className="group hover:bg-destructive/40!">
-							<Heart className="h-4 w-4 group-hover:text-destructive group-hover:fill-destructive" />
-							<span className="mt-1">Add To Favourites</span>
-						</Button>
+						<AddToFavouriteBtn tour_id={tour.id} />
 						<ShareDialog
 							url={`www.topattractionsdubai.com/tours/tour/${tour.id}/${tour.meta_details?.url_key}`}
 						/>
@@ -1033,3 +1024,26 @@ const MainBodySection = memo(
 		) : null;
 	},
 );
+
+function AddToFavouriteBtn({ tour_id }: { tour_id: string }) {
+	const { isFavourite, toggle } = useFavourites();
+	const active = isFavourite(tour_id);
+
+	return (
+		<Button
+			variant="ghost"
+			type="button"
+			className={`group hover:bg-destructive/40! ${active ? "bg-destructive/40!" : ""}`}
+			onClick={() => toggle(tour_id)}
+		>
+			<Heart
+				className={`h-4 w-4 group-hover:text-destructive group-hover:fill-destructive ${
+					active ? "text-destructive fill-destructive" : ""
+				}`}
+			/>
+			<span className="mt-1 max-[28rem]:hidden">
+				{active ? "Remove from Favourites" : "Add To Favourites"}
+			</span>
+		</Button>
+	);
+}

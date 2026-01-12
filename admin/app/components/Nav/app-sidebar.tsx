@@ -10,7 +10,6 @@ import {
 	SidebarMenuItem,
 } from "~/components/ui/sidebar";
 import { Link } from "react-router";
-import { BuildingIcon } from "lucide-react";
 import LogoutButton from "~/components/Auth/logout-button";
 
 export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
@@ -21,8 +20,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
 					<SidebarMenuItem>
 						<SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:p-1.5!">
 							<Link to="/" prefetch="intent" viewTransition>
-								<BuildingIcon className="size-5!" />
-								<span className="text-lg">Logo</span>
+								<span className="text-base font-semibold">Top Attractions Dubai</span>
 							</Link>
 						</SidebarMenuButton>
 					</SidebarMenuItem>

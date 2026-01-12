@@ -25,7 +25,7 @@ type ThumbPropType = {
 	title?: string;
 };
 
-const DEFAULT_PLACEHOLDER_URL = "https://placehold.net/800x600.png";
+const DEFAULT_PLACEHOLDER_URL = "https://placehold.net/main.svg";
 
 const handleImgError = (event: React.SyntheticEvent<HTMLImageElement>) => {
 	console.error("Image failed to load", event.currentTarget.src);

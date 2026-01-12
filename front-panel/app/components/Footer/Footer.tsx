@@ -9,12 +9,7 @@ export default function Footer({ categories }: { categories: FPHighLevelCategory
 				<div className="grid gap-8 md:grid-cols-[2fr_1fr_1fr_1fr]">
 					{/* Brand */}
 					<div className="space-y-4">
-						<div className="flex items-center gap-2">
-							<div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
-								TA
-							</div>
-							<span className="text-lg font-semibold">Top Attractions Dubai</span>
-						</div>
+						<span className="text-lg font-semibold">Top Attractions Dubai</span>
 
 						<p className="max-w-sm text-sm text-muted-foreground">
 							Trusted tours, handpicked experiences, and easy bookings for memorable trips.

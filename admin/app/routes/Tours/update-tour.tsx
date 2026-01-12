@@ -34,7 +34,6 @@ import { ImagesInputCard } from "~/components/Tour/Mutations/ImagesCard";
 import { MainContentCard } from "~/components/Tour/Mutations/MainContentCard";
 import { TagsCard } from "~/components/Tour/Mutations/TagsCard";
 import { TourOptionsCard } from "~/components/Tour/Mutations/UpdateTourOptionsCard";
-import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/components/ui/form";
@@ -943,7 +942,6 @@ export default function UpdateTourPage() {
 				<div className="flex gap-4 items-center">
 					<BackButton href="/tours" />
 					<h1 className="text-2xl font-semibold">Update Tour</h1>
-					<Badge className="bg-warning">Beta</Badge>
 				</div>
 				<form className="space-y-4" onSubmit={handleSubmit(onFormSubmit)}>
 					<Form {...form}>
