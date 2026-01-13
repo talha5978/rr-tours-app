@@ -1,5 +1,6 @@
 import { CityService } from "@workspace/shared/services/cities.service";
 import { ToursService } from "@workspace/shared/services/tours.service";
+import { format } from "date-fns";
 import type { LoaderFunctionArgs } from "react-router";
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -52,6 +53,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 		urls.push(`
         <url>
             <loc>${baseUrl}/tours/tour/${tour.id}/${tour.url_key}</loc>
+            ${tour.updated_at ? `<lastmod>${format(new Date(tour.updated_at), "yyyy-MM-dd")}</lastmod>` : ""}
             <changefreq>daily</changefreq>
             <priority>1.0</priority>
         </url>

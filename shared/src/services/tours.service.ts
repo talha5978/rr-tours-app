@@ -1655,7 +1655,7 @@ export class ToursService extends Service {
 				.from(this.TOURS_TABLE)
 				.select(
 					`
-						id, name, cover_image,
+						id, name, cover_image, updated_at,
 						${this.META_DETAILS_TABLE}(url_key),
 						${this.CITIES_TABLE}(id, name, ${this.META_DETAILS_TABLE}(url_key)),
 						${this.CATEGORIES_TABLE}(id, name, ${this.META_DETAILS_TABLE}(url_key)),
@@ -1816,6 +1816,7 @@ export class ToursService extends Service {
 					name: tour.name,
 					cover_image: tour.cover_image,
 					url_key: tour.meta_details.url_key,
+					updated_at: tour.updated_at,
 					toBeSoldOutScore: computeToBeSoldOutScore(tour),
 					price: minPrice === Infinity ? 0 : minPrice,
 					city: {
