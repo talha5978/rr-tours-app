@@ -703,15 +703,6 @@ const AvailabilitiesSubSection = ({
 				</CardHeader>
 				<CardContent className="space-y-5">
 					{/* Seats Type for this option */}
-					<div className="p-3 bg-warning/10 border border-warning/40 rounded-md">
-						<span className="text-warning">
-							This option currently use{" "}
-							{fields[0]?.timeslots[0]?.available_seats === null ? "unlimited" : "limited"}{" "}
-							Seats/Tickets. Change it with caution, this will affect all the existing
-							availabilities and timeslots.
-						</span>
-					</div>
-
 					<FormField
 						control={control}
 						name={`tour_options.${optionIndex}.seat_type`}
