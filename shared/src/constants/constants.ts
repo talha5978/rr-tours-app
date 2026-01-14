@@ -9,7 +9,7 @@ export const STORAGE_BUCKETS = {
 export const SUPABASE_IMAGE_BUCKET_PATH = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKETS.images}`;
 
 export const MAX_IMAGE_SIZE = 1 * 1024 * 1024;
-export const ALLOWED_IMAGE_FORMATS = ["image/jpeg", "image/png", "image/webp", "image/avif"];
+export const ALLOWED_IMAGE_FORMATS = ["image/jpeg", "image/png", "image/webp"];
 
 export const getSimpleImgFormats = () => {
 	const formats = ALLOWED_IMAGE_FORMATS.map((format) => format.split("/")[1].toUpperCase());
@@ -18,22 +18,22 @@ export const getSimpleImgFormats = () => {
 
 export const CATEGORY_IMG_DIMENSIONS = {
 	min: { width: 500, height: 600 },
-	max: { width: 2000, height: 2000 },
+	max: { width: 3000, height: 3000 },
 } as const;
 
 export const CITY_CARD_IMG_DIMENSTIONS = {
 	min: { width: 500, height: 600 },
-	max: { width: 2000, height: 2000 },
+	max: { width: 3000, height: 3000 },
 } as const;
 
 export const CITY_FULL_IMG_DIMENSTIONS = {
 	min: { width: 700, height: 700 },
-	max: { width: 2000, height: 2000 },
+	max: { width: 3000, height: 3000 },
 } as const;
 
 export const TOUR_IMG_DIMENSTIONS = {
 	min: { width: 500, height: 500 },
-	max: { width: 2000, height: 2000 },
+	max: { width: 3000, height: 3000 },
 };
 
 export const TAG_IMG_DIMENSIONS = {

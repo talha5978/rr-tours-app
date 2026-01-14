@@ -39,7 +39,7 @@ import {
 } from "@workspace/shared/constants/constants";
 import { startOfToday } from "date-fns";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 12;
 const MAX_PRICE = 5000;
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -190,18 +190,6 @@ export default function ToursPage() {
 						>
 							Previous
 						</Button>
-						{Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
-							<Button
-								key={pg}
-								variant={pg === currentPage ? "default" : "outline"}
-								onClick={() => {
-									searchParams.set("page", pg.toString());
-									navigate(`?${searchParams.toString()}`);
-								}}
-							>
-								{pg}
-							</Button>
-						))}
 						<Button
 							variant="outline"
 							disabled={currentPage === totalPages}
