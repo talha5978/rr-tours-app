@@ -1,0 +1,1786 @@
+
+
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+
+CREATE EXTENSION IF NOT EXISTS "pg_cron" WITH SCHEMA "pg_catalog";
+
+
+
+
+
+
+COMMENT ON SCHEMA "public" IS 'standard public schema';
+
+
+
+CREATE EXTENSION IF NOT EXISTS "pg_graphql" WITH SCHEMA "graphql";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "pg_stat_statements" WITH SCHEMA "extensions";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA "extensions";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "supabase_vault" WITH SCHEMA "vault";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA "extensions";
+
+
+
+
+
+
+CREATE TYPE "public"."booking_status_enum" AS ENUM (
+    'PENDING',
+    'CONFIRMED',
+    'CANCELLED'
+);
+
+
+ALTER TYPE "public"."booking_status_enum" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."cache_invalidation_target" AS ENUM (
+    'front',
+    'admin',
+    'both'
+);
+
+
+ALTER TYPE "public"."cache_invalidation_target" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."payment_status_enum" AS ENUM (
+    'UNPAID',
+    'PENDING',
+    'PARTIAL',
+    'PAID',
+    'REFUNDED'
+);
+
+
+ALTER TYPE "public"."payment_status_enum" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."timeslot_seat_type" AS ENUM (
+    'UNLIMITED',
+    'LIMITED'
+);
+
+
+ALTER TYPE "public"."timeslot_seat_type" OWNER TO "postgres";
+
+
+COMMENT ON TYPE "public"."timeslot_seat_type" IS 'Shows whether the seats for a time slot are limited or unlimited';
+
+
+
+CREATE OR REPLACE FUNCTION "public"."cleanup_old_tour_availabilities"() RETURNS "void"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+    -- Delete old availability slots (child table)
+    DELETE FROM tour_availability_slots tas
+    USING tour_availabilities ta
+    WHERE tas.availability_id = ta.id
+      AND ta.date < CURRENT_DATE;
+
+    -- Delete old availabilities (parent table)
+    DELETE FROM tour_availabilities
+    WHERE date < CURRENT_DATE;
+
+    -- Optional: Log the cleanup (for debugging/audit)
+    RAISE NOTICE 'Cleaned old tour availabilities and slots older than %', CURRENT_DATE;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."cleanup_old_tour_availabilities"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."ensure_available_seats_for_limited"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+  -- Only adjust NEW row before it is written
+  IF (TG_OP = 'INSERT' OR TG_OP = 'UPDATE') THEN
+    -- If seat_type is LIMITED and available_seats is NULL, set to 0
+    IF (NEW.seat_type = 'LIMITED'::timeslot_seat_type) AND (NEW.available_seats IS NULL) THEN
+      NEW.available_seats := 0;
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."ensure_available_seats_for_limited"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."get_tours_with_active_availability_on_date"("p_date" "date") RETURNS TABLE("tour_id" "uuid")
+    LANGUAGE "sql" STABLE
+    AS $$
+  SELECT DISTINCT t.id AS tour_id
+  FROM tours t
+  JOIN tour_options o ON o.tour_id = t.id
+  JOIN tour_availabilities a ON a.tour_option_id = o.id
+  WHERE a.date = p_date
+    AND a."isActive" = true
+    AND t."isActive" = true
+    AND EXISTS (
+      SELECT 1
+      FROM tour_availability_slots s
+      WHERE s.availability_id = a.id
+        AND (s.seat_type = 'UNLIMITED' OR s.available_seats > 0)
+    );
+$$;
+
+
+ALTER FUNCTION "public"."get_tours_with_active_availability_on_date"("p_date" "date") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."insert_app_user"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+begin
+  insert into public.app_users (
+    user_id,
+    first_name,
+    last_name,
+    role,
+    status
+  )
+  values (
+    new.id,
+    '',
+    '',
+    2, -- Consumer role id by default
+    true
+  );
+  
+  return new;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."insert_app_user"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."update_updated_at_column"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+   NEW.updated_at = now();
+   RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."update_updated_at_column"() OWNER TO "postgres";
+
+SET default_tablespace = '';
+
+SET default_table_access_method = "heap";
+
+
+CREATE TABLE IF NOT EXISTS "public"."activity_providers" (
+    "id" bigint NOT NULL,
+    "name" "text" NOT NULL
+);
+
+
+ALTER TABLE "public"."activity_providers" OWNER TO "postgres";
+
+
+CREATE SEQUENCE IF NOT EXISTS "public"."activity_providers_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE "public"."activity_providers_id_seq" OWNER TO "postgres";
+
+
+ALTER SEQUENCE "public"."activity_providers_id_seq" OWNED BY "public"."activity_providers"."id";
+
+
+
+ALTER TABLE "public"."activity_providers" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."activity_providers_id_seq1"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."app_users" (
+    "user_id" "uuid" NOT NULL,
+    "first_name" "text" NOT NULL,
+    "last_name" "text" NOT NULL,
+    "phone_number" "text",
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "role" bigint NOT NULL,
+    "status" boolean DEFAULT true NOT NULL
+);
+
+
+ALTER TABLE "public"."app_users" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."booking_participants" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "booking_id" "uuid" NOT NULL,
+    "participant_type_id" bigint NOT NULL,
+    "quantity" integer NOT NULL,
+    "unit_price" numeric(12,2) NOT NULL,
+    CONSTRAINT "booking_participants_quantity_check" CHECK (("quantity" > 0)),
+    CONSTRAINT "booking_participants_unit_price_check" CHECK (("unit_price" >= (0)::numeric))
+);
+
+
+ALTER TABLE "public"."booking_participants" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."bookings" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "booking_ref" "text" NOT NULL,
+    "booking_status" "public"."booking_status_enum" DEFAULT 'PENDING'::"public"."booking_status_enum" NOT NULL,
+    "tour_id" "uuid",
+    "tour_name" "text",
+    "tour_option_id" bigint,
+    "tour_option_name" "text",
+    "customer_name" "text",
+    "customer_email" "text",
+    "customer_phone" "text",
+    "admin_note" "text",
+    "preferred_date" "date",
+    "preferred_timeslot" "text",
+    "confirmed_date" "date",
+    "confirmed_timeslot" "text",
+    "payment_status" "public"."payment_status_enum" DEFAULT 'UNPAID'::"public"."payment_status_enum" NOT NULL,
+    "payment_ref" "text",
+    "price_overriden" boolean DEFAULT false NOT NULL,
+    "pricing_note" "text",
+    "subtotal_amount" numeric(12,2) DEFAULT 0 NOT NULL,
+    "discount" numeric(12,2) DEFAULT 0 NOT NULL,
+    "taxes" numeric(12,2) DEFAULT 0 NOT NULL,
+    "total" numeric(12,2) DEFAULT 0 NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "confirmed_at" timestamp with time zone,
+    "cancelled_at" timestamp with time zone
+);
+
+
+ALTER TABLE "public"."bookings" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."cache_invalidation_events" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "target" "public"."cache_invalidation_target" NOT NULL,
+    "keys" "text"[] NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "processed" boolean DEFAULT false NOT NULL
+);
+
+
+ALTER TABLE "public"."cache_invalidation_events" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."cancellation_policies" (
+    "id" bigint NOT NULL,
+    "policy" "text" NOT NULL
+);
+
+
+ALTER TABLE "public"."cancellation_policies" OWNER TO "postgres";
+
+
+CREATE SEQUENCE IF NOT EXISTS "public"."cancellation_policies_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE "public"."cancellation_policies_id_seq" OWNER TO "postgres";
+
+
+ALTER SEQUENCE "public"."cancellation_policies_id_seq" OWNED BY "public"."cancellation_policies"."id";
+
+
+
+ALTER TABLE "public"."cancellation_policies" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."cancellation_policies_id_seq1"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."cities" (
+    "id" bigint NOT NULL,
+    "name" "text" NOT NULL,
+    "card_image" "text" NOT NULL,
+    "full_image" "text" NOT NULL,
+    "meta_details_id" "uuid" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."cities" OWNER TO "postgres";
+
+
+CREATE SEQUENCE IF NOT EXISTS "public"."cities_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE "public"."cities_id_seq" OWNER TO "postgres";
+
+
+ALTER SEQUENCE "public"."cities_id_seq" OWNED BY "public"."cities"."id";
+
+
+
+ALTER TABLE "public"."cities" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."cities_id_seq1"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."hero_sections" (
+    "id" bigint NOT NULL,
+    "name" "text" NOT NULL,
+    "image" "text" NOT NULL
+);
+
+
+ALTER TABLE "public"."hero_sections" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."hero_sections" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."hero_sections_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."meta_details" (
+    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "url_key" "text" NOT NULL,
+    "meta_title" "text" NOT NULL,
+    "meta_description" "text" NOT NULL,
+    "meta_keywords" "text",
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."meta_details" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."participant_types" (
+    "id" bigint NOT NULL,
+    "name" "text" NOT NULL,
+    "age_min" integer NOT NULL,
+    "age_max" integer NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."participant_types" OWNER TO "postgres";
+
+
+CREATE SEQUENCE IF NOT EXISTS "public"."participant_types_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE "public"."participant_types_id_seq" OWNER TO "postgres";
+
+
+ALTER SEQUENCE "public"."participant_types_id_seq" OWNED BY "public"."participant_types"."id";
+
+
+
+ALTER TABLE "public"."participant_types" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."participant_types_id_seq1"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."tour_availabilities" (
+    "id" bigint NOT NULL,
+    "tour_option_id" bigint NOT NULL,
+    "date" "date" NOT NULL,
+    "isActive" boolean DEFAULT true NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."tour_availabilities" OWNER TO "postgres";
+
+
+CREATE SEQUENCE IF NOT EXISTS "public"."tour_availabilities_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE "public"."tour_availabilities_id_seq" OWNER TO "postgres";
+
+
+ALTER SEQUENCE "public"."tour_availabilities_id_seq" OWNED BY "public"."tour_availabilities"."id";
+
+
+
+ALTER TABLE "public"."tour_availabilities" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."tour_availabilities_id_seq1"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."tour_availability_slots" (
+    "id" bigint NOT NULL,
+    "availability_id" bigint NOT NULL,
+    "time_slot_id" bigint NOT NULL,
+    "available_seats" integer,
+    "seat_type" "public"."timeslot_seat_type" NOT NULL
+);
+
+
+ALTER TABLE "public"."tour_availability_slots" OWNER TO "postgres";
+
+
+CREATE SEQUENCE IF NOT EXISTS "public"."tour_availability_slots_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE "public"."tour_availability_slots_id_seq" OWNER TO "postgres";
+
+
+ALTER SEQUENCE "public"."tour_availability_slots_id_seq" OWNED BY "public"."tour_availability_slots"."id";
+
+
+
+ALTER TABLE "public"."tour_availability_slots" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."tour_availability_slots_id_seq1"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."tour_option_prices" (
+    "id" bigint NOT NULL,
+    "tour_option_id" bigint NOT NULL,
+    "participant_type_id" bigint NOT NULL,
+    "price" double precision NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."tour_option_prices" OWNER TO "postgres";
+
+
+CREATE SEQUENCE IF NOT EXISTS "public"."tour_option_prices_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE "public"."tour_option_prices_id_seq" OWNER TO "postgres";
+
+
+ALTER SEQUENCE "public"."tour_option_prices_id_seq" OWNED BY "public"."tour_option_prices"."id";
+
+
+
+ALTER TABLE "public"."tour_option_prices" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."tour_option_prices_id_seq1"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."tour_options" (
+    "id" bigint NOT NULL,
+    "tour_id" "uuid" NOT NULL,
+    "name" "text" NOT NULL,
+    "inclusions" "text",
+    "exclusions" "text",
+    "note" "text",
+    "sort_order" integer DEFAULT 1,
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"(),
+    "isOpenDated" boolean DEFAULT false NOT NULL
+);
+
+
+ALTER TABLE "public"."tour_options" OWNER TO "postgres";
+
+
+CREATE SEQUENCE IF NOT EXISTS "public"."tour_options_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE "public"."tour_options_id_seq" OWNER TO "postgres";
+
+
+ALTER SEQUENCE "public"."tour_options_id_seq" OWNED BY "public"."tour_options"."id";
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."tour_tags" (
+    "id" bigint NOT NULL,
+    "name" "text" NOT NULL,
+    "image" "text" NOT NULL
+);
+
+
+ALTER TABLE "public"."tour_tags" OWNER TO "postgres";
+
+
+CREATE SEQUENCE IF NOT EXISTS "public"."tour_tags_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE "public"."tour_tags_id_seq" OWNER TO "postgres";
+
+
+ALTER SEQUENCE "public"."tour_tags_id_seq" OWNED BY "public"."tour_tags"."id";
+
+
+
+ALTER TABLE "public"."tour_tags" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."tour_tags_id_seq1"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."tour_time_slots" (
+    "id" bigint NOT NULL,
+    "time" time without time zone NOT NULL,
+    "label" "text",
+    "sort_order" integer DEFAULT 1 NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."tour_time_slots" OWNER TO "postgres";
+
+
+CREATE SEQUENCE IF NOT EXISTS "public"."tour_time_slots_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE "public"."tour_time_slots_id_seq" OWNER TO "postgres";
+
+
+ALTER SEQUENCE "public"."tour_time_slots_id_seq" OWNED BY "public"."tour_time_slots"."id";
+
+
+
+ALTER TABLE "public"."tour_time_slots" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."tour_time_slots_id_seq1"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."tours" (
+    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "name" "text" NOT NULL,
+    "isFeatured" boolean DEFAULT false NOT NULL,
+    "isActive" boolean DEFAULT true NOT NULL,
+    "cover_image" "text" NOT NULL,
+    "images" "text"[],
+    "overview" "text" NOT NULL,
+    "highlights" "text",
+    "age_health_restrictions" "text",
+    "know_before_you_go" "text",
+    "cancellation_policy" bigint,
+    "meta_details_id" "uuid" NOT NULL,
+    "address_name" "text",
+    "address_link" "text",
+    "tour_category_id" bigint NOT NULL,
+    "city_id" bigint NOT NULL,
+    "provider" bigint,
+    "free_cancelation_avilable" boolean DEFAULT false,
+    "live_tour_guide" boolean DEFAULT false,
+    "live_tour_guide_langs" "text",
+    "isWeelChairAccessible" boolean DEFAULT false,
+    "duration_minutes" real,
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"(),
+    "added_by" "uuid" NOT NULL
+);
+
+
+ALTER TABLE "public"."tours" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."tours_categories" (
+    "id" bigint NOT NULL,
+    "name" "text" NOT NULL,
+    "image" "text" NOT NULL,
+    "meta_details_id" "uuid" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "sort_order" integer DEFAULT 1 NOT NULL
+);
+
+
+ALTER TABLE "public"."tours_categories" OWNER TO "postgres";
+
+
+CREATE SEQUENCE IF NOT EXISTS "public"."tours_categories_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE "public"."tours_categories_id_seq" OWNER TO "postgres";
+
+
+ALTER SEQUENCE "public"."tours_categories_id_seq" OWNED BY "public"."tours_categories"."id";
+
+
+
+ALTER TABLE "public"."tours_categories" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."tours_categories_id_seq1"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."tours_tags" (
+    "id" bigint NOT NULL,
+    "tour_id" "uuid" NOT NULL,
+    "tour_tag_id" bigint NOT NULL
+);
+
+
+ALTER TABLE "public"."tours_tags" OWNER TO "postgres";
+
+
+CREATE SEQUENCE IF NOT EXISTS "public"."tours_tags_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE "public"."tours_tags_id_seq" OWNER TO "postgres";
+
+
+ALTER SEQUENCE "public"."tours_tags_id_seq" OWNED BY "public"."tours_tags"."id";
+
+
+
+ALTER TABLE "public"."tours_tags" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."tours_tags_id_seq1"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."user_roles" (
+    "id" bigint NOT NULL,
+    "role_name" "text" NOT NULL,
+    "createdat" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."user_roles" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."user_roles" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."user_roles_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+ALTER TABLE ONLY "public"."tour_options" ALTER COLUMN "id" SET DEFAULT "nextval"('"public"."tour_options_id_seq"'::"regclass");
+
+
+
+ALTER TABLE ONLY "public"."activity_providers"
+    ADD CONSTRAINT "activity_providers_id_key" UNIQUE ("id");
+
+
+
+ALTER TABLE ONLY "public"."activity_providers"
+    ADD CONSTRAINT "activity_providers_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."app_users"
+    ADD CONSTRAINT "app_users_pkey" PRIMARY KEY ("user_id");
+
+
+
+ALTER TABLE ONLY "public"."booking_participants"
+    ADD CONSTRAINT "booking_participants_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."bookings"
+    ADD CONSTRAINT "bookings_booking_ref_key" UNIQUE ("booking_ref");
+
+
+
+ALTER TABLE ONLY "public"."bookings"
+    ADD CONSTRAINT "bookings_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."cache_invalidation_events"
+    ADD CONSTRAINT "cache_invalidation_events_id_key" UNIQUE ("id");
+
+
+
+ALTER TABLE ONLY "public"."cache_invalidation_events"
+    ADD CONSTRAINT "cache_invalidation_events_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."cancellation_policies"
+    ADD CONSTRAINT "cancellation_policies_id_key" UNIQUE ("id");
+
+
+
+ALTER TABLE ONLY "public"."cancellation_policies"
+    ADD CONSTRAINT "cancellation_policies_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."cities"
+    ADD CONSTRAINT "cities_id_key" UNIQUE ("id");
+
+
+
+ALTER TABLE ONLY "public"."cities"
+    ADD CONSTRAINT "cities_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."hero_sections"
+    ADD CONSTRAINT "hero_sections_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."meta_details"
+    ADD CONSTRAINT "meta_details_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."participant_types"
+    ADD CONSTRAINT "participant_types_id_key" UNIQUE ("id");
+
+
+
+ALTER TABLE ONLY "public"."participant_types"
+    ADD CONSTRAINT "participant_types_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."tour_availabilities"
+    ADD CONSTRAINT "tour_availabilities_id_key" UNIQUE ("id");
+
+
+
+ALTER TABLE ONLY "public"."tour_availabilities"
+    ADD CONSTRAINT "tour_availabilities_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."tour_availability_slots"
+    ADD CONSTRAINT "tour_availability_slots_avail_time_unique" UNIQUE ("availability_id", "time_slot_id");
+
+
+
+ALTER TABLE ONLY "public"."tour_availability_slots"
+    ADD CONSTRAINT "tour_availability_slots_id_key" UNIQUE ("id");
+
+
+
+ALTER TABLE ONLY "public"."tour_availability_slots"
+    ADD CONSTRAINT "tour_availability_slots_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."tour_option_prices"
+    ADD CONSTRAINT "tour_option_prices_id_key" UNIQUE ("id");
+
+
+
+ALTER TABLE ONLY "public"."tour_option_prices"
+    ADD CONSTRAINT "tour_option_prices_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."tour_option_prices"
+    ADD CONSTRAINT "tour_option_prices_unique_option_participant" UNIQUE ("tour_option_id", "participant_type_id");
+
+
+
+ALTER TABLE ONLY "public"."tour_options"
+    ADD CONSTRAINT "tour_options_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."tour_tags"
+    ADD CONSTRAINT "tour_tags_id_key" UNIQUE ("id");
+
+
+
+ALTER TABLE ONLY "public"."tour_tags"
+    ADD CONSTRAINT "tour_tags_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."tour_time_slots"
+    ADD CONSTRAINT "tour_time_slots_id_key" UNIQUE ("id");
+
+
+
+ALTER TABLE ONLY "public"."tour_time_slots"
+    ADD CONSTRAINT "tour_time_slots_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."tours_categories"
+    ADD CONSTRAINT "tours_categories_id_key" UNIQUE ("id");
+
+
+
+ALTER TABLE ONLY "public"."tours_categories"
+    ADD CONSTRAINT "tours_categories_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."tours"
+    ADD CONSTRAINT "tours_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."tours_tags"
+    ADD CONSTRAINT "tours_tags_id_key" UNIQUE ("id");
+
+
+
+ALTER TABLE ONLY "public"."tours_tags"
+    ADD CONSTRAINT "tours_tags_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."user_roles"
+    ADD CONSTRAINT "user_roles_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."user_roles"
+    ADD CONSTRAINT "user_roles_role_name_key" UNIQUE ("role_name");
+
+
+
+CREATE INDEX "idx_booking_participants_booking" ON "public"."booking_participants" USING "btree" ("booking_id");
+
+
+
+CREATE INDEX "idx_booking_participants_type" ON "public"."booking_participants" USING "btree" ("participant_type_id");
+
+
+
+CREATE INDEX "idx_bookings_booking_ref" ON "public"."bookings" USING "btree" ("booking_ref");
+
+
+
+CREATE INDEX "idx_bookings_confirmed_date" ON "public"."bookings" USING "btree" ("confirmed_date");
+
+
+
+CREATE INDEX "idx_bookings_customer_email" ON "public"."bookings" USING "btree" ("customer_email");
+
+
+
+CREATE INDEX "idx_bookings_payment_status" ON "public"."bookings" USING "btree" ("payment_status");
+
+
+
+CREATE INDEX "idx_bookings_status" ON "public"."bookings" USING "btree" ("booking_status");
+
+
+
+CREATE INDEX "idx_bookings_tour_id" ON "public"."bookings" USING "btree" ("tour_id");
+
+
+
+CREATE INDEX "idx_bookings_tour_option_id" ON "public"."bookings" USING "btree" ("tour_option_id");
+
+
+
+CREATE INDEX "idx_tour_availabilities_date" ON "public"."tour_availabilities" USING "btree" ("date");
+
+
+
+CREATE INDEX "idx_tour_availabilities_tour_option_id" ON "public"."tour_availabilities" USING "btree" ("tour_option_id");
+
+
+
+CREATE INDEX "idx_tour_availability_slots_availability_id" ON "public"."tour_availability_slots" USING "btree" ("availability_id");
+
+
+
+CREATE INDEX "idx_tour_option_prices_tour_option_id" ON "public"."tour_option_prices" USING "btree" ("tour_option_id");
+
+
+
+CREATE INDEX "idx_tour_options_tour_id" ON "public"."tour_options" USING "btree" ("tour_id");
+
+
+
+CREATE INDEX "idx_tours_city_id" ON "public"."tours" USING "btree" ("city_id");
+
+
+
+CREATE INDEX "idx_tours_tags_tour_id" ON "public"."tours_tags" USING "btree" ("tour_id");
+
+
+
+CREATE INDEX "idx_tours_tour_category_id" ON "public"."tours" USING "btree" ("tour_category_id");
+
+
+
+CREATE UNIQUE INDEX "idx_unique_availability_timeslot" ON "public"."tour_availability_slots" USING "btree" ("availability_id", "time_slot_id");
+
+
+
+CREATE UNIQUE INDEX "tour_availabilities_unique_option_date" ON "public"."tour_availabilities" USING "btree" ("tour_option_id", "date");
+
+
+
+CREATE UNIQUE INDEX "tour_availability_slots_avail_time_key" ON "public"."tour_availability_slots" USING "btree" ("availability_id", "time_slot_id");
+
+
+
+CREATE OR REPLACE TRIGGER "trg_ensure_available_seats_for_limited" BEFORE INSERT OR UPDATE ON "public"."tour_availability_slots" FOR EACH ROW EXECUTE FUNCTION "public"."ensure_available_seats_for_limited"();
+
+
+
+CREATE OR REPLACE TRIGGER "update_bookings_updated_at" BEFORE UPDATE ON "public"."bookings" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
+
+
+
+CREATE OR REPLACE TRIGGER "update_meta_details_updated_at" BEFORE UPDATE ON "public"."meta_details" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
+
+
+
+CREATE OR REPLACE TRIGGER "update_tour_availabilities_updated_at" BEFORE UPDATE ON "public"."tour_availabilities" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
+
+
+
+CREATE OR REPLACE TRIGGER "update_tour_options_updated_at" BEFORE UPDATE ON "public"."tour_options" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
+
+
+
+CREATE OR REPLACE TRIGGER "update_tours_updated_at" BEFORE UPDATE ON "public"."tours" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
+
+
+
+ALTER TABLE ONLY "public"."booking_participants"
+    ADD CONSTRAINT "booking_participants_booking_id_fkey" FOREIGN KEY ("booking_id") REFERENCES "public"."bookings"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."booking_participants"
+    ADD CONSTRAINT "booking_participants_participant_type_id_fkey" FOREIGN KEY ("participant_type_id") REFERENCES "public"."participant_types"("id") ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."bookings"
+    ADD CONSTRAINT "bookings_tour_id_fkey" FOREIGN KEY ("tour_id") REFERENCES "public"."tours"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."bookings"
+    ADD CONSTRAINT "bookings_tour_option_id_fkey" FOREIGN KEY ("tour_option_id") REFERENCES "public"."tour_options"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."cities"
+    ADD CONSTRAINT "cities_meta_details_id_fkey" FOREIGN KEY ("meta_details_id") REFERENCES "public"."meta_details"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."app_users"
+    ADD CONSTRAINT "fk_user_id" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
+
+
+
+ALTER TABLE ONLY "public"."tour_availabilities"
+    ADD CONSTRAINT "tour_availabilities_tour_option_id_fkey" FOREIGN KEY ("tour_option_id") REFERENCES "public"."tour_options"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."tour_availability_slots"
+    ADD CONSTRAINT "tour_availability_slots_availability_id_fkey" FOREIGN KEY ("availability_id") REFERENCES "public"."tour_availabilities"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."tour_availability_slots"
+    ADD CONSTRAINT "tour_availability_slots_time_slot_id_fkey" FOREIGN KEY ("time_slot_id") REFERENCES "public"."tour_time_slots"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."tour_option_prices"
+    ADD CONSTRAINT "tour_option_prices_participant_type_id_fkey" FOREIGN KEY ("participant_type_id") REFERENCES "public"."participant_types"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."tour_option_prices"
+    ADD CONSTRAINT "tour_option_prices_tour_option_id_fkey" FOREIGN KEY ("tour_option_id") REFERENCES "public"."tour_options"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."tour_options"
+    ADD CONSTRAINT "tour_options_tour_id_fkey" FOREIGN KEY ("tour_id") REFERENCES "public"."tours"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."tours"
+    ADD CONSTRAINT "tours_added_by_fkey" FOREIGN KEY ("added_by") REFERENCES "public"."app_users"("user_id") ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."tours"
+    ADD CONSTRAINT "tours_cancellation_policy_fkey" FOREIGN KEY ("cancellation_policy") REFERENCES "public"."cancellation_policies"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."tours_categories"
+    ADD CONSTRAINT "tours_categories_meta_details_id_fkey" FOREIGN KEY ("meta_details_id") REFERENCES "public"."meta_details"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."tours"
+    ADD CONSTRAINT "tours_city_id_fkey" FOREIGN KEY ("city_id") REFERENCES "public"."cities"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."tours"
+    ADD CONSTRAINT "tours_meta_details_id_fkey" FOREIGN KEY ("meta_details_id") REFERENCES "public"."meta_details"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."tours"
+    ADD CONSTRAINT "tours_provider_fkey" FOREIGN KEY ("provider") REFERENCES "public"."activity_providers"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."tours_tags"
+    ADD CONSTRAINT "tours_tags_tour_id_fkey" FOREIGN KEY ("tour_id") REFERENCES "public"."tours"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."tours_tags"
+    ADD CONSTRAINT "tours_tags_tour_tag_id_fkey" FOREIGN KEY ("tour_tag_id") REFERENCES "public"."tour_tags"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."tours"
+    ADD CONSTRAINT "tours_tour_category_id_fkey" FOREIGN KEY ("tour_category_id") REFERENCES "public"."tours_categories"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."app_users"
+    ADD CONSTRAINT "users_role_fkey" FOREIGN KEY ("role") REFERENCES "public"."user_roles"("id");
+
+
+
+
+
+ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
+
+
+
+
+
+GRANT USAGE ON SCHEMA "public" TO "postgres";
+GRANT USAGE ON SCHEMA "public" TO "anon";
+GRANT USAGE ON SCHEMA "public" TO "authenticated";
+GRANT USAGE ON SCHEMA "public" TO "service_role";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GRANT ALL ON FUNCTION "public"."cleanup_old_tour_availabilities"() TO "anon";
+GRANT ALL ON FUNCTION "public"."cleanup_old_tour_availabilities"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."cleanup_old_tour_availabilities"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."ensure_available_seats_for_limited"() TO "anon";
+GRANT ALL ON FUNCTION "public"."ensure_available_seats_for_limited"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."ensure_available_seats_for_limited"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."get_tours_with_active_availability_on_date"("p_date" "date") TO "anon";
+GRANT ALL ON FUNCTION "public"."get_tours_with_active_availability_on_date"("p_date" "date") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_tours_with_active_availability_on_date"("p_date" "date") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."insert_app_user"() TO "anon";
+GRANT ALL ON FUNCTION "public"."insert_app_user"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."insert_app_user"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."update_updated_at_column"() TO "anon";
+GRANT ALL ON FUNCTION "public"."update_updated_at_column"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."update_updated_at_column"() TO "service_role";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GRANT ALL ON TABLE "public"."activity_providers" TO "anon";
+GRANT ALL ON TABLE "public"."activity_providers" TO "authenticated";
+GRANT ALL ON TABLE "public"."activity_providers" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."activity_providers_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."activity_providers_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."activity_providers_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."activity_providers_id_seq1" TO "anon";
+GRANT ALL ON SEQUENCE "public"."activity_providers_id_seq1" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."activity_providers_id_seq1" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."app_users" TO "anon";
+GRANT ALL ON TABLE "public"."app_users" TO "authenticated";
+GRANT ALL ON TABLE "public"."app_users" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."booking_participants" TO "anon";
+GRANT ALL ON TABLE "public"."booking_participants" TO "authenticated";
+GRANT ALL ON TABLE "public"."booking_participants" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."bookings" TO "anon";
+GRANT ALL ON TABLE "public"."bookings" TO "authenticated";
+GRANT ALL ON TABLE "public"."bookings" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."cache_invalidation_events" TO "anon";
+GRANT ALL ON TABLE "public"."cache_invalidation_events" TO "authenticated";
+GRANT ALL ON TABLE "public"."cache_invalidation_events" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."cancellation_policies" TO "anon";
+GRANT ALL ON TABLE "public"."cancellation_policies" TO "authenticated";
+GRANT ALL ON TABLE "public"."cancellation_policies" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."cancellation_policies_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."cancellation_policies_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."cancellation_policies_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."cancellation_policies_id_seq1" TO "anon";
+GRANT ALL ON SEQUENCE "public"."cancellation_policies_id_seq1" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."cancellation_policies_id_seq1" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."cities" TO "anon";
+GRANT ALL ON TABLE "public"."cities" TO "authenticated";
+GRANT ALL ON TABLE "public"."cities" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."cities_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."cities_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."cities_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."cities_id_seq1" TO "anon";
+GRANT ALL ON SEQUENCE "public"."cities_id_seq1" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."cities_id_seq1" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."hero_sections" TO "anon";
+GRANT ALL ON TABLE "public"."hero_sections" TO "authenticated";
+GRANT ALL ON TABLE "public"."hero_sections" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."hero_sections_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."hero_sections_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."hero_sections_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."meta_details" TO "anon";
+GRANT ALL ON TABLE "public"."meta_details" TO "authenticated";
+GRANT ALL ON TABLE "public"."meta_details" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."participant_types" TO "anon";
+GRANT ALL ON TABLE "public"."participant_types" TO "authenticated";
+GRANT ALL ON TABLE "public"."participant_types" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."participant_types_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."participant_types_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."participant_types_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."participant_types_id_seq1" TO "anon";
+GRANT ALL ON SEQUENCE "public"."participant_types_id_seq1" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."participant_types_id_seq1" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."tour_availabilities" TO "anon";
+GRANT ALL ON TABLE "public"."tour_availabilities" TO "authenticated";
+GRANT ALL ON TABLE "public"."tour_availabilities" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."tour_availabilities_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."tour_availabilities_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."tour_availabilities_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."tour_availabilities_id_seq1" TO "anon";
+GRANT ALL ON SEQUENCE "public"."tour_availabilities_id_seq1" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."tour_availabilities_id_seq1" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."tour_availability_slots" TO "anon";
+GRANT ALL ON TABLE "public"."tour_availability_slots" TO "authenticated";
+GRANT ALL ON TABLE "public"."tour_availability_slots" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."tour_availability_slots_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."tour_availability_slots_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."tour_availability_slots_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."tour_availability_slots_id_seq1" TO "anon";
+GRANT ALL ON SEQUENCE "public"."tour_availability_slots_id_seq1" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."tour_availability_slots_id_seq1" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."tour_option_prices" TO "anon";
+GRANT ALL ON TABLE "public"."tour_option_prices" TO "authenticated";
+GRANT ALL ON TABLE "public"."tour_option_prices" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."tour_option_prices_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."tour_option_prices_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."tour_option_prices_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."tour_option_prices_id_seq1" TO "anon";
+GRANT ALL ON SEQUENCE "public"."tour_option_prices_id_seq1" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."tour_option_prices_id_seq1" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."tour_options" TO "anon";
+GRANT ALL ON TABLE "public"."tour_options" TO "authenticated";
+GRANT ALL ON TABLE "public"."tour_options" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."tour_options_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."tour_options_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."tour_options_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."tour_tags" TO "anon";
+GRANT ALL ON TABLE "public"."tour_tags" TO "authenticated";
+GRANT ALL ON TABLE "public"."tour_tags" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."tour_tags_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."tour_tags_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."tour_tags_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."tour_tags_id_seq1" TO "anon";
+GRANT ALL ON SEQUENCE "public"."tour_tags_id_seq1" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."tour_tags_id_seq1" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."tour_time_slots" TO "anon";
+GRANT ALL ON TABLE "public"."tour_time_slots" TO "authenticated";
+GRANT ALL ON TABLE "public"."tour_time_slots" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."tour_time_slots_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."tour_time_slots_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."tour_time_slots_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."tour_time_slots_id_seq1" TO "anon";
+GRANT ALL ON SEQUENCE "public"."tour_time_slots_id_seq1" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."tour_time_slots_id_seq1" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."tours" TO "anon";
+GRANT ALL ON TABLE "public"."tours" TO "authenticated";
+GRANT ALL ON TABLE "public"."tours" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."tours_categories" TO "anon";
+GRANT ALL ON TABLE "public"."tours_categories" TO "authenticated";
+GRANT ALL ON TABLE "public"."tours_categories" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."tours_categories_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."tours_categories_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."tours_categories_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."tours_categories_id_seq1" TO "anon";
+GRANT ALL ON SEQUENCE "public"."tours_categories_id_seq1" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."tours_categories_id_seq1" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."tours_tags" TO "anon";
+GRANT ALL ON TABLE "public"."tours_tags" TO "authenticated";
+GRANT ALL ON TABLE "public"."tours_tags" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."tours_tags_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."tours_tags_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."tours_tags_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."tours_tags_id_seq1" TO "anon";
+GRANT ALL ON SEQUENCE "public"."tours_tags_id_seq1" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."tours_tags_id_seq1" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."user_roles" TO "anon";
+GRANT ALL ON TABLE "public"."user_roles" TO "authenticated";
+GRANT ALL ON TABLE "public"."user_roles" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."user_roles_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."user_roles_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."user_roles_id_seq" TO "service_role";
+
+
+
+
+
+
+
+
+
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "postgres";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "anon";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "authenticated";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "service_role";
+
+
+
+
+
+
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "postgres";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "anon";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "authenticated";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "service_role";
+
+
+
+
+
+
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "postgres";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "anon";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "authenticated";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "service_role";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
