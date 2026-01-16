@@ -70,6 +70,57 @@ const getMinPrice = (option: any) => {
 	return Math.min(...option.prices.map((p: any) => p.price));
 };
 
+function getStructuredData(tour: GetTourDetails) {
+	const metaUrl =
+		tour.meta_details?.url_key != undefined
+			? `${process.env.VITE_MAIN_APP_URL}/tours/tour/` + tour.id + "/" + tour.meta_details?.url_key
+			: undefined;
+
+	const schema = {
+		"@context": "https://schema.org",
+		"@type": "Product",
+		"@id": metaUrl,
+		name: tour.name,
+		description: tour.overview?.slice(0, 300) ?? tour.meta_details?.meta_description ?? "",
+		image: [
+			SUPABASE_IMAGE_BUCKET_PATH + "/" + tour.cover_image,
+			...(tour.images ?? []).filter(Boolean).map((img) => SUPABASE_IMAGE_BUCKET_PATH + "/" + img),
+		],
+		brand: {
+			"@type": "Brand",
+			name: "Top Attractions Dubai",
+		},
+		offers: tour.tour_options.map((option, idx) => ({
+			"@type": "Offer",
+			name: option.name,
+			price: getMinPrice(option).toString(),
+			priceCurrency: "AED",
+			availability: tour.tour_options.some((opt) => {
+				if (opt.availabilities == null) return false;
+				return opt.availabilities.some((a) =>
+					a.slots.some((s) => {
+						if (s.seat_type === "LIMITED") {
+							return s.available_seats != null && (s.available_seats as number) > 0;
+						} else {
+							return true;
+						}
+					}),
+				);
+			})
+				? "https://schema.org/InStock"
+				: "https://schema.org/OutOfStock",
+			url: metaUrl + "#tour-option-" + idx,
+
+			seller: {
+				"@type": "Organization",
+				name: tour.provider?.name ?? "Top Attractions Dubai",
+			},
+		})),
+	};
+
+	return schema;
+}
+
 export default function TourDetailsPage() {
 	const loaderData = useLoaderData<typeof loader>();
 	const tour = loaderData?.tour ?? null;
@@ -192,6 +243,12 @@ export default function TourDetailsPage() {
 					price: Math.min(...tour.tour_options.map(getMinPrice)).toString(),
 				}}
 			/>
+			<script
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{
+					__html: JSON.stringify(getStructuredData(tour)),
+				}}
+			/>
 			<section>
 				<div className="pb-4 space-y-8">
 					{/* Header */}
@@ -249,8 +306,8 @@ export default function TourDetailsPage() {
 									<h2 className="text-2xl font-semibold">Available Options</h2>
 									{tour.tour_options
 										.sort((a, b) => (a.sort_order ?? 1) - (b.sort_order ?? 1))
-										.map((option) => (
-											<Card key={option.id} className="pt-0">
+										.map((option, idx) => (
+											<Card key={option.id} className="pt-0" id={"tour-option-" + idx}>
 												<CardHeader className="bg-accent pt-4 pb-3 rounded-t-xl">
 													<CardTitle className="sm:flex sm:flex-wrap gap-4 items-center justify-between">
 														<h3 className="text-lg">{option.name}</h3>

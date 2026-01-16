@@ -1,8 +1,10 @@
 import { Link, NavLink } from "react-router";
 import { Menu, Heart } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTrigger } from "~/components/ui/sheet";
+import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTrigger } from "~/components/ui/sheet";
 import { Button } from "~/components/ui/button";
 import { useFavourites } from "~/utils/favourites.utils";
+import { FB_URL, INSTAGRAM_URL } from "@workspace/shared/constants/constants";
+import type { FPHighLevelCategory } from "@workspace/shared/types/categories";
 
 const NAV_LINKS = [
 	{ label: "Home", to: "/" },
@@ -12,7 +14,7 @@ const NAV_LINKS = [
 	{ label: "Track Booking", to: "/track-booking" },
 ];
 
-export default function Header() {
+export default function Header({ categories }: { categories: FPHighLevelCategory[] }) {
 	return (
 		<header className="bg-background">
 			<div className="mx-auto flex items-center py-0">
@@ -24,28 +26,104 @@ export default function Header() {
 								<Menu className="h-5 w-5" />
 							</Button>
 						</SheetTrigger>
-						<SheetContent side="left" className="w-60">
+						<SheetContent side="left" className="w-64 overflow-y-auto">
 							<SheetHeader className="mt-5">
 								<span className="text-lg font-semibold">Top Attractions Dubai</span>
 							</SheetHeader>
 
-							<nav className="flex flex-col gap-4 p-4">
-								{NAV_LINKS.map((link) => (
-									<NavLink
-										key={link.to}
-										to={link.to}
-										className={({ isActive }) =>
-											`text-sm ${
-												isActive
-													? "font-medium text-foreground"
-													: "text-muted-foreground"
-											}`
-										}
-									>
-										{link.label}
-									</NavLink>
-								))}
+							<nav className="p-4 space-y-4">
+								<div className="flex flex-col gap-2">
+									{NAV_LINKS.map((link) => (
+										<NavLink
+											key={link.to}
+											to={link.to}
+											className={({ isActive }) =>
+												`text-sm ${
+													isActive
+														? "font-medium text-foreground"
+														: "text-muted-foreground"
+												}`
+											}
+										>
+											{link.label}
+										</NavLink>
+									))}
+								</div>
+								<div className="space-y-2">
+									<h2 className="text-xs text-muted-foreground font-bold">
+										Browse by Category
+									</h2>
+									<div className="flex flex-col gap-2">
+										{[
+											...categories,
+											...categories,
+											...categories,
+											...categories,
+											...categories,
+											...categories,
+											...categories,
+											...categories,
+										]
+											.slice(0, 5)
+											.map((category) => (
+												<NavLink
+													key={category.id}
+													to={`/tours?category=${category.id}`}
+													viewTransition
+													className="text-sm text-muted-foreground"
+													prefetch="intent"
+													title={category.name}
+												>
+													{category.name}
+												</NavLink>
+											))}
+										{[
+											...categories,
+											...categories,
+											...categories,
+											...categories,
+											...categories,
+											...categories,
+											...categories,
+											...categories,
+										].length > 5 && (
+											<NavLink
+												to={`/tours`}
+												title="See More"
+												prefetch="intent"
+												viewTransition
+												className="text-sm text-muted-foreground"
+											>
+												See More
+											</NavLink>
+										)}
+									</div>
+								</div>
 							</nav>
+
+							<SheetFooter className="space-y-1 border-t-2">
+								<h2 className="text-muted-foreground text-sm">Follow Us For More</h2>
+								<div className="flex gap-3">
+									<Link to={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">
+										<div>
+											<img
+												src="https://cdn.iconscout.com/icon/free/png-256/free-instagram-logo-icon-svg-download-png-1583142.png?f=webp&amp;w=128"
+												alt="Instagram"
+												className="w-8 h-8"
+											/>
+										</div>
+									</Link>
+									<Link to={FB_URL} target="_blank" rel="noopener noreferrer">
+										<div>
+											<img
+												src="https://cdn.iconscout.com/icon/free/png-256/free-facebook-logo-icon-svg-download-png-721949.png?f=webp&w=256"
+												alt="Facebook"
+												className="w-8 h-8 rounded-md"
+											/>
+										</div>
+									</Link>
+								</div>
+							</SheetFooter>
 						</SheetContent>
 					</Sheet>
 				</div>
@@ -53,7 +131,7 @@ export default function Header() {
 				{/* Logo */}
 				<Link to="/" viewTransition prefetch="intent">
 					<div className="w-36 h-fit ">
-						<img src="/logo.png" className="w-36 h-32" />
+						<img src="/logo.png" className="w-36 h-32" alt="Top Attractions Dubai" />
 					</div>
 				</Link>
 
@@ -79,8 +157,30 @@ export default function Header() {
 				{/* Spacer */}
 				<div className="flex-1" />
 
+				<div className="flex gap-4 items-center">
+					<div className="hidden lg:flex gap-2">
+						<Link to={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">
+							<div>
+								<img
+									src="https://cdn.iconscout.com/icon/free/png-256/free-instagram-logo-icon-svg-download-png-1583142.png?f=webp&amp;w=128"
+									alt="Instagram"
+									className="w-8 h-8"
+								/>
+							</div>
+						</Link>
+						<Link to={FB_URL} target="_blank" rel="noopener noreferrer">
+							<div>
+								<img
+									src="https://cdn.iconscout.com/icon/free/png-256/free-facebook-logo-icon-svg-download-png-721949.png?f=webp&w=256"
+									alt="Facebook"
+									className="w-8 h-8 rounded-md"
+								/>
+							</div>
+						</Link>
+					</div>
+					<HeaderFavouriteButton />
+				</div>
 				{/* Right actions */}
-				<HeaderFavouriteButton />
 			</div>
 		</header>
 	);

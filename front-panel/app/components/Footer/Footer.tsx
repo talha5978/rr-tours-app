@@ -1,6 +1,7 @@
 import { Link } from "react-router";
-import { Facebook, Heart, Instagram } from "lucide-react";
+import { Heart } from "lucide-react";
 import type { FPHighLevelCategory } from "@workspace/shared/types/categories";
+import { FB_URL, INSTAGRAM_URL } from "@workspace/shared/constants/constants";
 
 export default function Footer({ categories }: { categories: FPHighLevelCategory[] }) {
 	return (
@@ -16,17 +17,23 @@ export default function Footer({ categories }: { categories: FPHighLevelCategory
 						</p>
 
 						<div className="flex gap-3">
-							<Link
-								to="#"
-								className="rounded-md border p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
-							>
-								<Instagram className="h-4 w-4" />
+							<Link to={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">
+								<div>
+									<img
+										src="https://cdn.iconscout.com/icon/free/png-256/free-instagram-logo-icon-svg-download-png-1583142.png?f=webp&amp;w=128"
+										alt="Instagram"
+										className="w-6 h-6"
+									/>
+								</div>
 							</Link>
-							<Link
-								to="#"
-								className="rounded-md border p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
-							>
-								<Facebook className="h-4 w-4" />
+							<Link to={FB_URL} target="_blank" rel="noopener noreferrer">
+								<div>
+									<img
+										src="https://cdn.iconscout.com/icon/free/png-256/free-facebook-logo-icon-svg-download-png-721949.png?f=webp&w=256"
+										alt="Facebook"
+										className="w-6 h-6 rounded-md"
+									/>
+								</div>
 							</Link>
 						</div>
 					</div>

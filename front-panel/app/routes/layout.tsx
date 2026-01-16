@@ -14,7 +14,7 @@ export default function AppLayout() {
 
 	return (
 		<div className="max-container space-y-8">
-			<Header />
+			<Header categories={categoriesResp.data ?? []} />
 			<main>
 				<Outlet />
 			</main>
