@@ -54,39 +54,19 @@ export default function Header({ categories }: { categories: FPHighLevelCategory
 										Browse by Category
 									</h2>
 									<div className="flex flex-col gap-2">
-										{[
-											...categories,
-											...categories,
-											...categories,
-											...categories,
-											...categories,
-											...categories,
-											...categories,
-											...categories,
-										]
-											.slice(0, 5)
-											.map((category) => (
-												<NavLink
-													key={category.id}
-													to={`/tours?category=${category.id}`}
-													viewTransition
-													className="text-sm text-muted-foreground"
-													prefetch="intent"
-													title={category.name}
-												>
-													{category.name}
-												</NavLink>
-											))}
-										{[
-											...categories,
-											...categories,
-											...categories,
-											...categories,
-											...categories,
-											...categories,
-											...categories,
-											...categories,
-										].length > 5 && (
+										{categories.slice(0, 5).map((category) => (
+											<NavLink
+												key={category.id}
+												to={`/tours?categories=${category.id}`}
+												viewTransition
+												className="text-sm text-muted-foreground"
+												prefetch="intent"
+												title={category.name}
+											>
+												{category.name}
+											</NavLink>
+										))}
+										{categories.length > 5 && (
 											<NavLink
 												to={`/tours`}
 												title="See More"

@@ -99,7 +99,7 @@ export default function Footer({ categories }: { categories: FPHighLevelCategory
 							{categories.slice(0, 5).map((category) => (
 								<li key={category.id}>
 									<Link
-										to={`/tours?category=${category.id}`}
+										to={`/tours?categories=${category.id}`}
 										className="hover:text-foreground"
 										viewTransition
 										title={category.name}
