@@ -1,4 +1,4 @@
-import Autoplay from "embla-carousel-autoplay";
+import AutoScroll from "embla-carousel-auto-scroll";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
 import { Carousel, CarouselContent, CarouselItem } from "~/components/ui/carousel";
 
@@ -6,34 +6,103 @@ export const loader = () => {
 	return null;
 };
 
-export default function About() {
-	const partners = [
-		{
-			name: "TripAdvisor",
-			logo: "https://static.tacdn.com/img2/brand_refresh/Tripadvisor_lockup_horizontal_secondary_registered.svg",
-		},
-		{
-			name: "SkyDive Abu Dhabi",
-			logo: "https://www.exponentpe.com/sites/default/files/2021-02/bigbus.png",
-		},
-		{
-			name: "GetYourGuide",
-			logo: "https://upload.wikimedia.org/wikipedia/commons/5/5f/GetYourGuide_Logo.png",
-		},
-		{
-			name: "At the Top - Burj Khalifa",
-			logo: "https://www.prologicfirst.com/wp-content/uploads/2024/10/atthetop.png",
-		},
-		{
-			name: "Qasr Al Watan",
-			logo: "https://static.myconnect.ae/-/media/yasconnect/project/ppad/header/logo.svg?w=500",
-		},
-		{
-			name: "WildWadi",
-			logo: "",
-		},
-	];
+const partners = [
+	{
+		name: "TripAdvisor",
+		logo: "https://static.tacdn.com/img2/brand_refresh/Tripadvisor_lockup_horizontal_secondary_registered.svg",
+	},
+	{
+		name: "SkyDive Abu Dhabi",
+		logo: "https://www.exponentpe.com/sites/default/files/2021-02/bigbus.png",
+	},
+	{
+		name: "GetYourGuide",
+		logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTDjrweI1ZN9LIJ22QuWwmbdBUViMSg0CpYMQ&	",
+	},
+	{
+		name: "At the Top - Burj Khalifa",
+		logo: "https://www.prologicfirst.com/wp-content/uploads/2024/10/atthetop.png",
+	},
+	{
+		name: "Qasr Al Watan",
+		logo: "https://static.myconnect.ae/-/media/yasconnect/project/ppad/header/logo.svg?w=500",
+	},
+	{
+		name: "Partner",
+		logo: "https://i.pinimg.com/564x/23/30/d9/2330d96d19f458c4c3a962cb6da64d43.jpg",
+	},
 
+	{
+		name: "Partner",
+		logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSvzxoxmqS5GrXATd8Cj4pf1Iqm6-KYx_HPAA&s",
+	},
+
+	{
+		name: "Partner",
+		logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQmSsXywYJeIxm9UEn4AeUubDK2P22EDNixxg&s",
+	},
+
+	{
+		name: "Partner",
+		logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQo0bT74bfe1W2IZMqa3WjPOoQJDwoHa_TeYg&s",
+	},
+
+	{
+		name: "Partner",
+		logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTsVCp4kdBL5J5-3TlAVe9bH9TbvgY_z7Nt1Q&s",
+	},
+
+	{
+		name: "Partner",
+		logo: "https://falconhelitours.com/wp-content/uploads/2021/09/cropped-Falcon-tours-logo-1-1.png",
+	},
+
+	{
+		name: "Partner",
+		logo: "https://www.insideburjalarabphotos.com/assets/images/new-logo.png",
+	},
+
+	{
+		name: "Partner",
+		logo: "https://www.cdnlogo.com/logos/s/65/seaworld.svg",
+	},
+
+	{
+		name: "Partner",
+		logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQDlST7T3cHvFQp_G414GeOwALrbTpxFK0-hg&s",
+	},
+
+	{
+		name: "Partner",
+		logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/Museum_of_the_Future_logo.svg/1200px-Museum_of_the_Future_logo.svg.png",
+	},
+	{
+		name: "Partner",
+		logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRGTnKDmzk5ZYfn8lmuwYiB4coE2s0qnwSC6A&s",
+	},
+
+	{
+		name: "Partner",
+		logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTBnEl9Nurt0qCnDIdckfJ8qA0zJ9Uc5vfjrQ&s",
+	},
+
+	{
+		name: "Partner",
+		logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTc08VGtY38SB--s_gCtJbncvglUDI1z5L9DQ&s",
+	},
+
+	{
+		name: "Partner",
+		logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTP8_MJqxiI4RCXvoENm5PAomSZ5wzTD4Zixw&s",
+	},
+
+	{
+		name: "Partner",
+		logo: "https://mir-s3-cdn-cf.behance.net/projects/404/4e1785165133093.Y3JvcCwxMDY4LDgzNSwwLDEwMA.jpg",
+	},
+];
+
+export default function About() {
 	return (
 		<>
 			<MetaDetails
@@ -52,7 +121,7 @@ export default function About() {
 						<h1 className="text-3xl md:text-4xl font-medium text-gray-900 mb-6 text-center md:text-left">
 							About Us
 						</h1>
-						<div className="space-y-6 text-gray-700 leading-relaxed text-lg">
+						<div className="space-y-6 text-muted-foreground leading-relaxed text-lg">
 							<p>
 								Our goal is simple: to help you create memorable travel experiences. For many
 								years, we have been carefully crafting tour packages and delivering essential
@@ -78,17 +147,19 @@ export default function About() {
 
 				{/* Trusted by / Partners section */}
 				<div className="py-16 md:py-20 bg-card">
-					<div className="container mx-auto px-5 md:px-8">
-						<p className="text-center text-sm uppercase tracking-wider text-gray-500 mb-8 font-medium">
+					<div className="container mx-auto px-5 md:px-8 space-y-10">
+						<h2 className="text-center text-sm uppercase tracking-wider text-muted-foreground font-medium">
 							Trusted Partners & Platforms
-						</p>
+						</h2>
 
 						<Carousel
 							opts={{
 								align: "start",
 								loop: true,
 							}}
-							plugins={[Autoplay({ delay: 3000 })]}
+							plugins={[
+								AutoScroll({ speed: 1, stopOnInteraction: false, stopOnMouseEnter: false }),
+							]}
 							className="w-full"
 						>
 							<CarouselContent className="-ml-2 md:-ml-4">
@@ -97,11 +168,11 @@ export default function About() {
 										key={partner.name}
 										className="pl-2 md:pl-4 basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5"
 									>
-										<div className="h-20 flex items-center justify-center px-4">
+										<div className="h-20 flex items-center select-none justify-center px-4">
 											<img
 												src={partner.logo}
 												alt={`${partner.name} logo`}
-												className="h-12 w-auto opacity-80 hover:opacity-100 transition-opacity duration-300"
+												className="h-18 w-auto"
 												loading="lazy"
 											/>
 										</div>
