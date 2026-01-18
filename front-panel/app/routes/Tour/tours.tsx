@@ -182,7 +182,7 @@ export default function ToursPage() {
 					<div className="flex items-center justify-center gap-2">
 						<Button
 							variant="outline"
-							disabled={currentPage === 1}
+							disabled={currentPage === 1 || totalPages === 0}
 							onClick={() => {
 								searchParams.set("page", (currentPage - 1).toString());
 								navigate(`?${searchParams.toString()}`);
@@ -192,7 +192,7 @@ export default function ToursPage() {
 						</Button>
 						<Button
 							variant="outline"
-							disabled={currentPage === totalPages}
+							disabled={currentPage === totalPages || totalPages === 0}
 							onClick={() => {
 								searchParams.set("page", (currentPage + 1).toString());
 								navigate(`?${searchParams.toString()}`);
