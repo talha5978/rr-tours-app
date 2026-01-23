@@ -366,8 +366,10 @@ const PricesSubSection = ({
 														>
 															<div>{pt.name}</div>
 															<div>
-																{pt.age_max - pt.age_min > 50 ? (
+																{pt.age_max - pt.age_min > 80 ? (
 																	<p>({pt.age_min}+)</p>
+																) : pt.age_max === 0 && pt.age_min === 0 ? (
+																	<></>
 																) : (
 																	<p>
 																		({pt.age_min}-{pt.age_max})
