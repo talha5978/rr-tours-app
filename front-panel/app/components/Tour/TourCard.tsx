@@ -48,7 +48,9 @@ export const TourCard = memo(
 								</div>
 								<div className="mt-auto">
 									<p className="font-bold text-md">From {tour.price} AED</p>
-									<p className="text-xs text-muted-foreground">Per Person</p>
+									<p className="text-xs text-muted-foreground">
+										Per {tour.hasGroupPrice ? "Group" : "Person"}
+									</p>
 								</div>
 							</div>
 						</div>

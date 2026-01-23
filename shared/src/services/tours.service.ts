@@ -368,6 +368,13 @@ export class ToursService extends Service {
 			throw new ApiError("Tour not found", 404, []);
 		}
 
+		let hasGroupPrice =
+			tour.tour_options.some((option) =>
+				option.prices.some(
+					(price) => price.participant_type.age_max === 0 && price.participant_type.age_min === 0,
+				),
+			) || false;
+
 		return {
 			...tour,
 			tags: tour.tags.map((tag) => tag.tour_tags),
@@ -381,6 +388,7 @@ export class ToursService extends Service {
 				name: tour.tour_category.name,
 				url_key: tour.tour_category.meta_details.url_key,
 			},
+			hasGroupPrice,
 		};
 	}
 
@@ -1660,7 +1668,7 @@ export class ToursService extends Service {
 						${this.CITIES_TABLE}(id, name, ${this.META_DETAILS_TABLE}(url_key)),
 						${this.CATEGORIES_TABLE}(id, name, ${this.META_DETAILS_TABLE}(url_key)),
 						${this.TOUR_OPTIONS_TABLE} (
-							prices: ${this.TOUR_OPTION_PRICES_TABLE} (price),
+							prices: ${this.TOUR_OPTION_PRICES_TABLE} (price, ${this.PARTICIPANT_TYPES_TABLE}(age_min, age_max)),
 							${this.TOUR_AVAILABILITIES_TABLE} (
 								date, isActive,
 								${this.TOUR_AVAILABILITY_SLOTS_TABLE} (
@@ -1811,6 +1819,15 @@ export class ToursService extends Service {
 			let tours: FP_HighLevelTour[] = data.map((tour: (typeof data)[0]) => {
 				// const minPrice = Math.min(...tour.tour_options.map(getOptionMinPrice), Infinity);
 				const minPrice = getTourMinPrice(tour);
+				let hasGroupPrice =
+					tour.tour_options.some((option) =>
+						option.prices.some(
+							(price) =>
+								price.participant_types.age_max === 0 &&
+								price.participant_types.age_min === 0,
+						),
+					) || false;
+
 				return {
 					id: tour.id,
 					name: tour.name,
@@ -1829,6 +1846,7 @@ export class ToursService extends Service {
 						name: tour.tours_categories.name,
 						url_key: tour.tours_categories.meta_details.url_key,
 					},
+					hasGroupPrice,
 				};
 			});
 
@@ -1910,8 +1928,16 @@ export class ToursService extends Service {
 			throw new ApiError("Tour not found", 404, []);
 		}
 
+		let hasGroupPrice =
+			tour.tour_options.some((option) =>
+				option.prices.some(
+					(price) => price.participant_type.age_max === 0 && price.participant_type.age_min === 0,
+				),
+			) || false;
+
 		return {
 			...tour,
+			hasGroupPrice,
 			tags: tour.tags.map((tag) => tag.tour_tags),
 			city: {
 				id: tour.city.id,

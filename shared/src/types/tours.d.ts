@@ -35,6 +35,7 @@ export type GetTourDetails = Tables<"tours"> & {
 	cancellation_policy_detail: Tables<"cancellation_policies"> | null;
 	tags: Tables<"tour_tags">[];
 	tour_options: TourDetailOption[];
+	hasGroupPrice?: boolean;
 };
 
 export type HighLevelTour = {

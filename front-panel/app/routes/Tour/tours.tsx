@@ -40,7 +40,7 @@ import {
 import { startOfToday } from "date-fns";
 
 const PAGE_SIZE = 12;
-const MAX_PRICE = 5000;
+const MAX_PRICE = 10000;
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
 	const url = new URL(request.url);

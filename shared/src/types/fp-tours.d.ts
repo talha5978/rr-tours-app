@@ -16,6 +16,7 @@ export type FP_HighLevelTour = {
 		name: string;
 		url_key: string;
 	};
+	hasGroupPrice?: boolean;
 };
 
 export type GetFPHighLevelToursResponse = {

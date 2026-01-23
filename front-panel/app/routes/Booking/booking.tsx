@@ -359,14 +359,23 @@ export default function BookingPage() {
 											?.price || 0;
 									return (
 										<div key={typeId} className="booking-page-row">
-											<div className="flex gap-2 items-center">
+											<div>
 												<div>
-													<div>{pt?.name}</div>
-													<div className="text-xs">
-														({pt?.age_min} - {pt?.age_max})
-													</div>
+													{pt?.name} (x{qty})
 												</div>
-												<span className="text-sm"> (x{qty})</span>
+												<div className="text-xs">
+													{pt?.age_max && pt?.age_min ? (
+														pt.age_max - pt.age_min > 80 ? (
+															<p>({pt.age_min}+)</p>
+														) : pt.age_max === 0 && pt.age_min === 0 ? (
+															<></>
+														) : (
+															<p>
+																({pt.age_min}-{pt.age_max})
+															</p>
+														)
+													) : null}
+												</div>
 											</div>
 											<span>{(price * qty).toFixed(2)} AED</span>
 										</div>

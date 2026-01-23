@@ -823,7 +823,9 @@ const AttributesCard = memo(
 						<h2 className="text-xl font-semibold">
 							From {Math.min(...tour.tour_options.map(getMinPrice))} AED
 						</h2>
-						<p className="text-muted-foreground text-sm">Per Person</p>
+						<p className="text-muted-foreground text-sm">
+							Per{tour.hasGroupPrice ? " Group" : " Person"}
+						</p>
 					</div>
 				</CardContent>
 				<Separator />
