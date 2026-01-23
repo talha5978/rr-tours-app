@@ -2,7 +2,7 @@ import { Constants } from "@workspace/shared/types/supabase";
 
 export const CONTACT_NUMBER_1 = "971556130581" as const;
 export const INSTAGRAM_URL = "https://www.instagram.com/top_attractionsdubai" as const;
-export const FB_URL = "https://www.instagram.com/top_attractionsdubai" as const;
+export const FB_URL = "https://www.facebook.com/share/g/1AqEVNTwYG/?mibextid=wwXIfr" as const;
 
 export const STORAGE_BUCKETS = {
 	images: "images",
