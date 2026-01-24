@@ -69,3 +69,4 @@ export const fpTourSortByEnums = ["recommended", "price"] as const;
 
 export const BOOKING_STATUS = Constants.public.Enums.booking_status_enum;
 export const PAYMENT_STATUS = Constants.public.Enums.payment_status_enum;
+export const AVAILABILITY_OVERRIDE_TYPE = Constants.public.Enums.availability_override_type;

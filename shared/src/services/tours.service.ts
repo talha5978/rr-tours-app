@@ -30,9 +30,9 @@ export class ToursService extends Service {
 		}
 
 		for (const option of input.tour_options) {
-			if (option.availabilities == null || option.availabilities.length === 0) {
+			if (option.rules == null || option.rules.length === 0) {
 				throw new ApiError(
-					`Please add at least one availability for ${option.name} tour option.`,
+					`Please add at least one availability rule for ${option.name} tour option.`,
 					400,
 					[],
 				);
@@ -46,8 +46,8 @@ export class ToursService extends Service {
 		let metaId: string | null = null;
 		let tourId: string | null = null;
 		const optionIds: number[] = [];
-		const availabilityIds: number[] = [];
-		const timeSlotIds: number[] = [];
+		const ruleIdsMap: Map<number, number[]> = new Map();
+		const slotIdLabelMap: Map<string, number> = new Map();
 
 		try {
 			// Upload cover image
@@ -187,88 +187,101 @@ export class ToursService extends Service {
 				}
 			}
 
-			// Prepare all availabilities data
-			const allAvails: TablesInsert<"tour_availabilities">[] = [];
-			input.tour_options.forEach((option, optIdx) => {
+			// Handle the availability rules
+			for (let optIdx = 0; optIdx < input.tour_options.length; optIdx++) {
+				const option = input.tour_options[optIdx];
 				const optionId = insertedOptions[optIdx].id;
-				option.availabilities?.forEach((avail) => {
-					allAvails.push({
-						date: avail.date,
-						isActive: avail.isActive === "true",
-						tour_option_id: optionId,
-					});
-				});
-			});
 
-			// Batch insert availabilities
-			const { data: insertedAvails, error: availsError } = await this.supabase
-				.from(this.TOUR_AVAILABILITIES_TABLE)
-				.insert(allAvails)
-				.select("id");
+				// Prepare rules data
+				const rulesData: TablesInsert<"availability_rules">[] = option.rules.map((rule) => ({
+					start_date: rule.start_date,
+					end_date: rule.end_date,
+					weekdays: rule.weekdays.map(Number),
+					is_active: rule.is_active === "true",
+					tour_option_id: optionId,
+				}));
 
-			if (availsError) {
-				throw new ApiError(availsError.message, 500, [availsError.details || []]);
-			}
+				// Batch insert rules
+				const { data: insertedRules, error: rulesError } = await this.supabase
+					.from(this.AVAILABILITY_RULES_TABLE)
+					.insert(rulesData)
+					.select("id");
 
-			availabilityIds.push(...insertedAvails.map((avail) => avail.id));
+				if (rulesError) {
+					throw new ApiError(rulesError.message, 500, [rulesError.details || []]);
+				}
 
-			// Prepare all time slots data
-			const allTimeSlots: TablesInsert<"tour_time_slots">[] = [];
-			input.tour_options.forEach((option) => {
-				option.availabilities?.forEach((avail) => {
-					avail.timeslots.forEach((ts) => {
+				ruleIdsMap.set(
+					optIdx,
+					insertedRules.map((r) => r.id),
+				);
+
+				// Prepare all time slots for this option's rules
+				const allTimeSlots: TablesInsert<"time_slots">[] = [];
+				option.rules.forEach((rule, ruleIdx) => {
+					const ruleId = insertedRules[ruleIdx].id;
+					rule.time_slots.forEach((ts) => {
 						allTimeSlots.push({
-							time: ts.time,
-							label: ts.label || null,
-							sort_order: Number(ts.sort_order || "1"),
+							availability_rule_id: ruleId,
+							label: ts.label,
+							capacity: Number(ts.capacity),
+							is_active: ts.is_active === "true",
 						});
 					});
 				});
-			});
 
-			// Batch insert time slots
-			const { data: insertedTimeSlots, error: timeSlotsError } = await this.supabase
-				.from(this.TOUR_TIME_SLOTS_TABLE)
-				.insert(allTimeSlots)
-				.select("id");
+				// Batch insert time slots
+				let { data: insertedTimeSlots, error: timeSlotsError } = await this.supabase
+					.from(this.TIMESLOTS_TABLE)
+					.insert(allTimeSlots)
+					.select("id, label");
 
-			if (timeSlotsError) {
-				throw new ApiError(timeSlotsError.message, 500, [timeSlotsError.details || []]);
-			}
+				if (timeSlotsError) {
+					throw new ApiError(timeSlotsError.message, 500, [timeSlotsError.details || []]);
+				}
 
-			timeSlotIds.push(...insertedTimeSlots.map((ts) => ts.id));
-
-			// Prepare all availability slots data
-			const allAvailSlots: TablesInsert<"tour_availability_slots">[] = [];
-			let availIndex = 0;
-			let timeSlotIndex = 0;
-			input.tour_options.forEach((option) => {
-				option.availabilities?.forEach((avail) => {
-					const availId = insertedAvails[availIndex].id;
-					avail.timeslots.forEach((ts) => {
-						allAvailSlots.push({
-							availability_id: availId,
-							time_slot_id: insertedTimeSlots[timeSlotIndex].id,
-							seat_type: option.seat_type,
-							available_seats:
-								ts.available_seats && option.seat_type === "LIMITED"
-									? Number(ts.available_seats)
-									: null,
-						});
-						timeSlotIndex++;
-					});
-					availIndex++;
+				// Create label to id map (assuming unique labels per option)
+				insertedTimeSlots.forEach((ts) => {
+					if (ts.label) {
+						slotIdLabelMap.set(ts.label, ts.id);
+					}
 				});
-			});
 
-			// Batch insert availability slots
-			if (allAvailSlots.length > 0) {
-				const { error: availSlotsError } = await this.supabase
-					.from(this.TOUR_AVAILABILITY_SLOTS_TABLE)
-					.insert(allAvailSlots);
+				// Prepare overrides data
+				const overridesData: TablesInsert<"availability_overrides">[] = option.overrides.map((ov) => {
+					let timeSlotId: number | null = null;
+					if (ov.time_slot_label) {
+						timeSlotId = slotIdLabelMap.get(ov.time_slot_label) ?? null;
+						if (timeSlotId === null) {
+							throw new ApiError(
+								`Time slot label "${ov.time_slot_label}" not found for option ${option.name}`,
+								400,
+								[],
+							);
+						}
+					}
 
-				if (availSlotsError) {
-					throw new ApiError(availSlotsError.message, 500, [availSlotsError.details || []]);
+					return {
+						date: ov.date,
+						override_type: ov.override_type,
+						new_capacity:
+							ov.new_capacity && ov.override_type === "CAPACITY_CHANGE"
+								? Number(ov.new_capacity)
+								: null,
+						time_slot_id: timeSlotId,
+						tour_option_id: optionId,
+					};
+				});
+
+				// Batch insert overrides
+				if (overridesData.length > 0) {
+					const { error: overridesError } = await this.supabase
+						.from(this.AVAILABILITY_OVERRIDES_TABLE)
+						.insert(overridesData);
+
+					if (overridesError) {
+						throw new ApiError(overridesError.message, 500, [overridesError.details || []]);
+					}
 				}
 			}
 
@@ -301,13 +314,14 @@ export class ToursService extends Service {
 			for (const optId of optionIds) {
 				await this.supabase.from(this.TOUR_OPTIONS_TABLE).delete().eq("id", optId);
 			}
-			for (const availId of availabilityIds) {
-				await this.supabase.from(this.TOUR_AVAILABILITIES_TABLE).delete().eq("id", availId);
-			}
-			for (const tsId of timeSlotIds) {
-				await this.supabase.from(this.TOUR_TIME_SLOTS_TABLE).delete().eq("id", tsId);
+
+			for (const ruleIds of ruleIdsMap.values()) {
+				if (ruleIds.length > 0) {
+					await this.supabase.from(this.AVAILABILITY_RULES_TABLE).delete().in("id", ruleIds);
+				}
 			}
 
+			console.error(error);
 			throw error instanceof ApiError ? error : new ApiError("Failed to add tour", 500, []);
 		}
 	}
@@ -696,7 +710,6 @@ export class ToursService extends Service {
 				if (error) throw new ApiError("Failed to remove tags", 500, []);
 			}
 
-			// === COVER IMAGE HANDLING (exact same flow as updateCategory) ===
 			// === COVER IMAGE HANDLING ===
 			let newCoverPath: string | null = null;
 
@@ -1301,6 +1314,11 @@ export class ToursService extends Service {
 			throw new ApiError(error.message || "Failed to update tour options", 500);
 		}
 	}
+
+	async updateTourOptions_V3() {
+		// doing nothing for now >>
+	}
+
 	/** Get tours for searching, for main page and for handling all the filters for front panel */
 	async getFPHighLevelTours(
 		q = "",

@@ -5,10 +5,40 @@ import {
 } from "@workspace/shared/schemas/meta-details.schema";
 import {
 	ALLOWED_IMAGE_FORMATS,
+	AVAILABILITY_OVERRIDE_TYPE,
 	getSimpleImgFormats,
 	MAX_IMAGE_SIZE,
 	TIMESLOT_SEAT_TYPE,
 } from "@workspace/shared/constants/constants";
+
+const weekdaySchema = z.enum(["1", "2", "3", "4", "5", "6", "7"]);
+
+const timeSlotSchema = z.object({
+	label: z.string().min(1, "Time slot label is required"),
+	capacity: z
+		.string()
+		.min(1, "Capacity is required")
+		.refine((val) => !isNaN(Number(val)) && Number(val) >= 0, {
+			message: "Capacity must be a non-negative number",
+		}),
+
+	is_active: z.enum(["true", "false"]),
+});
+
+const availabilityRuleSchema = z.object({
+	start_date: z.string().min(1, "Start date is required"),
+	end_date: z.string().min(1, "End date is required"),
+	weekdays: z.array(weekdaySchema).min(1, "At least one weekday must be selected"),
+	is_active: z.enum(["true", "false"]),
+	time_slots: z.array(timeSlotSchema).min(1, "At least one time slot is required per rule"),
+});
+
+const availabilityOverrideSchema = z.object({
+	date: z.string().min(1, "Override date is required"),
+	override_type: z.enum(AVAILABILITY_OVERRIDE_TYPE),
+	new_capacity: z.string().nullable(),
+	time_slot_label: z.string().nullable(),
+});
 
 const TourOptionsSchema = z
 	.array(
@@ -27,8 +57,6 @@ const TourOptionsSchema = z
 			inclusions: z.string().optional(),
 			note: z.string().optional(),
 			sort_order: z.string().optional(),
-
-			seat_type: z.enum(TIMESLOT_SEAT_TYPE),
 
 			prices: z
 				.array(
@@ -53,34 +81,8 @@ const TourOptionsSchema = z
 					message: "At least one price is required.",
 				}),
 
-			availabilities: z
-				.array(
-					z.object({
-						date: z
-							.string({ required_error: "Date is required." })
-							.min(1, "Date is required.")
-							.refine((value) => value.trim().length > 0, {
-								message: "Date is required.",
-							}),
-
-						isActive: z.enum(["true", "false"]),
-						timeslots: z
-							.array(
-								z.object({
-									time: z
-										.string({ required_error: "Time is required." })
-										.min(1, "Time is required."),
-									label: z.string().optional(),
-									sort_order: z.string().optional(),
-									available_seats: z.string().nullable(),
-								}),
-							)
-							.refine((value) => value.length > 0, {
-								message: "At least one timeslot is required.",
-							}),
-					}),
-				)
-				.optional(),
+			rules: z.array(availabilityRuleSchema).default([]),
+			overrides: z.array(availabilityOverrideSchema).optional().default([]),
 		}),
 	)
 	.refine((value) => value.length > 0, {

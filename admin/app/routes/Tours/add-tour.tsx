@@ -6,7 +6,6 @@ import { ToursService } from "@workspace/shared/services/tours.service";
 import type { ActionResponse } from "@workspace/shared/types/action-data";
 import { ApiError } from "@workspace/shared/utils/ApiError";
 import { queryClient } from "@workspace/shared/utils/query-client";
-import { format } from "date-fns";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { type Control, useForm, useWatch } from "react-hook-form";
@@ -29,7 +28,7 @@ import { GeneralDetailsCard } from "~/components/Tour/Mutations/GeneralCard";
 import { ImagesInputCard } from "~/components/Tour/Mutations/ImagesCard";
 import { MainContentCard } from "~/components/Tour/Mutations/MainContentCard";
 import { TagsCard } from "~/components/Tour/Mutations/TagsCard";
-import { TourOptionsCard } from "~/components/Tour/Mutations/TourOptionsCard";
+import { TourOptionsCard } from "~/components/Tour/Mutations/TourOptionsCard_v2";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/components/ui/form";
@@ -72,14 +71,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 		const cover_image = formData.get("cover_image") as File;
 		const images = formData.getAll("images") as File[];
+		// console.log("rawbody:\n",rawBody.tour_options[0].overrides);
 
 		const parseResult = AddTourActionSchema.safeParse({
 			...rawBody,
 			cover_image,
 			images: images.filter((i) => i != null && i instanceof File),
 		});
-
-		// console.log(rawBody.tour_options.map((i) => i.availabilities));
 
 		if (!parseResult.success) {
 			return new Response(
@@ -90,7 +88,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 				},
 			);
 		}
-
+		// console.log(parseResult.data.tour_options[0].rules[0].time_slots);
+		// return;
 		const tours_svc = new ToursService(request);
 		const tour_id = await tours_svc.addTour(parseResult.data);
 
@@ -172,9 +171,26 @@ export default function AddTourPage() {
 				url_key: "",
 				meta_keywords: [],
 			},
-			tour_options: [],
 			live_tour_guide: "false",
 			live_tour_guide_langs: [],
+			tour_options: [
+				{
+					name: "",
+					inclusions: "",
+					exclusions: "",
+					note: "",
+					sort_order: "1",
+					prices: [
+						{
+							price: "",
+							participant: participants[0].id.toString(),
+						},
+					],
+					rules: [],
+					overrides: [],
+					isOpenDated: "true",
+				},
+			],
 		},
 	});
 
@@ -201,7 +217,7 @@ export default function AddTourPage() {
 	const watchedTags = useWatch({ control, name: "tags" }) ?? [];
 
 	async function onFormSubmit(values: AddTourInput) {
-		// console.log(values);
+		console.log(values);
 		if (values.address_name != null && values.address_name != "") {
 			if (values.address_link == null || values.address_link == "") {
 				toast.error("Please add address link.");
@@ -220,8 +236,8 @@ export default function AddTourPage() {
 		}
 
 		for (const option of values.tour_options) {
-			if (option.availabilities == null || option.availabilities.length === 0) {
-				toast.error(`Please add at least one availability for tour option "${option.name}".`);
+			if (option.rules == null || option.rules.length === 0) {
+				toast.error(`Please add at least one availability rule for tour option "${option.name}".`);
 				return;
 			}
 		}
@@ -245,55 +261,6 @@ export default function AddTourPage() {
 				}
 
 				seenParticipants.add(price.participant);
-			}
-		}
-
-		for (const option of values.tour_options) {
-			const seat_type = option.seat_type;
-			if (option.availabilities) {
-				for (const availability of option.availabilities) {
-					const seenTimes = new Set<string>();
-
-					for (const timeslot of availability.timeslots) {
-						if (
-							seat_type === "LIMITED" &&
-							(timeslot.available_seats == null || timeslot.available_seats === "")
-						) {
-							console.log(timeslot);
-
-							toast.error(
-								`Please add available seats for ${format(availability.date, "PP")} ${timeslot.label} timeslot in the tour option "${option.name}".`,
-							);
-							return;
-						}
-
-						const time = timeslot.time?.trim();
-
-						if (!time) {
-							toast.error(
-								`Time is missing for a timeslot on ${format(availability.date, "PP")} in tour option "${option.name}".`,
-							);
-							return;
-						}
-
-						if (seenTimes.has(time)) {
-							toast.error(
-								`Duplicate timeslot "${time}" found on ${format(availability.date, "PP")} in tour option "${option.name}". Each date must have unique times.`,
-							);
-							return;
-						}
-
-						seenTimes.add(time);
-
-						if (timeslot.label != null) {
-							timeslot.label = timeslot.label.trim();
-						}
-
-						if (seat_type === "UNLIMITED" && timeslot.available_seats != null) {
-							timeslot.available_seats = null;
-						}
-					}
-				}
 			}
 		}
 

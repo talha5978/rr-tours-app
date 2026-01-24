@@ -86,6 +86,89 @@ export type Database = {
 					},
 				];
 			};
+			availability_overrides: {
+				Row: {
+					created_at: string;
+					date: string;
+					id: number;
+					new_capacity: number | null;
+					override_type: Database["public"]["Enums"]["availability_override_type"];
+					time_slot_id: number | null;
+					tour_option_id: number;
+				};
+				Insert: {
+					created_at?: string;
+					date: string;
+					id?: never;
+					new_capacity?: number | null;
+					override_type: Database["public"]["Enums"]["availability_override_type"];
+					time_slot_id?: number | null;
+					tour_option_id: number;
+				};
+				Update: {
+					created_at?: string;
+					date?: string;
+					id?: never;
+					new_capacity?: number | null;
+					override_type?: Database["public"]["Enums"]["availability_override_type"];
+					time_slot_id?: number | null;
+					tour_option_id?: number;
+				};
+				Relationships: [
+					{
+						foreignKeyName: "availability_overrides_time_slot_id_fkey";
+						columns: ["time_slot_id"];
+						isOneToOne: false;
+						referencedRelation: "time_slots";
+						referencedColumns: ["id"];
+					},
+					{
+						foreignKeyName: "availability_overrides_tour_option_id_fkey";
+						columns: ["tour_option_id"];
+						isOneToOne: false;
+						referencedRelation: "tour_options";
+						referencedColumns: ["id"];
+					},
+				];
+			};
+			availability_rules: {
+				Row: {
+					created_at: string;
+					end_date: string;
+					id: number;
+					is_active: boolean;
+					start_date: string;
+					tour_option_id: number;
+					weekdays: number[];
+				};
+				Insert: {
+					created_at?: string;
+					end_date: string;
+					id?: number;
+					is_active?: boolean;
+					start_date: string;
+					tour_option_id: number;
+					weekdays: number[];
+				};
+				Update: {
+					created_at?: string;
+					end_date?: string;
+					id?: number;
+					is_active?: boolean;
+					start_date?: string;
+					tour_option_id?: number;
+					weekdays?: number[];
+				};
+				Relationships: [
+					{
+						foreignKeyName: "availability_rules_tour_option_id_fkey";
+						columns: ["tour_option_id"];
+						isOneToOne: false;
+						referencedRelation: "tour_options";
+						referencedColumns: ["id"];
+					},
+				];
+			};
 			booking_participants: {
 				Row: {
 					booking_id: string;
@@ -375,6 +458,41 @@ export type Database = {
 					name?: string;
 				};
 				Relationships: [];
+			};
+			time_slots: {
+				Row: {
+					availability_rule_id: number;
+					capacity: number;
+					created_at: string;
+					id: number;
+					is_active: boolean;
+					label: string;
+				};
+				Insert: {
+					availability_rule_id: number;
+					capacity?: number;
+					created_at?: string;
+					id?: never;
+					is_active?: boolean;
+					label?: string;
+				};
+				Update: {
+					availability_rule_id?: number;
+					capacity?: number;
+					created_at?: string;
+					id?: never;
+					is_active?: boolean;
+					label?: string;
+				};
+				Relationships: [
+					{
+						foreignKeyName: "time_slots_availability_rule_id_fkey";
+						columns: ["availability_rule_id"];
+						isOneToOne: false;
+						referencedRelation: "availability_rules";
+						referencedColumns: ["id"];
+					},
+				];
 			};
 			tour_availabilities: {
 				Row: {
@@ -796,6 +914,7 @@ export type Database = {
 			[_ in never]: never;
 		};
 		Functions: {
+			cleanup_old_tour_availabilities: { Args: never; Returns: undefined };
 			get_tours_with_active_availability_on_date: {
 				Args: { p_date: string };
 				Returns: {
@@ -804,6 +923,7 @@ export type Database = {
 			};
 		};
 		Enums: {
+			availability_override_type: "CLOSE" | "CAPACITY_CHANGE";
 			booking_status_enum: "PENDING" | "CONFIRMED" | "CANCELLED";
 			cache_invalidation_target: "front" | "admin" | "both";
 			payment_status_enum: "UNPAID" | "PENDING" | "PARTIAL" | "PAID" | "REFUNDED";
@@ -936,6 +1056,7 @@ export const Constants = {
 	},
 	public: {
 		Enums: {
+			availability_override_type: ["CLOSE", "CAPACITY_CHANGE"],
 			booking_status_enum: ["PENDING", "CONFIRMED", "CANCELLED"],
 			cache_invalidation_target: ["front", "admin", "both"],
 			payment_status_enum: ["UNPAID", "PENDING", "PARTIAL", "PAID", "REFUNDED"],
