@@ -2,12 +2,8 @@ import type { Database, Tables } from "@workspace/shared/types/supabase";
 
 export type SeatType = Database["public"]["Enums"]["timeslot_seat_type"];
 
-export type TourDetailAvailability = Tables<"tour_availabilities"> & {
-	slots: Array<
-		Tables<"tour_availability_slots"> & {
-			time_slot: Tables<"tour_time_slots">;
-		}
-	>;
+export type TourDetailAvailability = Tables<"availability_rules"> & {
+	time_slots: Array<Tables<"time_slots">>;
 };
 
 export type TourDetailOption = Tables<"tour_options"> & {
@@ -16,7 +12,8 @@ export type TourDetailOption = Tables<"tour_options"> & {
 			participant_type: Tables<"participant_types">;
 		}
 	>;
-	availabilities: TourDetailAvailability[];
+	availability_rules: TourDetailAvailability[];
+	availability_overrides: Tables<"availability_overrides">[];
 };
 
 export type GetTourDetails = Tables<"tours"> & {

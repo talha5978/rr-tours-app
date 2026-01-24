@@ -2,19 +2,29 @@ import { Link, type LoaderFunctionArgs, useLoaderData } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "~/components/ui/dialog";
-import { format, isBefore, startOfToday } from "date-fns";
-import { Accessibility, ArrowRight, Check, ClockFading, Edit, MapPinned, X } from "lucide-react";
+import { addDays, format, isBefore, parseISO, startOfToday } from "date-fns";
+import {
+	Accessibility,
+	ArrowRight,
+	Calendar,
+	CalendarPlusIcon,
+	Check,
+	ClockFading,
+	Edit,
+	MapPinned,
+	X,
+} from "lucide-react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Label } from "~/components/ui/label";
-import { HTMLAttributes, type HtmlHTMLAttributes, memo, useMemo, useState } from "react";
+import { type HTMLAttributes, type HtmlHTMLAttributes, memo, useMemo, useState } from "react";
 import DatePicker from "~/components/Custom-Inputs/date-picker";
 import TourImageCarousel from "~/components/Tour/TourImageCarousel";
 import { Separator } from "~/components/ui/separator";
 import { queryClient } from "@workspace/shared/utils/query-client";
 import { tourDetailsQuery } from "~/queries/tours.q";
-import type { GetTourDetails, TourDetailAvailability, TourDetailOption } from "@workspace/shared/types/tours";
+import type { GetTourDetails, TourDetailOption } from "@workspace/shared/types/tours";
 import { cn, formatTourDurationHours } from "@workspace/shared/utils/ui";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
 import { SUPABASE_IMAGE_BUCKET_PATH } from "@workspace/shared/constants/constants";
@@ -23,13 +33,14 @@ import { toast } from "sonner";
 import QuantityInput from "~/components/Custom-Inputs/quantity-input-basic";
 import BackButton from "~/components/Nav/BackButton";
 import { Badge } from "~/components/ui/badge";
+import { useIsMobile } from "~/hooks/use-mobile";
 
 const participantSchema = z.object({
 	quantities: z.record(z.number().min(0).int()),
 });
 
 type ParticipantForm = z.infer<typeof participantSchema>;
-type AvailabilitySlot = TourDetailAvailability["slots"][0];
+type AvailabilitySlot = Tables<"time_slots"> & { capacity: number }; // Adjusted for effective capacity after overrides
 type DialogSteps = "date" | "time" | "participants";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
@@ -50,38 +61,20 @@ export default function TourDetailsPage() {
 	const [selectedTimeSlot, setSelectedTimeSlot] = useState<AvailabilitySlot | null>(null);
 	const [step, setStep] = useState<DialogSteps>("date");
 	const [stepsDialogOpen, setStepsDialogOpen] = useState(false);
+	const isMobile = useIsMobile();
 
 	if (!tour) return <div>Tour not found</div>;
-	if (tour.tour_options.some((opt) => opt.availabilities == null)) return <div>Error loading tour</div>;
 
-	console.log("Re rendreed");
-	// console.log(tour);
-
-	const availableDates = tour.tour_options.flatMap(
-		(opt: any) =>
-			opt.availabilities
-				.filter((a: TourDetailAvailability) => a.isActive)
-				.map((a: TourDetailAvailability) => new Date(a.date)) || [],
-	);
-
-	const isDateAvailable = (date: Date) =>
-		availableDates.some((d) => format(d, "yyyy-MM-dd") === format(date, "yyyy-MM-dd"));
-
-	const getTimeSlotsForDate = (date: Date, option: TourDetailOption) => {
-		const formattedDate = format(date, "yyyy-MM-dd");
-		const avail = option.availabilities.find((a: TourDetailAvailability) => a.date === formattedDate);
-		return avail?.slots.sort((a, b) => a.time_slot.sort_order - b.time_slot.sort_order) || [];
-	};
-
-	const checkIfNoSlotsAvailable = () => {
-		return (
-			selectedDate &&
-			selectedOption &&
-			getTimeSlotsForDate(selectedDate, selectedOption).every(
-				(s) => s.available_seats === 0 && s.seat_type === "LIMITED",
-			)
-		);
-	};
+	const tour_images = useMemo(() => {
+		const filteredImages = tour?.images?.filter((i: string | null) => i != null) ?? [];
+		return [
+			{ url: tour.cover_image, title: tour.name + " Cover" },
+			...filteredImages.map((j: string, idx: number) => ({
+				url: j,
+				title: tour.name + " Secondary Image " + idx,
+			})),
+		];
+	}, [tour]);
 
 	const handleButtonClick = (option: TourDetailOption) => {
 		setStepsDialogOpen(true);
@@ -105,52 +98,12 @@ export default function TourDetailsPage() {
 		if (step === "participants") setStep("time");
 	};
 
-	const tour_images = useMemo(() => {
-		const filteredImages = tour?.images?.filter((i: string | null) => i != null) ?? [];
-		return [
-			{ url: tour.cover_image, title: tour.name + " Cover" },
-			...filteredImages.map((j: string, idx: number) => ({
-				url: j,
-				title: tour.name + " Secondary Image " + idx,
-			})),
-		];
-	}, [tour]);
-
-	function getNextAvailabilityMsg(option: TourDetailOption) {
-		if (!option.availabilities || option.availabilities.length === 0) {
-			return null;
-		}
-
-		const sortedAvailabilities = [...option.availabilities].sort((a, b) => a.date.localeCompare(b.date));
-
-		const nextAvailability = sortedAvailabilities.find((availability) => {
-			if (new Date(availability.date) < startOfToday()) {
-				return false;
-			}
-
-			return availability.slots.some(
-				(slot) =>
-					slot.seat_type === "LIMITED" &&
-					slot.available_seats != null &&
-					(slot.available_seats as number) > 0,
-			);
-		});
-
-		if (nextAvailability) {
-			return `Next Available on ${format(new Date(nextAvailability.date), "PPPP")}`;
-		}
-
-		return null;
-	}
-
 	return (
 		<>
 			<MetaDetails
 				metaTitle={tour.name + " | Tour Preview"}
 				metaDescription={tour.overview.slice(0, 150)}
 				metaKeywords={tour.meta_details?.meta_keywords ?? tour.name}
-				// canonicalUrl={`https://www.topattractionsdubai.com/tours/tour/` + tour.id + "/" + tour.meta_details?.url_key}
-				// ogUrl={`https://www.topattractionsdubai.com/tours/tour/` + tour.id + "/" + tour.meta_details?.url_key}
 				ogImage={SUPABASE_IMAGE_BUCKET_PATH + "/" + tour.cover_image}
 				ogType="product"
 				hasPricing
@@ -158,7 +111,6 @@ export default function TourDetailsPage() {
 					price: Math.min(...tour.tour_options.map(getMinPrice)).toString(),
 				}}
 			/>
-			{/* <TourStructuredData tour={{ name: tour.name, overview: tour.overview, image: tour.cover_image }} canonicalUrl={`https://www.topattractionsdubai.com/tours/tour/` + tour.id + "/" + tour.meta_details?.url_key} /> */}
 			<div className="container mx-auto p-4 space-y-8">
 				{/* Header */}
 				<div className="space-y-2">
@@ -288,30 +240,88 @@ export default function TourDetailsPage() {
 														</ul>
 													</div>
 												) : null}
-
+											</CardContent>
+											<Separator />
+											<CardContent>
 												<div>
 													<p className="text-muted-foreground">
 														From {getMinPrice(option)} AED
 													</p>
-													<p className="text-destructive">
-														{option.availabilities.every((a) =>
-															a.slots.every(
-																(s) =>
-																	s.seat_type === "LIMITED" &&
-																	s.available_seats === 0,
-															),
-														)
-															? "Not Available"
-															: ""}
-													</p>
-													{getNextAvailabilityMsg(option) != null && (
-														<p className="text-muted-foreground">
-															{getNextAvailabilityMsg(option)}
-														</p>
-													)}
-												</div>
 
-												<div className="flex gap-4 flex-wrap mt-6">
+													{(() => {
+														const upcomingDates = getUpcomingAvailableDates(
+															option,
+															isMobile ? 3 : 6,
+														);
+
+														if (
+															upcomingDates.length === 0 ||
+															upcomingDates.length < 3
+														) {
+															return <></>;
+														}
+
+														return (
+															<div className="mt-2 space-y-2">
+																<h2 className="text-muted-foreground text-xs">
+																	Next Available Dates
+																</h2>
+																<div className="flex flex-wrap gap-2">
+																	{upcomingDates.map(
+																		({ date, formatted }) => (
+																			<div
+																				key={formatted}
+																				className="cursor-pointer hover:bg-primary/10 transition-colors py-4 px-5 flex flex-col gap-1 items-center justify-center bg-muted rounded-lg"
+																				onClick={() => {
+																					setStepsDialogOpen(true);
+																					setSelectedOption(option);
+																					setSelectedDate(date);
+																					setStep("time");
+																				}}
+																			>
+																				<Calendar className="w-4 h-4 text-muted-foreground" />
+																				<div className="text-center">
+																					<p className="text-sm">
+																						{formatted.split(
+																							" ",
+																						)[0] +
+																							" " +
+																							formatted.split(
+																								" ",
+																							)[1]}
+																					</p>
+																					<p className="text-[0.7rem]">
+																						{
+																							formatted.split(
+																								" ",
+																							)[2]
+																						}
+																					</p>
+																				</div>
+																			</div>
+																		),
+																	)}
+																	{upcomingDates.length ===
+																		(isMobile ? 3 : 6) && (
+																		<div
+																			className="cursor-pointer hover:bg-primary/10 transition-colors py-4 px-5 flex flex-col gap-1 items-center justify-center bg-muted rounded-lg text-sm"
+																			onClick={() =>
+																				handleButtonClick(option)
+																			}
+																		>
+																			<CalendarPlusIcon className="w-4 h-4 text-muted-foreground" />
+																			<p className="text-sm">More</p>
+																		</div>
+																	)}
+																</div>
+															</div>
+														);
+													})()}
+												</div>
+											</CardContent>
+											{getUpcomingAvailableDates(option, 6).length > 3 && <Separator />}
+											<CardContent>
+												<div className="flex gap-4 flex-wrap">
 													{/* View Details Dialog */}
 													<Dialog>
 														<DialogTrigger asChild>
@@ -451,9 +461,7 @@ export default function TourDetailsPage() {
 																				<div className="flex gap-2 items-center justify-between">
 																					<p className="text-sm">
 																						{
-																							selectedTimeSlot
-																								.time_slot
-																								.label
+																							selectedTimeSlot.label
 																						}
 																					</p>
 																					<button
@@ -467,22 +475,20 @@ export default function TourDetailsPage() {
 																						</span>
 																					</button>
 																				</div>
-																				{selectedTimeSlot.seat_type ===
-																					"LIMITED" &&
-																					selectedTimeSlot.available_seats && (
-																						<p className="text-sm">
-																							{
-																								selectedTimeSlot.available_seats
-																							}{" "}
-																							seats available
-																						</p>
-																					)}
+																				{selectedTimeSlot.capacity && (
+																					<p className="text-sm">
+																						{
+																							selectedTimeSlot.capacity
+																						}{" "}
+																						seats available
+																					</p>
+																				)}
 																			</div>
 																		)}
 																</div>
 															</div>
 
-															{step === "date" && (
+															{step === "date" && selectedOption && (
 																<div className="space-y-4">
 																	<p>
 																		Select{" "}
@@ -517,47 +523,50 @@ export default function TourDetailsPage() {
 																					onDateChange={
 																						handleDateSelect
 																					}
-																					date_disabled={(date) =>
-																						isBefore(
+																					date_disabled={(date) => {
+																						// Always disable past dates
+																						if (
+																							isBefore(
+																								date,
+																								startOfToday(),
+																							)
+																						)
+																							return true;
+
+																						// Normal options: only enable if at least one rule covers this date
+																						return !isDateCoveredByAnyRule(
 																							date,
-																							startOfToday(),
-																						) ||
-																						!isDateAvailable(
-																							date,
-																						) ||
-																						(selectedOption &&
-																						selectedOption.availabilities &&
-																						!selectedOption.availabilities.find(
-																							(a) =>
-																								a.date ===
-																								format(
-																									date,
-																									"yyyy-MM-dd",
-																								),
-																						)?.isActive
-																							? true
-																							: false)
-																					}
+																							selectedOption,
+																						);
+																					}}
 																				/>
 																			</div>
 																		),
 																	)}
 
-																	{checkIfNoSlotsAvailable() == true && (
-																		<p className="text-destructive">
-																			Sorry! No timeslot is available
-																			for this date.
-																		</p>
-																	)}
+																	{selectedDate &&
+																		getTimeSlotsForDate(
+																			selectedDate,
+																			selectedOption,
+																		).length === 0 && (
+																			<p className="text-destructive">
+																				No available time slots for
+																				this date.
+																			</p>
+																		)}
 
 																	<div className="w-fit ml-auto">
 																		<Button
 																			size={"sm"}
+																			type="button"
 																			onClick={() => setStep("time")}
 																			disabled={
-																				(checkIfNoSlotsAvailable()
-																					? true
-																					: false) || !selectedDate
+																				(selectedDate &&
+																					getTimeSlotsForDate(
+																						selectedDate,
+																						selectedOption,
+																					).length === 0) ||
+																				!selectedDate
 																			}
 																		>
 																			Next
@@ -583,10 +592,7 @@ export default function TourDetailsPage() {
 																			).map(
 																				(slot: AvailabilitySlot) => {
 																					const disabled =
-																						slot.available_seats ===
-																							0 &&
-																						slot.seat_type ===
-																							"LIMITED";
+																						slot.capacity === 0;
 
 																					return (
 																						<Button
@@ -604,12 +610,7 @@ export default function TourDetailsPage() {
 																								disabled
 																							}
 																						>
-																							{slot.time_slot
-																								.label
-																								? `${slot.time_slot.label}`
-																								: slot
-																										.time_slot
-																										.time}
+																							{slot.label}
 																						</Button>
 																					);
 																				},
@@ -784,11 +785,7 @@ const ParticipantFormComponent = memo(
 													id={`qty-${pt.id}`}
 													quantity={field.value ?? 0}
 													min={0}
-													max={
-														selectedTimeSlot.seat_type === "UNLIMITED"
-															? 100
-															: selectedTimeSlot.available_seats
-													}
+													max={selectedTimeSlot.capacity}
 													step={1}
 													onChange={(e) => field.onChange(Number(e))}
 												/>
@@ -954,3 +951,141 @@ const MainBodySection = memo(
 		) : null;
 	},
 );
+
+/**
+ * Returns the effective time slots for a specific date and tour option,
+ * after applying any availability overrides for that date.
+ *
+ * @param date - The date to check (Date object or ISO string)
+ * @param option - The selected TourDetailOption with rules & overrides
+ * @returns Array of effective time slots with updated capacity
+ */
+function getTimeSlotsForDate(date: Date | string, option: TourDetailOption): AvailabilitySlot[] {
+	// Normalize date to YYYY-MM-DD string
+	const targetDateStr = typeof date === "string" ? date.split("T")[0] : format(date, "yyyy-MM-dd");
+
+	const targetDate = parseISO(targetDateStr);
+	const targetWeekday = targetDate.getDay() === 0 ? 7 : targetDate.getDay();
+
+	// 1. Find all rules that cover this date
+	const applicableRules = option.availability_rules.filter((rule) => {
+		const start = parseISO(rule.start_date);
+		const end = parseISO(rule.end_date);
+		const isInDateRange = !isBefore(targetDate, start) && !isBefore(end, targetDate);
+		const isCorrectWeekday = rule.weekdays.includes(targetWeekday);
+		return isInDateRange && isCorrectWeekday && rule.is_active;
+	});
+
+	// 2. Collect all time slots from applicable rules
+	let slots: AvailabilitySlot[] = [];
+	applicableRules.forEach((rule) => {
+		rule.time_slots.forEach((ts) => {
+			if (ts.is_active) {
+				slots.push({
+					...ts,
+					capacity: Number(ts.capacity), // ensure number
+				});
+			}
+		});
+	});
+
+	// 3. Apply overrides for this exact date
+	const dateOverrides = option.availability_overrides.filter((ov) => ov.date === targetDateStr);
+
+	dateOverrides.forEach((override) => {
+		if (override.override_type === "CLOSE") {
+			// Close whole day or specific slot
+			if (override.time_slot_id === null) {
+				// Whole day closed → no slots available
+				slots = [];
+			} else {
+				// Specific slot closed → remove it
+				slots = slots.filter((s) => s.id !== override.time_slot_id);
+			}
+		} else if (override.override_type === "CAPACITY_CHANGE") {
+			const newCap = override.new_capacity !== null ? Number(override.new_capacity) : null;
+
+			if (override.time_slot_id === null) {
+				// Whole day capacity change → apply to all slots
+				slots = slots.map((s) => ({
+					...s,
+					capacity: newCap ?? s.capacity, // null = unlimited?
+				}));
+			} else {
+				// Specific slot capacity change
+				slots = slots.map((s) =>
+					s.id === override.time_slot_id ? { ...s, capacity: newCap ?? s.capacity } : s,
+				);
+			}
+		}
+	});
+
+	// 4. Sort by original sort order (optional but nice UX)
+	slots.sort((a, b) => {
+		// If you have sort_order in time_slots, use it
+		// Otherwise sort by label or time (fallback)
+		return (a.label ?? "").localeCompare(b.label ?? "");
+	});
+
+	return slots;
+}
+
+/**
+ * Returns up to maxDates upcoming dates that have at least one available time slot.
+ * @param option - The tour option
+ * @param maxDates - Max number of dates to return (default 6)
+ * @returns Array of { date: Date, formatted: string }
+ */
+function getUpcomingAvailableDates(
+	option: TourDetailOption,
+	maxDates: number = 6,
+): { date: Date; formatted: string }[] {
+	const today = startOfToday();
+	const upcoming: { date: Date; formatted: string }[] = [];
+
+	// We'll check up to 90 days ahead (adjust as needed)
+	let current = today;
+	let checkedDays = 0;
+	const MAX_DAYS_TO_CHECK = 90;
+
+	while (upcoming.length < maxDates && checkedDays < MAX_DAYS_TO_CHECK) {
+		current = addDays(current, 1); // start from tomorrow
+		checkedDays++;
+
+		// Skip if not covered by any rule (unless open-dated)
+		if (!option.isOpenDated && !isDateCoveredByAnyRule(current, option)) {
+			continue;
+		}
+
+		const slots = getTimeSlotsForDate(current, option);
+		if (slots.length > 0 && slots.some((s) => s.capacity > 0)) {
+			upcoming.push({
+				date: current,
+				formatted: format(current, "MMM d ccc"), // e.g. "Jan 25"
+			});
+		}
+	}
+
+	return upcoming;
+}
+
+function isDateCoveredByAnyRule(date: Date, option: TourDetailOption | null): boolean {
+	if (!option || !option.availability_rules?.length) return false;
+
+	const dateStr = format(date, "yyyy-MM-dd");
+	const targetDate = parseISO(dateStr);
+	const weekday = targetDate.getDay() === 0 ? 7 : targetDate.getDay();
+
+	return option.availability_rules.some((rule) => {
+		// Skip inactive rules
+		if (!rule.is_active) return false;
+
+		const start = parseISO(rule.start_date);
+		const end = parseISO(rule.end_date);
+
+		const inRange = !isBefore(targetDate, start) && !isBefore(end, targetDate);
+		const onWeekday = rule.weekdays.includes(weekday);
+
+		return inRange && onWeekday;
+	});
+}

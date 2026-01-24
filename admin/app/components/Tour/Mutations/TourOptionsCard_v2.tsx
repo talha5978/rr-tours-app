@@ -827,7 +827,7 @@ const AvailabilitySettingsSubSection = ({
 						</div>
 					)}
 				</div>
-				{JSON.stringify(overrideFields, null, 2)}
+
 				{overrideFields.length === 0 && (
 					<p className="text-sm text-muted-foreground">No exceptions/overrides added yet.</p>
 				)}

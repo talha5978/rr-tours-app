@@ -8,7 +8,6 @@ import {
 	AVAILABILITY_OVERRIDE_TYPE,
 	getSimpleImgFormats,
 	MAX_IMAGE_SIZE,
-	TIMESLOT_SEAT_TYPE,
 } from "@workspace/shared/constants/constants";
 
 const weekdaySchema = z.enum(["1", "2", "3", "4", "5", "6", "7"]);
@@ -377,8 +376,6 @@ export const UpdateTourSchema = z
 					inclusions: z.string().optional(),
 					note: z.string().optional(),
 					sort_order: z.string().optional(),
-
-					seat_type: z.enum(TIMESLOT_SEAT_TYPE),
 
 					prices: z
 						.array(

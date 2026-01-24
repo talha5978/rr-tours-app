@@ -358,13 +358,11 @@ export class ToursService extends Service {
 							*,
 							participant_type: ${this.PARTICIPANT_TYPES_TABLE} (*)
 						),
-						availabilities: ${this.TOUR_AVAILABILITIES_TABLE} (
+						${this.AVAILABILITY_RULES_TABLE} (
 							*,
-							slots: ${this.TOUR_AVAILABILITY_SLOTS_TABLE} (
-								*,
-								time_slot: ${this.TOUR_TIME_SLOTS_TABLE} (*)
-							)
-						)
+							${this.TIMESLOTS_TABLE} (*)
+						),
+						${this.AVAILABILITY_OVERRIDES_TABLE} (*)
 					)
 				`,
 			)
@@ -436,12 +434,14 @@ export class ToursService extends Service {
 							*,
 							participant_type: ${this.PARTICIPANT_TYPES_TABLE} (*)
 						),
-						availabilities: ${this.TOUR_AVAILABILITIES_TABLE} (
+						${this.AVAILABILITY_RULES_TABLE} (
 							*,
-							slots: ${this.TOUR_AVAILABILITY_SLOTS_TABLE} (
-								*,
-								time_slot: ${this.TOUR_TIME_SLOTS_TABLE} (*)
+							${this.TIMESLOTS_TABLE} (
+								*
 							)
+						),
+						${this.AVAILABILITY_OVERRIDES_TABLE} (
+							*
 						)
 					)
 				`,

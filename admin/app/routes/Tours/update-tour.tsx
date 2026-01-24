@@ -224,7 +224,6 @@ export default function UpdateTourPage() {
 				})),
 				sort_order: option?.sort_order?.toString() ?? "1",
 				isOpenDated: (option.isOpenDated ? "true" : "false") as "true" | "false",
-				seat_type: option.availabilities[0]?.slots[0]?.seat_type ?? "LIMITED",
 				availabilities: option.availabilities.map((availability) => ({
 					id: availability.id,
 					date: availability.date,
