@@ -498,8 +498,7 @@ export class ToursService extends Service {
 						id, name, cover_image, updated_at, isFeatured, isActive,
 						${this.META_DETAILS_TABLE}(url_key),
 						${this.CITIES_TABLE}(id, name, ${this.META_DETAILS_TABLE}(url_key)),
-						${this.CATEGORIES_TABLE}(id, name, ${this.META_DETAILS_TABLE}(url_key)),
-						tour_options(tour_availabilities(date, isActive, tour_availability_slots(seat_type, available_seats)))
+						${this.CATEGORIES_TABLE}(id, name, ${this.META_DETAILS_TABLE}(url_key))
 					`,
 					{ count: "exact" },
 				)
@@ -603,27 +602,6 @@ export class ToursService extends Service {
 				throw new ApiError(error.message, 500, [error.details || ""]);
 			}
 
-			const computeToBeSoldOutScore = (tour: (typeof data)[0]): number => {
-				const now = new Date().toISOString().split("T")[0];
-				let totalLimited = 0;
-				let soldOut = 0;
-				for (const option of tour.tour_options || []) {
-					for (const avail of option.tour_availabilities || []) {
-						if (avail.date >= now && avail.isActive) {
-							for (const slot of avail.tour_availability_slots || []) {
-								if (slot.seat_type === "LIMITED" && slot.available_seats != null) {
-									totalLimited++;
-									if (slot.available_seats <= 0) {
-										soldOut++;
-									}
-								}
-							}
-						}
-					}
-				}
-				return totalLimited > 0 ? soldOut / totalLimited : 0;
-			};
-
 			const tours: HighLevelTour[] = data.map((tour: (typeof data)[0]) => ({
 				id: tour.id,
 				name: tour.name,
@@ -632,7 +610,6 @@ export class ToursService extends Service {
 				url_key: tour.meta_details.url_key,
 				isFeatured: tour.isFeatured,
 				isActive: tour.isActive,
-				toBeSoldOutScore: computeToBeSoldOutScore(tour),
 				city: {
 					id: tour.cities.id,
 					name: tour.cities.name,
@@ -662,7 +639,6 @@ export class ToursService extends Service {
 			removed_tags,
 			tour_options_updates,
 			cover_image,
-			// removed_cover_image,
 			images = [],
 			removed_images = [],
 			meta_details,
@@ -671,9 +647,7 @@ export class ToursService extends Service {
 		// Fetch current tour data (needed for image handling & meta_details_id)
 		const { data: currentTour, error: fetchError } = await this.supabase
 			.from(this.TOURS_TABLE)
-			.select(
-				"*, meta_details_id, images, cover_image, tour_options(*, tour_option_prices(*), tour_availabilities(*, tour_availability_slots(*, tour_time_slots(*))))",
-			)
+			.select("id, meta_details_id, images, cover_image")
 			.eq("id", tour_id)
 			.single();
 
@@ -800,7 +774,7 @@ export class ToursService extends Service {
 
 			// 6. Handle tour_options_updates
 			if (tour_options_updates) {
-				await this.updateTourOptions_V3(tour_id, tour_options_updates);
+				await this.updateTourOptions(tour_id, tour_options_updates);
 			}
 		} catch (error: any) {
 			// Rollback uploaded images on any failure
@@ -813,512 +787,7 @@ export class ToursService extends Service {
 	}
 
 	/** Update all details related to tour options */
-	async updateTourOptions_V2(
-		tour_id: string,
-		payload: {
-			new_options?: any[];
-			deleted_options?: number[];
-			updated_options?: any[];
-
-			new_prices?: any[];
-			deleted_prices?: number[];
-			updated_prices?: any[];
-
-			new_availabilities?: any[];
-			deleted_availabilities?: number[];
-			updated_availabilities?: any[];
-
-			new_slots?: any[];
-			deleted_slots?: number[];
-			updated_slots?: any[];
-
-			new_timeslots?: any[];
-			deleted_timeslots?: number[];
-			updated_timeslots?: any[];
-		},
-	) {
-		const {
-			new_options = [],
-			deleted_options = [],
-			updated_options = [],
-
-			new_prices = [],
-			deleted_prices = [],
-			updated_prices = [],
-
-			new_availabilities = [],
-			deleted_availabilities = [],
-			updated_availabilities = [],
-
-			new_slots = [],
-			deleted_slots = [],
-			updated_slots = [],
-
-			new_timeslots = [],
-			deleted_timeslots = [],
-			updated_timeslots = [],
-		} = payload;
-
-		try {
-			// Retry wrapper for network errors
-			const withRetry = async (
-				fn: () => Promise<any>,
-				retries: number = 3,
-				delayBase: number = 1000,
-			) => {
-				let lastErr: any;
-				for (let attempt = 1; attempt <= retries; attempt++) {
-					try {
-						return await fn();
-					} catch (err: any) {
-						lastErr = err;
-						if (
-							err.message?.includes("fetch failed") ||
-							err.message?.includes("network") ||
-							err.code === "ECONNRESET"
-						) {
-							await new Promise((resolve) => setTimeout(resolve, delayBase * attempt));
-						} else {
-							throw err;
-						}
-					}
-				}
-				throw lastErr;
-			};
-
-			// Helper for chunked deletes
-			const chunkedDelete = async (table: string, ids: number[], batchSize: number = 500) => {
-				for (let i = 0; i < ids.length; i += batchSize) {
-					const batch = ids.slice(i, i + batchSize);
-					const { error } = await withRetry(() =>
-						this.supabase.from(table).delete().in("id", batch),
-					);
-					if (error) throw new ApiError(`Failed to delete in ${table}: ${error.message}`, 500);
-				}
-			};
-
-			// Helper for chunked inserts (returns all inserted data concatenated)
-			const chunkedInsert = async <T extends { id: number }>(
-				table: string,
-				items: any[],
-				batchSize: number = 500,
-			): Promise<T[]> => {
-				let allData: T[] = [];
-				for (let i = 0; i < items.length; i += batchSize) {
-					const batch = items.slice(i, i + batchSize);
-					const { data, error } = await withRetry(() =>
-						this.supabase.from(table).insert(batch).select("*"),
-					);
-					if (error || !data)
-						throw new ApiError(`Failed to insert in ${table}: ${error?.message}`, 500);
-					allData = allData.concat(data as T[]);
-				}
-				return allData;
-			};
-
-			// === Handle time slots (global) ===
-
-			// 1. Process new_timeslots in bulk
-			const timeSlotMap = new Map<string, number>(); // time -> id
-
-			if (new_timeslots.length > 0) {
-				// Collect unique times
-				const uniqueTimes = [...new Set(new_timeslots.map((ts) => ts.time))];
-
-				// Bulk check existing
-				const { data: existingTss, error: checkErr } = await withRetry(() =>
-					this.supabase
-						.from(this.TOUR_TIME_SLOTS_TABLE)
-						.select("id, time, label, sort_order")
-						.in("time", uniqueTimes),
-				);
-
-				if (checkErr) {
-					throw new ApiError(`Failed to check time slots: ${checkErr.message}`, 500);
-				}
-
-				// Map existing
-				const existingByTime = new Map(existingTss.map((ts) => [ts.time, ts]));
-
-				// Prepare inserts and updates
-				const tsInserts = [];
-				const tsUpdates = []; // Collect for chunked updates
-
-				for (const ts of new_timeslots) {
-					const { time, label, sort_order } = ts;
-					const existing = existingByTime.get(time);
-
-					if (existing) {
-						const updateData: any = {};
-						if (label !== existing.label) updateData.label = label;
-						if (sort_order !== existing.sort_order) updateData.sort_order = sort_order;
-
-						if (Object.keys(updateData).length > 0) {
-							tsUpdates.push({ id: existing.id, ...updateData });
-						}
-						timeSlotMap.set(time, existing.id);
-					} else {
-						tsInserts.push({ time, label, sort_order });
-					}
-				}
-
-				// Bulk insert new
-				if (tsInserts.length > 0) {
-					const newTss = await chunkedInsert<{ id: number; time: string }>(
-						this.TOUR_TIME_SLOTS_TABLE,
-						tsInserts,
-					);
-					newTss.forEach((ts) => timeSlotMap.set(ts.time, ts.id));
-				}
-
-				// Chunked update for time slots (smaller batch for stability)
-				if (tsUpdates.length > 0) {
-					for (let i = 0; i < tsUpdates.length; i += 100) {
-						// Reduced to 100
-						const batch = tsUpdates.slice(i, i + 100);
-						const updatePromises = batch.map((update) =>
-							withRetry(() =>
-								this.supabase
-									.from(this.TOUR_TIME_SLOTS_TABLE)
-									.update(update)
-									.eq("id", update.id),
-							),
-						);
-						const results = await Promise.all(updatePromises);
-						results.forEach(({ error }) => {
-							if (error)
-								throw new ApiError(`Failed to update time slot: ${error.message}`, 500);
-						});
-					}
-				}
-			}
-
-			// 2. Process updated_timeslots in chunked parallel
-			if (updated_timeslots.length > 0) {
-				for (let i = 0; i < updated_timeslots.length; i += 100) {
-					// Reduced to 100
-					const batch = updated_timeslots.slice(i, i + 100);
-					const updatePromises = batch.map((ts) => {
-						const { id, label, sort_order } = ts;
-						const updateData: any = {};
-						if (label !== undefined) updateData.label = label;
-						if (sort_order !== undefined) updateData.sort_order = sort_order;
-
-						if (Object.keys(updateData).length > 0) {
-							return withRetry(() =>
-								this.supabase
-									.from(this.TOUR_TIME_SLOTS_TABLE)
-									.update(updateData)
-									.eq("id", id),
-							);
-						}
-						return Promise.resolve({ error: null });
-					});
-
-					const updateResults = await Promise.all(updatePromises);
-					updateResults.forEach(({ error }) => {
-						if (error) throw new ApiError(`Failed to update time slot: ${error.message}`, 500);
-					});
-				}
-			}
-
-			// === Deletes (chunked bulk) ===
-
-			// 3. Delete slots (chunked)
-			if (deleted_slots.length > 0) {
-				await chunkedDelete(this.TOUR_AVAILABILITY_SLOTS_TABLE, deleted_slots);
-			}
-
-			// 4. Delete availabilities (chunked)
-			if (deleted_availabilities.length > 0) {
-				await chunkedDelete(this.TOUR_AVAILABILITIES_TABLE, deleted_availabilities);
-			}
-
-			// 5. Delete prices (chunked)
-			if (deleted_prices.length > 0) {
-				await chunkedDelete(this.TOUR_OPTION_PRICES_TABLE, deleted_prices);
-			}
-
-			// 6. Delete options (chunked)
-			if (deleted_options.length > 0) {
-				await chunkedDelete(this.TOUR_OPTIONS_TABLE, deleted_options);
-			}
-
-			// === Updates (chunked parallel) ===
-
-			// 7. Update options (chunked parallel)
-			if (updated_options.length > 0) {
-				for (let i = 0; i < updated_options.length; i += 100) {
-					// Reduced to 100
-					const batch = updated_options.slice(i, i + 100);
-					const updatePromises = batch.map((opt) => {
-						const { id, ...updateData } = opt;
-						if (Object.keys(updateData).length > 0) {
-							return withRetry(() =>
-								this.supabase.from(this.TOUR_OPTIONS_TABLE).update(updateData).eq("id", id),
-							);
-						}
-						return Promise.resolve({ error: null });
-					});
-
-					const updateResults = await Promise.all(updatePromises);
-					updateResults.forEach(({ error }) => {
-						if (error) throw new ApiError(`Failed to update option: ${error.message}`, 500);
-					});
-				}
-			}
-
-			// 8. Update prices (chunked parallel)
-			if (updated_prices.length > 0) {
-				for (let i = 0; i < updated_prices.length; i += 100) {
-					// Reduced to 100
-					const batch = updated_prices.slice(i, i + 100);
-					const updatePromises = batch.map((price) => {
-						const pl: Partial<Database["public"]["Tables"]["tour_option_prices"]["Update"]> = {};
-						if (price.price !== undefined) pl.price = price.price;
-						if (price.participant_type_id !== undefined)
-							pl.participant_type_id = price.participant_type_id;
-
-						if (Object.keys(pl).length > 0) {
-							return withRetry(() =>
-								this.supabase
-									.from(this.TOUR_OPTION_PRICES_TABLE)
-									.update(pl)
-									.eq("id", price.id),
-							);
-						}
-						return Promise.resolve({ error: null });
-					});
-
-					const updateResults = await Promise.all(updatePromises);
-					updateResults.forEach(({ error }) => {
-						if (error) throw new ApiError(`Failed to update price: ${error.message}`, 500);
-					});
-				}
-			}
-
-			// 9. Update availabilities (chunked parallel)
-			if (updated_availabilities.length > 0) {
-				for (let i = 0; i < updated_availabilities.length; i += 100) {
-					// Reduced to 100
-					const batch = updated_availabilities.slice(i, i + 100);
-					const updatePromises = batch.map((avail) => {
-						const { id, isActive } = avail;
-						return withRetry(() =>
-							this.supabase
-								.from(this.TOUR_AVAILABILITIES_TABLE)
-								.update({ isActive })
-								.eq("id", id),
-						);
-					});
-
-					const updateResults = await Promise.all(updatePromises);
-					updateResults.forEach(({ error }) => {
-						if (error) throw new ApiError(`Failed to update availability: ${error.message}`, 500);
-					});
-				}
-			}
-
-			// 10. Update slots (chunked parallel)
-			if (updated_slots.length > 0) {
-				for (let i = 0; i < updated_slots.length; i += 100) {
-					// Reduced to 100
-					const batch = updated_slots.slice(i, i + 100);
-					const updatePromises = batch.map((slot) => {
-						const { id, ...updateData } = slot;
-						if (Object.keys(updateData).length > 0) {
-							return withRetry(() =>
-								this.supabase
-									.from(this.TOUR_AVAILABILITY_SLOTS_TABLE)
-									.update(updateData)
-									.eq("id", id),
-							);
-						}
-						return Promise.resolve({ error: null });
-					});
-
-					const updateResults = await Promise.all(updatePromises);
-					updateResults.forEach(({ error }) => {
-						if (error) throw new ApiError(`Failed to update slot: ${error.message}`, 500);
-					});
-				}
-			}
-
-			// === Inserts (chunked) ===
-
-			// 11. Insert new options, map temp IDs
-			const optionIdMap = new Map<string, number>();
-			if (new_options.length > 0) {
-				const resolvedNewOpts = new_options.map((opt) => ({ ...opt, tour_id }));
-				const newOpts = await chunkedInsert<{ id: number }>(this.TOUR_OPTIONS_TABLE, resolvedNewOpts);
-
-				new_options.forEach((_, index) => {
-					const tempId = `new-opt-${index + 1}`;
-					optionIdMap.set(tempId, newOpts[index].id);
-				});
-			}
-
-			// 12. Insert new prices, resolve IDs
-			if (new_prices.length > 0) {
-				const resolvedNewPrices = new_prices.map((price) => {
-					const resolvedId =
-						typeof price.tour_option_id === "string"
-							? optionIdMap.get(price.tour_option_id)
-							: price.tour_option_id;
-					if (resolvedId === undefined) throw new ApiError(`Unresolved option ID for price`, 500);
-					return { ...price, tour_option_id: resolvedId };
-				});
-
-				await chunkedInsert(this.TOUR_OPTION_PRICES_TABLE, resolvedNewPrices);
-			}
-
-			// 13. Insert new availabilities, map temp IDs
-			const availIdMap = new Map<string, number>();
-			if (new_availabilities.length > 0) {
-				const resolvedNewAvails = new_availabilities.map((avail) => {
-					const resolvedId =
-						typeof avail.tour_option_id === "string"
-							? optionIdMap.get(avail.tour_option_id)
-							: avail.tour_option_id;
-					if (resolvedId === undefined) {
-						throw new ApiError(`Unresolved option ID for availability`, 500);
-					}
-					return { ...avail, tour_option_id: resolvedId };
-				});
-
-				const newAvails = await chunkedInsert<{ id: number }>(
-					this.TOUR_AVAILABILITIES_TABLE,
-					resolvedNewAvails,
-				);
-
-				new_availabilities.forEach((_, index) => {
-					const tempId = `new-avail-${new_options.length + index + 1}`;
-					availIdMap.set(tempId, newAvails[index].id);
-				});
-			}
-
-			// 14. Insert new slots with bulk time slots creation
-			if (new_slots.length > 0) {
-				// Collect unique time configs
-				const configMap = new Map<
-					string,
-					{ time: string; label: string | null; sort_order: number }
-				>();
-				new_slots.forEach((slot) => {
-					const key = `${slot.time}|${slot.label ?? ""}|${slot.sort_order ?? 0}`;
-					if (!configMap.has(key)) {
-						configMap.set(key, {
-							time: slot.time,
-							label: slot.label,
-							sort_order: slot.sort_order,
-						});
-					}
-				});
-
-				const uniqueConfigs = Array.from(configMap.values());
-				const uniqueTimes = uniqueConfigs.map((c) => c.time);
-
-				// Bulk fetch existing matching configs
-				const { data: existingTss, error: fetchErr } = await withRetry(() =>
-					this.supabase
-						.from(this.TOUR_TIME_SLOTS_TABLE)
-						.select("id, time, label, sort_order")
-						.in("time", uniqueTimes),
-				);
-
-				if (fetchErr) {
-					throw new ApiError(`Failed to fetch existing time slots: ${fetchErr.message}`, 500);
-				}
-
-				// Map existing by config key
-				const existingConfigMap = new Map<string, number>();
-				existingTss.forEach((ts) => {
-					const key = `${ts.time}|${ts.label ?? ""}|${ts.sort_order ?? 0}`;
-					existingConfigMap.set(key, ts.id);
-				});
-
-				// Prepare new inserts
-				const tsInserts = uniqueConfigs.filter((c) => {
-					const key = `${c.time}|${c.label ?? ""}|${c.sort_order ?? 0}`;
-					return !existingConfigMap.has(key);
-				});
-
-				// Bulk insert new time slots (chunked)
-				if (tsInserts.length > 0) {
-					const newTss = await chunkedInsert<{
-						id: number;
-						time: string;
-						label: string | null;
-						sort_order: number;
-					}>(this.TOUR_TIME_SLOTS_TABLE, tsInserts);
-					newTss.forEach((ts) => {
-						const key = `${ts.time}|${ts.label ?? ""}|${ts.sort_order ?? 0}`;
-						existingConfigMap.set(key, ts.id);
-					});
-				}
-
-				// Now resolve slots
-				const resolvedNewSlots = new_slots.map((slot) => {
-					const resolvedAvailId =
-						typeof slot.availability_id === "string"
-							? availIdMap.get(slot.availability_id)
-							: slot.availability_id;
-					if (resolvedAvailId === undefined) {
-						throw new ApiError(`Unresolved availability ID for slot`, 500);
-					}
-
-					const key = `${slot.time}|${slot.label ?? ""}|${slot.sort_order ?? 0}`;
-					const timeSlotId = existingConfigMap.get(key);
-					if (timeSlotId === undefined) {
-						throw new ApiError(`Failed to resolve time slot ID for config: ${key}`, 500);
-					}
-
-					return {
-						availability_id: resolvedAvailId,
-						time_slot_id: timeSlotId,
-						available_seats: slot.available_seats,
-						seat_type: slot.seat_type,
-					};
-				});
-
-				// Chunked insert slots
-				await chunkedInsert(this.TOUR_AVAILABILITY_SLOTS_TABLE, resolvedNewSlots);
-			}
-
-			// 15. Delete unused time slots (chunked check and delete)
-			if (deleted_timeslots.length > 0) {
-				// Chunk the check if very large
-				let usedIds = new Set<number>();
-				for (let i = 0; i < deleted_timeslots.length; i += 500) {
-					const batch = deleted_timeslots.slice(i, i + 500);
-					const { data: usages, error: countErr } = await withRetry(() =>
-						this.supabase
-							.from(this.TOUR_AVAILABILITY_SLOTS_TABLE)
-							.select("time_slot_id")
-							.in("time_slot_id", batch),
-					);
-
-					if (countErr) {
-						console.warn(`Failed to check time slot usages: ${countErr.message}`);
-						continue;
-					}
-
-					usages.forEach((u) => usedIds.add(u.time_slot_id));
-				}
-
-				const toDelete = deleted_timeslots.filter((id) => !usedIds.has(id));
-
-				if (toDelete.length > 0) {
-					await chunkedDelete(this.TOUR_TIME_SLOTS_TABLE, toDelete);
-				}
-			}
-		} catch (error: any) {
-			console.error("Tour options update failed:", error);
-			throw new ApiError(error.message || "Failed to update tour options", 500);
-		}
-	}
-
-	async updateTourOptions_V3(tour_id: string, payload: UpdateTourActionPayload["tour_options_updates"]) {
+	async updateTourOptions(tour_id: string, payload: UpdateTourActionPayload["tour_options_updates"]) {
 		const new_options = payload?.new_options ?? [];
 		const deleted_options = payload?.deleted_options ?? [];
 		const updated_options = payload?.updated_options ?? [];
@@ -1598,13 +1067,10 @@ export class ToursService extends Service {
 						${this.META_DETAILS_TABLE}(url_key),
 						${this.CITIES_TABLE}(id, name, ${this.META_DETAILS_TABLE}(url_key)),
 						${this.CATEGORIES_TABLE}(id, name, ${this.META_DETAILS_TABLE}(url_key)),
-						${this.TOUR_OPTIONS_TABLE} (
-							prices: ${this.TOUR_OPTION_PRICES_TABLE} (price, ${this.PARTICIPANT_TYPES_TABLE}(age_min, age_max)),
-							${this.TOUR_AVAILABILITIES_TABLE} (
-								date, isActive,
-								${this.TOUR_AVAILABILITY_SLOTS_TABLE} (
-									seat_type, available_seats
-								)
+						${this.TOUR_OPTIONS_TABLE}(
+							*,
+							prices: ${this.TOUR_OPTION_PRICES_TABLE} (
+								price, ${this.PARTICIPANT_TYPES_TABLE}(age_min, age_max)
 							)
 						)
 						`,
@@ -1683,9 +1149,6 @@ export class ToursService extends Service {
 					throw new ApiError(`Failed to fetch tours for date: ${idError.message}`, 500);
 				}
 
-				// console.log("Filtering for date:", dateStr);
-				// console.log("Matching tour IDs from RPC:", matchingTourIds);
-
 				if (matchingTourIds && matchingTourIds.length > 0) {
 					const tourIds = matchingTourIds.map((row: any) => row.tour_id);
 					query = query.in("id", tourIds);
@@ -1694,14 +1157,6 @@ export class ToursService extends Service {
 				}
 			}
 
-			// Price range filter (min price across options)
-			// if (filters.price && filters.price.length === 2) {
-			// 	const [minP, maxP] = filters.price.sort((a, b) => a - b);
-			// 	const minPriceSubquery = `(tour_options!inner(tour_option_prices!inner(price))).price`;
-			// 	query = query.gte(minPriceSubquery, minP).lte(minPriceSubquery, maxP);
-			// }
-
-			// Default DB sort (only by created_at - price sort will be done in JS)
 			query = query.order("created_at", { ascending: false });
 
 			const { data, error, count } = await query;
@@ -1709,12 +1164,6 @@ export class ToursService extends Service {
 			if (error) {
 				throw new ApiError(error.message, 500, [error.details || ""]);
 			}
-
-			// Helper: min price of one option
-			// const getOptionMinPrice = (option: any): number => {
-			// 	if (!option.prices?.length) return Infinity;
-			// 	return Math.min(...option.prices.map((p: any) => p.price));
-			// };
 
 			const getTourMinPrice = (tour: (typeof data)[0]): number => {
 				let min = Infinity;
@@ -1726,29 +1175,7 @@ export class ToursService extends Service {
 				return min === Infinity ? 0 : min;
 			};
 
-			// Helper: sold-out score
-			const computeToBeSoldOutScore = (tour: (typeof data)[0]): number => {
-				const now = new Date().toISOString().split("T")[0];
-				let totalLimited = 0;
-				let soldOut = 0;
-				for (const option of tour.tour_options || []) {
-					for (const avail of option.tour_availabilities || []) {
-						if (avail.date >= now && avail.isActive) {
-							for (const slot of avail.tour_availability_slots || []) {
-								if (slot.seat_type === "LIMITED" && slot.available_seats != null) {
-									totalLimited++;
-									if (slot.available_seats <= 0) soldOut++;
-								}
-							}
-						}
-					}
-				}
-				return totalLimited > 0 ? soldOut / totalLimited : 0;
-			};
-
-			// Map raw data → enriched tours with min price
 			let tours: FP_HighLevelTour[] = data.map((tour: (typeof data)[0]) => {
-				// const minPrice = Math.min(...tour.tour_options.map(getOptionMinPrice), Infinity);
 				const minPrice = getTourMinPrice(tour);
 				let hasGroupPrice =
 					tour.tour_options.some((option) =>
@@ -1765,7 +1192,6 @@ export class ToursService extends Service {
 					cover_image: tour.cover_image,
 					url_key: tour.meta_details.url_key,
 					updated_at: tour.updated_at,
-					toBeSoldOutScore: computeToBeSoldOutScore(tour),
 					price: minPrice === Infinity ? 0 : minPrice,
 					city: {
 						id: tour.cities.id,
@@ -1781,7 +1207,6 @@ export class ToursService extends Service {
 				};
 			});
 
-			// Apply price sorting in JavaScript (simple & reliable)
 			if (filters.sortBy === "price") {
 				tours.sort((a, b) => {
 					if (filters.sortType === "asc") {
@@ -1798,7 +1223,6 @@ export class ToursService extends Service {
 
 			return { tours, total: count ?? 0 };
 		} catch (error) {
-			console.error(error);
 			throw error instanceof ApiError ? error : new ApiError("Failed to get tours", 500, []);
 		}
 	}
@@ -1834,12 +1258,14 @@ export class ToursService extends Service {
 							*,
 							participant_type: ${this.PARTICIPANT_TYPES_TABLE} (*)
 						),
-						availabilities: ${this.TOUR_AVAILABILITIES_TABLE} (
+						${this.AVAILABILITY_RULES_TABLE} (
 							*,
-							slots: ${this.TOUR_AVAILABILITY_SLOTS_TABLE} (
-								*,
-								time_slot: ${this.TOUR_TIME_SLOTS_TABLE} (*)
+							${this.TIMESLOTS_TABLE} (
+								*
 							)
+						),
+						${this.AVAILABILITY_OVERRIDES_TABLE} (
+							*
 						)
 					)
 				`,
@@ -1865,6 +1291,8 @@ export class ToursService extends Service {
 					(price) => price.participant_type.age_max === 0 && price.participant_type.age_min === 0,
 				),
 			) || false;
+
+		tour.tour_options.map((opt) => opt.availability_rules.filter((a) => a.is_active === false));
 
 		return {
 			...tour,

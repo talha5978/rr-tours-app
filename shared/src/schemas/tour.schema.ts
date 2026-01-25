@@ -402,7 +402,7 @@ export const UpdateTourSchema = z
 
 					rules: z.array(
 						z.object({
-							id: z.number().optional(), // Added for existing availabilities
+							id: z.number().optional(), // Added for existing rules
 							start_date: z.string().min(1, "Date is required."),
 							end_date: z.string().min(1, "End date is required"),
 							weekdays: z.array(weekdaySchema).min(1, "At least one weekday must be selected"),

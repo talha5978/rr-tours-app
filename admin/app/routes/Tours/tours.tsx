@@ -19,7 +19,6 @@ import {
 	ArrowUpDown,
 	ArrowUpNarrowWide,
 	Check,
-	Flame,
 	LayoutGrid,
 	ListFilter,
 	Loader2,
@@ -28,7 +27,6 @@ import {
 	RotateCcw,
 	Search,
 	TableOfContents,
-	TicketX,
 	X,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -1097,21 +1095,6 @@ function TourCard({ tour, className }: { tour: HighLevelTour; className?: string
 					<Badge variant="outline">{tour.category.name}</Badge>
 					{tour.isFeatured && <Badge variant="default">Featured</Badge>}
 				</div>
-				{tour.toBeSoldOutScore === 1 ? (
-					<div className="my-3">
-						<Badge variant="destructive">
-							<TicketX />
-							<span>Sold Out</span>
-						</Badge>
-					</div>
-				) : tour.toBeSoldOutScore >= 0.7 ? (
-					<div className="my-3">
-						<Badge variant="destructive">
-							<Flame />
-							<span>Likely to Sell Out</span>
-						</Badge>
-					</div>
-				) : null}
 				<div className="mt-auto pt-4">
 					<p className="text-xs text-muted-foreground">
 						Updated{" "}

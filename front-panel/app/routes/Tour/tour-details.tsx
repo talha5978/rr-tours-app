@@ -3,7 +3,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "~/components/ui/dialog";
 import { format, isBefore, startOfToday } from "date-fns";
-import { Accessibility, ArrowRight, Check, ClockFading, Edit, Heart, MapPinned } from "lucide-react";
+import {
+	Accessibility,
+	ArrowRight,
+	Calendar,
+	CalendarPlusIcon,
+	Check,
+	ClockFading,
+	Edit,
+	Heart,
+	MapPinned,
+} from "lucide-react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,7 +24,7 @@ import TourImageCarousel from "~/components/Tour/TourImageCarousel";
 import { Separator } from "~/components/ui/separator";
 import { queryClient } from "@workspace/shared/utils/query-client";
 import { tourDetailsQuery, toursQuery } from "~/queries/tours.q";
-import type { GetTourDetails, TourDetailAvailability, TourDetailOption } from "@workspace/shared/types/tours";
+import type { GetTourDetails, TourDetailOption } from "@workspace/shared/types/tours";
 import { cn, formatTourDurationHours } from "@workspace/shared/utils/ui";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
 import { CONTACT_NUMBER_1, SUPABASE_IMAGE_BUCKET_PATH } from "@workspace/shared/constants/constants";
@@ -26,13 +36,19 @@ import { FP_HighLevelTour } from "@workspace/shared/types/fp-tours";
 import RelatedTours from "~/components/Tour/RelatedTours";
 import { ShareDialog } from "~/components/Tour/ShareButton";
 import { useFavourites } from "~/utils/favourites.utils";
+import {
+	getTimeSlotsForDate,
+	getUpcomingAvailableDates,
+	isDateCoveredByAnyRule,
+} from "@workspace/shared/utils/tourDetails";
+import { useIsMobile } from "~/hooks/use-mobile";
 
 const participantSchema = z.object({
 	quantities: z.record(z.number().min(0).int()),
 });
 
 type ParticipantForm = z.infer<typeof participantSchema>;
-type AvailabilitySlot = TourDetailAvailability["slots"][0];
+type AvailabilitySlot = Tables<"time_slots"> & { capacity: number };
 type DialogSteps = "date" | "time" | "participants";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
@@ -95,15 +111,11 @@ function getStructuredData(tour: GetTourDetails) {
 			name: option.name,
 			price: getMinPrice(option).toString(),
 			priceCurrency: "AED",
-			availability: tour.tour_options.some((opt) => {
-				if (opt.availabilities == null) return false;
-				return opt.availabilities.some((a) =>
-					a.slots.some((s) => {
-						if (s.seat_type === "LIMITED") {
-							return s.available_seats != null && (s.available_seats as number) > 0;
-						} else {
-							return true;
-						}
+			availability: tour.tour_options.every((opt) => {
+				if (opt.availability_rules == null) return false;
+				return opt.availability_rules.every((a) =>
+					a.time_slots.every((s) => {
+						return s.capacity > 0;
 					}),
 				);
 			})
@@ -124,6 +136,7 @@ function getStructuredData(tour: GetTourDetails) {
 export default function TourDetailsPage() {
 	const loaderData = useLoaderData<typeof loader>();
 	const tour = loaderData?.tour ?? null;
+	const isMobile = useIsMobile();
 
 	const [selectedOption, setSelectedOption] = useState<TourDetailOption | null>(null);
 	const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
@@ -132,36 +145,6 @@ export default function TourDetailsPage() {
 	const [stepsDialogOpen, setStepsDialogOpen] = useState(false);
 
 	if (!tour) return <div>Tour not found</div>;
-	if (tour.tour_options.some((opt) => opt.availabilities == null)) return <div>Error loading tour</div>;
-
-	console.log("Re rendreed");
-	// console.log(tour);
-
-	const availableDates = tour.tour_options.flatMap(
-		(opt: any) =>
-			opt.availabilities
-				.filter((a: TourDetailAvailability) => a.isActive)
-				.map((a: TourDetailAvailability) => new Date(a.date)) || [],
-	);
-
-	const isDateAvailable = (date: Date) =>
-		availableDates.some((d) => format(d, "yyyy-MM-dd") === format(date, "yyyy-MM-dd"));
-
-	const getTimeSlotsForDate = (date: Date, option: TourDetailOption) => {
-		const formattedDate = format(date, "yyyy-MM-dd");
-		const avail = option.availabilities.find((a: TourDetailAvailability) => a.date === formattedDate);
-		return avail?.slots.sort((a, b) => a.time_slot.sort_order - b.time_slot.sort_order) || [];
-	};
-
-	const checkIfNoSlotsAvailable = () => {
-		return (
-			selectedDate &&
-			selectedOption &&
-			getTimeSlotsForDate(selectedDate, selectedOption).every(
-				(s) => s.available_seats === 0 && s.seat_type === "LIMITED",
-			)
-		);
-	};
 
 	const handleButtonClick = (option: TourDetailOption) => {
 		setStepsDialogOpen(true);
@@ -195,33 +178,6 @@ export default function TourDetailsPage() {
 			})),
 		];
 	}, [tour]);
-
-	function getNextAvailabilityMsg(option: TourDetailOption) {
-		if (!option.availabilities || option.availabilities.length === 0) {
-			return null;
-		}
-
-		const sortedAvailabilities = [...option.availabilities].sort((a, b) => a.date.localeCompare(b.date));
-
-		const nextAvailability = sortedAvailabilities.find((availability) => {
-			if (new Date(availability.date) < startOfToday()) {
-				return false;
-			}
-
-			return availability.slots.some(
-				(slot) =>
-					slot.seat_type === "LIMITED" &&
-					slot.available_seats != null &&
-					(slot.available_seats as number) > 0,
-			);
-		});
-
-		if (nextAvailability) {
-			return `Next Available on ${format(new Date(nextAvailability.date), "PPPP")}`;
-		}
-
-		return null;
-	}
 
 	const metaUrl =
 		tour.meta_details?.url_key != undefined
@@ -262,7 +218,7 @@ export default function TourDetailsPage() {
 								/>
 							</div>
 						</div>
-						<div className="flex gap-4 flex-wrap items-center">
+						<div className="flex sm:gap-4 gap-2 flex-wrap items-center">
 							{tour.tour_category && (
 								<>
 									<Link to={`/tours?categories=${tour.tour_category.id}`}>
@@ -368,27 +324,109 @@ export default function TourDetailsPage() {
 															</ul>
 														</div>
 													) : null}
+												</CardContent>
+												<Separator />
+												<CardContent>
 													<div>
 														<p className="text-muted-foreground">
 															From {getMinPrice(option)} AED
 														</p>
-														<p className="text-destructive">
-															{option.availabilities.every((a) =>
-																a.slots.every(
-																	(s) =>
-																		s.seat_type === "LIMITED" &&
-																		s.available_seats === 0,
+														{getUpcomingAvailableDates(option, 3).length == 0 &&
+															(option.availability_rules ?? []).every((a) =>
+																(a.time_slots ?? []).every(
+																	(s) => s.capacity == 0,
 																),
-															)
-																? "Not Available"
-																: ""}
-														</p>
-														{getNextAvailabilityMsg(option) != null && (
-															<p className="text-muted-foreground">
-																{getNextAvailabilityMsg(option)}
-															</p>
-														)}
+															) && (
+																<p className="text-destructive">
+																	Not Available
+																</p>
+															)}
+
+														{(() => {
+															const upcomingDates = getUpcomingAvailableDates(
+																option,
+																isMobile ? 3 : 6,
+															);
+
+															if (
+																upcomingDates.length === 0 ||
+																upcomingDates.length < 3 ||
+																tour.tour_options.every(
+																	(i) => i.isOpenDated === true,
+																)
+															) {
+																return <></>;
+															}
+
+															return (
+																<div className="mt-2 space-y-2">
+																	<h2 className="text-muted-foreground text-xs">
+																		Next Available Dates
+																	</h2>
+																	<div className="flex flex-wrap gap-2">
+																		{upcomingDates.map(
+																			({ date, formatted }) => (
+																				<div
+																					key={formatted}
+																					className="cursor-pointer hover:bg-primary/10 transition-colors py-4 px-5 flex flex-col gap-1 items-center justify-center bg-muted rounded-lg"
+																					onClick={() => {
+																						setStepsDialogOpen(
+																							true,
+																						);
+																						setSelectedOption(
+																							option,
+																						);
+																						setSelectedDate(date);
+																						setStep("time");
+																					}}
+																				>
+																					<Calendar className="w-4 h-4 text-muted-foreground" />
+																					<div className="text-center">
+																						<p className="text-sm">
+																							{formatted.split(
+																								" ",
+																							)[0] +
+																								" " +
+																								formatted.split(
+																									" ",
+																								)[1]}
+																						</p>
+																						<p className="text-[0.7rem]">
+																							{
+																								formatted.split(
+																									" ",
+																								)[2]
+																							}
+																						</p>
+																					</div>
+																				</div>
+																			),
+																		)}
+																		{upcomingDates.length ===
+																			(isMobile ? 3 : 6) && (
+																			<div
+																				className="cursor-pointer hover:bg-primary/10 transition-colors py-4 px-5 flex flex-col gap-1 items-center justify-center bg-muted rounded-lg text-sm"
+																				onClick={() =>
+																					handleButtonClick(option)
+																				}
+																			>
+																				<CalendarPlusIcon className="w-4 h-4 text-muted-foreground" />
+																				<p className="text-sm">
+																					More
+																				</p>
+																			</div>
+																		)}
+																	</div>
+																</div>
+															);
+														})()}
 													</div>
+												</CardContent>
+												{getUpcomingAvailableDates(option, 6).length > 3 &&
+													tour.tour_options.every(
+														(i) => i.isOpenDated === false,
+													) && <Separator />}
+												<CardContent>
 													<div className="flex gap-4 flex-wrap mt-6">
 														{/* View Details Dialog */}
 														<Dialog>
@@ -509,9 +547,7 @@ export default function TourDetailsPage() {
 																					<div className="flex gap-2 items-center justify-between">
 																						<p className="text-sm">
 																							{
-																								selectedTimeSlot
-																									.time_slot
-																									.label
+																								selectedTimeSlot.label
 																							}
 																						</p>
 																						<button
@@ -527,22 +563,19 @@ export default function TourDetailsPage() {
 																							</span>
 																						</button>
 																					</div>
-																					{selectedTimeSlot.seat_type ===
-																						"LIMITED" &&
-																						selectedTimeSlot.available_seats && (
-																							<p className="text-sm">
-																								{
-																									selectedTimeSlot.available_seats
-																								}{" "}
-																								seats
-																								available
-																							</p>
-																						)}
+																					{selectedTimeSlot.capacity && (
+																						<p className="text-sm">
+																							{
+																								selectedTimeSlot.capacity
+																							}{" "}
+																							seats available
+																						</p>
+																					)}
 																				</div>
 																			)}
 																	</div>
 																</div>
-																{step === "date" && (
+																{step === "date" && selectedOption && (
 																	<div className="space-y-4">
 																		<p>
 																			Select{" "}
@@ -580,47 +613,43 @@ export default function TourDetailsPage() {
 																							months
 																						}
 																						value={selectedDate}
+																						onDateChange={
+																							handleDateSelect
+																						}
 																						defaultMonth={
 																							selectedDate ||
 																							new Date()
 																						}
-																						onDateChange={
-																							handleDateSelect
-																						}
 																						date_disabled={(
 																							date,
-																						) =>
-																							isBefore(
+																						) => {
+																							if (
+																								isBefore(
+																									date,
+																									startOfToday(),
+																								)
+																							)
+																								return true;
+
+																							return !isDateCoveredByAnyRule(
 																								date,
-																								startOfToday(),
-																							) ||
-																							!isDateAvailable(
-																								date,
-																							) ||
-																							(selectedOption &&
-																							selectedOption.availabilities &&
-																							!selectedOption.availabilities.find(
-																								(a) =>
-																									a.date ===
-																									format(
-																										date,
-																										"yyyy-MM-dd",
-																									),
-																							)?.isActive
-																								? true
-																								: false)
-																						}
+																								selectedOption,
+																							);
+																						}}
 																					/>
 																				</div>
 																			),
 																		)}
-																		{checkIfNoSlotsAvailable() ==
-																			true && (
-																			<p className="text-destructive">
-																				Sorry! No timeslot is
-																				available for this date.
-																			</p>
-																		)}
+																		{selectedDate &&
+																			getTimeSlotsForDate(
+																				selectedDate,
+																				selectedOption,
+																			).length === 0 && (
+																				<p className="text-destructive">
+																					No available time slots
+																					for this date.
+																				</p>
+																			)}
 																		<div className="w-fit ml-auto">
 																			<Button
 																				size={"sm"}
@@ -628,9 +657,11 @@ export default function TourDetailsPage() {
 																					setStep("time")
 																				}
 																				disabled={
-																					(checkIfNoSlotsAvailable()
-																						? true
-																						: false) ||
+																					(selectedDate &&
+																						getTimeSlotsForDate(
+																							selectedDate,
+																							selectedOption,
+																						).length === 0) ||
 																					!selectedDate
 																				}
 																			>
@@ -658,10 +689,11 @@ export default function TourDetailsPage() {
 																						slot: AvailabilitySlot,
 																					) => {
 																						const disabled =
-																							slot.available_seats ===
-																								0 &&
-																							slot.seat_type ===
-																								"LIMITED";
+																							slot.capacity ===
+																								0 ||
+																							slot.is_active ==
+																								false;
+
 																						return (
 																							<Button
 																								key={slot.id}
@@ -678,13 +710,7 @@ export default function TourDetailsPage() {
 																									disabled
 																								}
 																							>
-																								{slot
-																									.time_slot
-																									.label
-																									? `${slot.time_slot.label}`
-																									: slot
-																											.time_slot
-																											.time}
+																								{slot.label}
 																							</Button>
 																						);
 																					},
@@ -910,11 +936,7 @@ const ParticipantFormComponent = memo(
 													id={`qty-${pt.id}`}
 													quantity={field.value ?? 0}
 													min={0}
-													max={
-														selectedTimeSlot.seat_type === "UNLIMITED"
-															? 100
-															: selectedTimeSlot.available_seats
-													}
+													max={selectedTimeSlot.capacity}
 													step={1}
 													onChange={(e) => field.onChange(Number(e))}
 												/>

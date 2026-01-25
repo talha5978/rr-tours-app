@@ -4,7 +4,6 @@ export type FP_HighLevelTour = {
 	cover_image: string;
 	updated_at: string | null;
 	url_key: string;
-	toBeSoldOutScore: number;
 	price: number;
 	city: {
 		id: number;

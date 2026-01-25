@@ -43,7 +43,6 @@ export type HighLevelTour = {
 	url_key: string;
 	isFeatured: boolean;
 	isActive: boolean;
-	toBeSoldOutScore: number; // from 0 to 1
 	city: {
 		id: number;
 		name: string;

@@ -28,7 +28,7 @@ import { GeneralDetailsCard } from "~/components/Tour/Mutations/GeneralCard";
 import { ImagesInputCard } from "~/components/Tour/Mutations/ImagesCard";
 import { MainContentCard } from "~/components/Tour/Mutations/MainContentCard";
 import { TagsCard } from "~/components/Tour/Mutations/TagsCard";
-import { TourOptionsCard } from "~/components/Tour/Mutations/TourOptionsCard_v2";
+import { TourOptionsCard } from "~/components/Tour/Mutations/TourOptionsCard";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/components/ui/form";

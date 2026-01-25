@@ -35,17 +35,7 @@ export const TourCard = memo(
 						<div className="p-4">
 							<h3 className="font-bold text-lg line-clamp-2">{tour.name}</h3>
 							<div className="mt-2 flex flex-col gap-2 flex-1">
-								<div className="flex gap-2 flex-wrap">
-									<Badge variant="outline">{tour.category.name}</Badge>
-									{tour.toBeSoldOutScore >= 0.7 && (
-										<div>
-											<Badge className="bg-warning/90">
-												<Flame />
-												<span>Likely to Sell Out</span>
-											</Badge>
-										</div>
-									)}
-								</div>
+								<Badge variant="outline">{tour.category.name}</Badge>
 								<div className="mt-auto">
 									<p className="font-bold text-md">From {tour.price} AED</p>
 									<p className="text-xs text-muted-foreground">
