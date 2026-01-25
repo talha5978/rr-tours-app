@@ -18,7 +18,7 @@ import { format, getDay, isWithinInterval, parseISO, startOfToday } from "date-f
 import { IconCurrencyDirham } from "@tabler/icons-react";
 import { Badge } from "~/components/ui/badge";
 import type { GetAllParticipantTypes } from "@workspace/shared/types/participant-types";
-import { UpdateFormControlType } from "~/routes/Tours/update-tour";
+import { type UpdateFormControlType } from "~/routes/Tours/update-tour";
 import { toast } from "sonner";
 import type { AvailabilityOverrideType } from "@workspace/shared/types/tours";
 
@@ -436,7 +436,7 @@ const AvailabilitySettingsSubSection = ({
 		end_date: "",
 		weekdays: ["1", "2", "3", "4", "5", "6", "7"] as string[],
 		is_active: true,
-		time_slots: [{ time: "", label: "", capacity: "20", is_active: true }],
+		time_slots: [{ time: "", label: "", capacity: "10", is_active: true }],
 	});
 
 	// Temp state for new override
@@ -541,6 +541,24 @@ const AvailabilitySettingsSubSection = ({
 		return options;
 	}, [watchedRules]);
 
+	const safeRemoveRule = (indexesToRemove: number[]) => {
+		const indexesToDelete: number[] = [];
+
+		overrideFields.forEach((ov, overrideIdx) => {
+			const c = shouldDeleteOverrideOnRuleRemoval(ov, indexesToRemove, watchedRules);
+			if (c) {
+				indexesToDelete.push(overrideIdx);
+			}
+		});
+
+		if (indexesToDelete.length > 0) {
+			removeOverride(indexesToDelete);
+			toast.warning(`Removed ${indexesToDelete.length} related override(s)`);
+		}
+
+		removeRule(indexesToRemove);
+	};
+
 	const addTimeSlotToNewRule = () => {
 		setNewRule((prev) => ({
 			...prev,
@@ -634,7 +652,7 @@ const AvailabilitySettingsSubSection = ({
 							<Button
 								variant="destructive"
 								size="sm"
-								onClick={() => removeRule(ruleFields.map((_, i) => i))}
+								onClick={() => safeRemoveRule(ruleFields.map((_, i) => i))}
 							>
 								Clear All Rules
 							</Button>
@@ -653,7 +671,7 @@ const AvailabilitySettingsSubSection = ({
 								<button
 									type="button"
 									className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-pointer"
-									onClick={() => removeRule(idx)}
+									onClick={() => safeRemoveRule([idx])}
 								>
 									<XCircleIcon className="h-6 w-6 fill-destructive text-destructive-foreground" />
 								</button>
@@ -1066,6 +1084,63 @@ const AvailabilitySettingsSubSection = ({
 			</div>
 		</div>
 	);
+};
+
+const shouldDeleteOverrideOnRuleRemoval = (
+	override: {
+		date: string;
+		override_type: AvailabilityOverrideType;
+		new_capacity: string | null;
+		time_slot_label: string | null;
+		id?: number | undefined;
+	},
+	removedRuleIndexes: number[],
+	watchedRules: {
+		start_date: string;
+		end_date: string;
+		weekdays: ("1" | "2" | "3" | "4" | "5" | "6" | "7")[];
+		is_active: "true" | "false";
+		time_slots: {
+			is_active: "true" | "false";
+			label: string;
+			capacity: string;
+			id?: number | undefined;
+		}[];
+		id?: number | undefined;
+	}[],
+): boolean => {
+	// Case 1: override references a time slot from one of the removed rules
+	if (override.time_slot_label && override.time_slot_label !== "whole_day") {
+		const timeSlotBelongsToRemovedRule = watchedRules.some((rule, ruleIdx) => {
+			return (
+				removedRuleIndexes.includes(ruleIdx) &&
+				rule.time_slots?.some((ts: any) => ts.id?.toString() === override.time_slot_label)
+			);
+		});
+
+		if (timeSlotBelongsToRemovedRule) return true;
+	}
+
+	// Case 2: whole day override → check if the date was covered by any removed rule
+	if (override.time_slot_label === null || override.time_slot_label === "whole_day") {
+		const ovDate = parseISO(override.date);
+		const ovWeekday = getDay(ovDate);
+		const dbWeekday = ovWeekday === 0 ? 7 : ovWeekday;
+
+		return watchedRules.some((rule, ruleIdx) => {
+			if (!removedRuleIndexes.includes(ruleIdx)) return false;
+
+			const start = parseISO(rule.start_date);
+			const end = parseISO(rule.end_date);
+
+			const dateInRange = isWithinInterval(ovDate, { start, end });
+			const weekdayAllowed = rule.weekdays?.includes(dbWeekday.toString() as any);
+
+			return dateInRange && weekdayAllowed;
+		});
+	}
+
+	return false;
 };
 
 const formatTimeLabel = (time: string) => {
