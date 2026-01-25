@@ -10,11 +10,11 @@ import { Textarea } from "~/components/ui/textarea";
 import type { AddTourInput, UpdateTourInput } from "@workspace/shared/schemas/tour.schema";
 import { Label } from "~/components/ui/label";
 import { Checkbox } from "~/components/ui/checkbox";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import DatePicker from "~/components/Custom-Inputs/date-picker";
 import DateRangePicker from "~/components/Custom-Inputs/date-range-picker";
 import { Separator } from "~/components/ui/separator";
-import { format, startOfToday } from "date-fns";
+import { format, getDay, isWithinInterval, parseISO, startOfToday } from "date-fns";
 import { IconCurrencyDirham } from "@tabler/icons-react";
 import { Badge } from "~/components/ui/badge";
 import type { GetAllParticipantTypes } from "@workspace/shared/types/participant-types";
@@ -430,12 +430,89 @@ const AvailabilitySettingsSubSection = ({
 		name: `tour_options.${optionIndex}.overrides`,
 	});
 
+	// Temp state for new rule form
+	const [newRule, setNewRule] = useState({
+		start_date: "",
+		end_date: "",
+		weekdays: ["1", "2", "3", "4", "5", "6", "7"] as string[],
+		is_active: true,
+		time_slots: [{ time: "", label: "", capacity: "20", is_active: true }],
+	});
+
+	// Temp state for new override
+	const [newOverride, setNewOverride] = useState({
+		date: "",
+		override_type: "CLOSE" as AvailabilityOverrideType,
+		new_capacity: "",
+		time_slot_label: "whole_day" as string | null,
+	});
+
 	const watchedRules = useWatch({
 		control,
 		name: `tour_options.${optionIndex}.rules`,
 	});
 
+	const selectedOverrideDate = newOverride.date;
+
+	useEffect(() => {
+		setNewOverride((prev) => ({ ...prev, time_slot_label: "whole_day" }));
+	}, [selectedOverrideDate]);
+
 	const timeSlotOptions = useMemo(() => {
+		const options: { label: string; value: string }[] = [{ label: "Whole Day", value: "whole_day" }];
+
+		if (!selectedOverrideDate) {
+			return options;
+		}
+
+		const overrideDateObj = parseISO(selectedOverrideDate);
+		const overrideWeekday = getDay(overrideDateObj);
+		const dbWeekday = overrideWeekday === 0 ? 7 : overrideWeekday;
+
+		// Collect slots only from rules that apply to this date
+		const applicableSlots = new Map<string, { id: number; ruleIndex: number }[]>();
+
+		watchedRules?.forEach((rule, ruleIndex) => {
+			if (!rule.start_date || !rule.end_date || !rule.weekdays?.length) return;
+
+			const start = parseISO(rule.start_date);
+			const end = parseISO(rule.end_date);
+
+			const isDateInRange = isWithinInterval(overrideDateObj, { start, end });
+			const isWeekdayAllowed = rule.weekdays.includes(dbWeekday.toString() as any);
+
+			if (!isDateInRange || !isWeekdayAllowed) return;
+
+			// This rule applies → add its time slots
+			rule.time_slots?.forEach((ts) => {
+				if (!ts.label || !ts.id) return;
+
+				const key = ts.label; // group by label
+
+				if (!applicableSlots.has(key)) {
+					applicableSlots.set(key, []);
+				}
+
+				applicableSlots.get(key)!.push({
+					id: ts.id,
+					ruleIndex,
+				});
+			});
+		});
+
+		applicableSlots.forEach((instances, label) => {
+			instances.forEach(({ id, ruleIndex }) => {
+				options.push({
+					label: `${label} (Rule ${ruleIndex + 1})`,
+					value: id.toString(),
+				});
+			});
+		});
+
+		return options;
+	}, [watchedRules, selectedOverrideDate]);
+
+	const overrideOptions = useMemo(() => {
 		const options: { label: string; value: string }[] = [{ label: "Whole Day", value: "whole_day" }];
 
 		const seen = new Map<string, number>();
@@ -463,23 +540,6 @@ const AvailabilitySettingsSubSection = ({
 
 		return options;
 	}, [watchedRules]);
-
-	// Temp state for new rule form
-	const [newRule, setNewRule] = useState({
-		start_date: "",
-		end_date: "",
-		weekdays: ["1", "2", "3", "4", "5", "6", "7"] as string[],
-		is_active: true,
-		time_slots: [{ time: "", label: "", capacity: "20", is_active: true }],
-	});
-
-	// Temp state for new override
-	const [newOverride, setNewOverride] = useState({
-		date: "",
-		override_type: "CLOSE" as AvailabilityOverrideType,
-		new_capacity: "",
-		time_slot_label: "whole_day" as string | null,
-	});
 
 	const addTimeSlotToNewRule = () => {
 		setNewRule((prev) => ({
@@ -897,7 +957,7 @@ const AvailabilitySettingsSubSection = ({
 									<span className="text-accent-foreground flex gap-2 items-center">
 										<Check className="text-accent-foreground w-4 h-4" />
 										{ov.time_slot_label
-											? `Timeslot: ${timeSlotOptions.find((rt) => rt.value === ov.time_slot_label)?.label}`
+											? `Timeslot: ${overrideOptions.find((rt) => rt.value === ov.time_slot_label)?.label ?? ov.time_slot_label}`
 											: "Whole day"}
 									</span>
 								</CardContent>
