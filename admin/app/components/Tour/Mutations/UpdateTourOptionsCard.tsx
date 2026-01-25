@@ -644,11 +644,11 @@ const AvailabilitySettingsSubSection = ({
 	return (
 		<div className="space-y-8">
 			{/* Rules Section */}
-			<div className="space-y-5">
-				<div className="flex items-center justify-between">
+			<div className="md:space-y-5 space-y-7">
+				<div className="flex items-center flex-wrap gap-2 justify-between">
 					<Label className="text-lg font-semibold">Availability Rules ({ruleFields.length})</Label>
 					{ruleFields.length > 0 && (
-						<div>
+						<div className="ml-auto">
 							<Button
 								variant="destructive"
 								size="sm"
@@ -714,7 +714,7 @@ const AvailabilitySettingsSubSection = ({
 									<div>
 										<span className="font-medium">Time Slots</span>
 										<div className="mt-2 space-y-2">
-											{(rule.time_slots || []).map((ts: any, tsi: number) => (
+											{(rule.time_slots || []).map((ts, tsi: number) => (
 												<div
 													key={tsi}
 													className="flex items-center gap-3 text-xs bg-muted/40 border rounded-md p-2"
