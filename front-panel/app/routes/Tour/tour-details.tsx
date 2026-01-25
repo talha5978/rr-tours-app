@@ -188,7 +188,7 @@ export default function TourDetailsPage() {
 		<>
 			<MetaDetails
 				metaTitle={(tour.meta_details?.meta_title ?? tour.name) + " | Top Attractions Dubai"}
-				metaDescription={tour.meta_details?.meta_description ?? tour.overview.slice(0, 320)}
+				metaDescription={tour.meta_details?.meta_description ?? tour.overview?.slice(0, 320)}
 				metaKeywords={tour.meta_details?.meta_keywords ?? tour.name}
 				canonicalUrl={metaUrl}
 				ogUrl={metaUrl}
@@ -196,7 +196,10 @@ export default function TourDetailsPage() {
 				ogType="product"
 				hasPricing
 				pricing={{
-					price: Math.min(...tour.tour_options.map(getMinPrice)).toString(),
+					price:
+						tour.tour_options && tour.tour_options.length > 0
+							? Math.min(...tour.tour_options.map(getMinPrice)).toString()
+							: "-",
 				}}
 			/>
 			<script
@@ -332,11 +335,12 @@ export default function TourDetailsPage() {
 															From {getMinPrice(option)} AED
 														</p>
 														{getUpcomingAvailableDates(option, 3).length == 0 &&
-															(option.availability_rules ?? []).every((a) =>
+															((option.availability_rules ?? []).every((a) =>
 																(a.time_slots ?? []).every(
 																	(s) => s.capacity == 0,
 																),
-															) && (
+															) ||
+																option.availability_rules.length == 0) && (
 																<p className="text-destructive">
 																	Not Available
 																</p>

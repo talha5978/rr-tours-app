@@ -1292,8 +1292,6 @@ export class ToursService extends Service {
 				),
 			) || false;
 
-		tour.tour_options.map((opt) => opt.availability_rules.filter((a) => a.is_active === false));
-
 		return {
 			...tour,
 			hasGroupPrice,
