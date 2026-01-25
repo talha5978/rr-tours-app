@@ -78,3 +78,5 @@ export type GetTourDetailsForUpdate = Tables<"tours"> & {
 };
 
 export type TourUpdationPayload = Database["public"]["Tables"]["tours"]["Update"];
+
+export type AvailabilityOverrideType = Database["public"]["Enums"]["availability_override_type"];

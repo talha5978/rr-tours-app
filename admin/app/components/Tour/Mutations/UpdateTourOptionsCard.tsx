@@ -1,4 +1,4 @@
-import { Loader2, XCircleIcon } from "lucide-react";
+import { Check, XCircleIcon } from "lucide-react";
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "~/components/ui/accordion";
 import { Button } from "~/components/ui/button";
@@ -6,21 +6,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/com
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/components/ui/form";
 import { Input } from "~/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
-import { Switch } from "~/components/ui/switch";
 import { Textarea } from "~/components/ui/textarea";
 import type { AddTourInput, UpdateTourInput } from "@workspace/shared/schemas/tour.schema";
 import { Label } from "~/components/ui/label";
 import { Checkbox } from "~/components/ui/checkbox";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import DatePicker from "~/components/Custom-Inputs/date-picker";
 import DateRangePicker from "~/components/Custom-Inputs/date-range-picker";
 import { Separator } from "~/components/ui/separator";
-import { startOfToday } from "date-fns";
-import { IconChevronLeft, IconChevronRight, IconCurrencyDirham } from "@tabler/icons-react";
+import { format, startOfToday } from "date-fns";
+import { IconCurrencyDirham } from "@tabler/icons-react";
 import { Badge } from "~/components/ui/badge";
-import type { SeatType } from "@workspace/shared/types/tours";
 import type { GetAllParticipantTypes } from "@workspace/shared/types/participant-types";
 import { UpdateFormControlType } from "~/routes/Tours/update-tour";
+import { toast } from "sonner";
+import type { AvailabilityOverrideType } from "@workspace/shared/types/tours";
 
 export const TourOptionsCard = ({
 	control,
@@ -50,7 +50,6 @@ export const TourOptionsCard = ({
 			exclusions: "",
 			note: "",
 			sort_order: newOptionSortOrder,
-			seat_type: "LIMITED",
 			prices: [
 				{
 					id: undefined,
@@ -58,7 +57,8 @@ export const TourOptionsCard = ({
 					participant: participants[0].id.toString(),
 				},
 			],
-			availabilities: [],
+			rules: [],
+			overrides: [],
 			isOpenDated: "true",
 		});
 	};
@@ -234,7 +234,7 @@ export const TourOptionsCard = ({
 
 										{/* Availabilities Subsection */}
 										<CardContent>
-											<AvailabilitiesSubSection
+											<AvailabilitySettingsSubSection
 												control={control}
 												optionIndex={optionIndex}
 											/>
@@ -403,477 +403,607 @@ const PricesSubSection = ({
 	);
 };
 
-// Availabilities SubSection Component
-const AvailabilitiesSubSection = ({
+const AvailabilitySettingsSubSection = ({
 	control,
 	optionIndex,
 }: {
 	control: UpdateFormControlType;
 	optionIndex: number;
 }) => {
-	const { fields, append, remove } = useFieldArray({
+	// Rules field array
+	const {
+		fields: ruleFields,
+		append: appendRule,
+		remove: removeRule,
+	} = useFieldArray({
 		control,
-		name: `tour_options.${optionIndex}.availabilities`,
+		name: `tour_options.${optionIndex}.rules`,
 	});
 
-	const { setValue } = useFormContext();
+	// Overrides field array
+	const {
+		fields: overrideFields,
+		append: appendOverride,
+		remove: removeOverride,
+	} = useFieldArray({
+		control,
+		name: `tour_options.${optionIndex}.overrides`,
+	});
 
-	// Temporary state for new availability form (single or range)
-	const [newTimeslots, setNewTimeslots] = useState<
-		{
-			time: string;
-			label: string;
-			sort_order: string;
-			available_seats: string | null;
-		}[]
-	>([{ time: "", label: "", sort_order: "1", available_seats: "" }]);
+	const watchedRules = useWatch({
+		control,
+		name: `tour_options.${optionIndex}.rules`,
+	});
 
-	const [isRange, setIsRange] = useState(true);
-	const [singleDate, setSingleDate] = useState("");
-	const [range, setRange] = useState({ from: "", to: "" });
-	const [cardCollapsed, setCardsCollapsed] = useState(false);
-	const [addingAvailability, setAvailablitilyAdding] = useState(false);
+	const timeSlotOptions = useMemo(() => {
+		const options: { label: string; value: string }[] = [{ label: "Whole Day", value: "whole_day" }];
 
-	// Pagination state
-	const [currentPage, setCurrentPage] = useState(1);
-	const pageSize = 9;
+		const seen = new Map<string, number>();
 
-	const optionSeatType = useWatch({ control, name: `tour_options.${optionIndex}.seat_type` }) as SeatType;
+		watchedRules?.forEach((rule, ruleIndex) => {
+			const ruleDisplay = `Rule ${ruleIndex + 1}`;
 
-	const totalPages = Math.ceil(fields.length / pageSize);
-	const startIndex = (currentPage - 1) * pageSize;
-	const endIndex = startIndex + pageSize;
-	const visibleAvailabilities = fields.slice(startIndex, endIndex);
+			rule?.time_slots?.forEach((ts) => {
+				if (!ts.label || !ts.id) return;
 
-	const addTimeslot = () => {
-		const newTimeSlotSortOrder =
-			newTimeslots.length > 0
-				? (Number(newTimeslots[newTimeslots.length - 1].sort_order) + 1).toString()
-				: "1";
+				const uniqueKey = `${ts.label}|${ruleIndex}`;
+				const displayLabel = `${ts.label} (${ruleDisplay})`;
 
-		setNewTimeslots([
-			...newTimeslots,
-			{
-				time: "",
-				label: "",
-				sort_order: newTimeSlotSortOrder,
-				available_seats: optionSeatType === "UNLIMITED" ? null : "0",
-			},
-		]);
-	};
-
-	const updateTimeslot = (index: number, field: string, value: string) => {
-		const updated = [...newTimeslots];
-		updated[index][field as keyof (typeof updated)[0]] = value;
-		setNewTimeslots(updated);
-	};
-
-	const removeTimeslot = (index: number) => {
-		setNewTimeslots(newTimeslots.filter((_, i) => i !== index));
-	};
-
-	const handleAddAvailabilities = () => {
-		setAvailablitilyAdding(true);
-		const existingDates = fields.map((f) => f.date);
-
-		const processedTimeslots = newTimeslots.map((ts) => ({
-			id: undefined,
-			time_slot_id: undefined,
-			time: ts.time,
-			label: ts.label || formatTimeLabel(ts.time),
-			sort_order: ts.sort_order,
-			available_seats: optionSeatType === "UNLIMITED" ? null : ts.available_seats || "0",
-		}));
-
-		if (isRange && range.from && range.to) {
-			const start = new Date(range.from);
-			const end = new Date(range.to);
-
-			for (let d = start; d <= end; d.setDate(d.getDate() + 1)) {
-				const dateStr = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
-					.toISOString()
-					.split("T")[0];
-
-				if (!existingDates.includes(dateStr)) {
-					append({ id: undefined, date: dateStr, isActive: "true", timeslots: processedTimeslots });
+				if (seen.has(uniqueKey)) {
+					return;
 				}
-			}
-		} else if (!isRange && singleDate) {
-			const singleDateStr = new Date(
-				new Date(singleDate).getTime() - new Date(singleDate).getTimezoneOffset() * 60000,
-			)
-				.toISOString()
-				.split("T")[0];
-			if (!existingDates.includes(singleDateStr)) {
-				append({
-					id: undefined,
-					date: singleDateStr,
-					isActive: "true",
-					timeslots: processedTimeslots,
+
+				seen.set(uniqueKey, ts.id);
+				options.push({
+					label: displayLabel,
+					value: ts.id.toString(),
 				});
-			}
-		}
+			});
+		});
 
-		setNewTimeslots([{ time: "", label: "", sort_order: "1", available_seats: "" }]);
-		setSingleDate("");
-		setRange({ from: "", to: "" });
-		setAvailablitilyAdding(false);
+		return options;
+	}, [watchedRules]);
 
-		// Reset to first page after adding new items
-		setCurrentPage(1);
+	// Temp state for new rule form
+	const [newRule, setNewRule] = useState({
+		start_date: "",
+		end_date: "",
+		weekdays: ["1", "2", "3", "4", "5", "6", "7"] as string[],
+		is_active: true,
+		time_slots: [{ time: "", label: "", capacity: "20", is_active: true }],
+	});
+
+	// Temp state for new override
+	const [newOverride, setNewOverride] = useState({
+		date: "",
+		override_type: "CLOSE" as AvailabilityOverrideType,
+		new_capacity: "",
+		time_slot_label: "whole_day" as string | null,
+	});
+
+	const addTimeSlotToNewRule = () => {
+		setNewRule((prev) => ({
+			...prev,
+			time_slots: [...prev.time_slots, { time: "", label: "", capacity: "10", is_active: true }],
+		}));
 	};
 
-	useEffect(() => {
-		if (optionSeatType === "UNLIMITED") {
-			if (fields) {
-				fields.forEach((avail: any, availIdx: number) => {
-					if (avail.timeslots && avail.timeslots.length > 0) {
-						avail.timeslots.forEach((_: any, tsIdx: number) => {
-							setValue(
-								`tour_options.${optionIndex}.availabilities.${availIdx}.timeslots.${tsIdx}.available_seats`,
-								null,
-								{ shouldValidate: true },
-							);
-						});
-					}
-				});
+	const updateNewRuleTimeSlot = (idx: number, field: keyof (typeof newRule.time_slots)[0], value: any) => {
+		setNewRule((prev) => {
+			const slots = [...prev.time_slots];
+			slots[idx] = { ...slots[idx], [field]: value };
+			if (field === "time") {
+				slots[idx].label = formatTimeLabel(value);
 			}
+			return { ...prev, time_slots: slots };
+		});
+	};
+
+	const removeNewRuleTimeSlot = (idx: number) => {
+		setNewRule((prev) => ({
+			...prev,
+			time_slots: prev.time_slots.filter((_, i) => i !== idx),
+		}));
+	};
+
+	const handleAddRule = () => {
+		let temp: string[] = [];
+		let breakProcess = false;
+
+		newRule.time_slots.forEach((ts) => {
+			if (temp.includes(ts.label)) {
+				breakProcess = true;
+				return;
+			}
+			temp.push(ts.label);
+		});
+
+		if (breakProcess) {
+			toast.error("Time slot label must be unique");
+			return;
 		}
-	}, [optionSeatType]);
+
+		appendRule({
+			start_date: newRule.start_date,
+			end_date: newRule.end_date,
+			weekdays: newRule.weekdays as ("1" | "2" | "3" | "4" | "5" | "6" | "7")[],
+			is_active: newRule.is_active ? "true" : "false",
+			time_slots: newRule.time_slots.map((ts) => ({
+				label: ts.label,
+				capacity: ts.capacity,
+				is_active: ts.is_active ? "true" : "false",
+			})),
+		});
+
+		setNewRule({
+			start_date: "",
+			end_date: "",
+			weekdays: [],
+			is_active: true,
+			time_slots: [{ time: "", label: "", capacity: "10", is_active: true }],
+		});
+	};
+
+	const handleAddOverride = () => {
+		appendOverride({
+			date: newOverride.date,
+			override_type: newOverride.override_type,
+			new_capacity:
+				newOverride.override_type === "CAPACITY_CHANGE" ? newOverride.new_capacity.toString() : null,
+			time_slot_label: newOverride.time_slot_label === "whole_day" ? null : newOverride.time_slot_label,
+		});
+
+		setNewOverride({
+			date: "",
+			override_type: "CLOSE",
+			new_capacity: "",
+			time_slot_label: "whole_day",
+		});
+	};
+
+	const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 	return (
-		<div className="space-y-6">
-			<div className="flex items-center gap-2 justify-between flex-wrap">
-				<Label className="font-bold text-lg">Availabilities{` (${fields.length ?? 0})`}</Label>
-				{fields.length > 0 && (
-					<div className="flex gap-2 ml-auto">
-						<div className="md:inline">
+		<div className="space-y-8">
+			{/* Rules Section */}
+			<div className="space-y-5">
+				<div className="flex items-center justify-between">
+					<Label className="text-lg font-semibold">Availability Rules ({ruleFields.length})</Label>
+					{ruleFields.length > 0 && (
+						<div>
 							<Button
-								type="button"
+								variant="destructive"
 								size="sm"
-								variant="outline"
-								onClick={() => setCardsCollapsed(!cardCollapsed)}
+								onClick={() => removeRule(ruleFields.map((_, i) => i))}
 							>
-								{cardCollapsed ? "Expand " : "Collapse "}All
+								Clear All Rules
 							</Button>
 						</div>
-						<Button
-							type="button"
-							size="sm"
-							variant="destructive"
-							onClick={() => remove(fields.map((_, i) => i))}
-						>
-							Remove All
-						</Button>
-					</div>
-				)}
-			</div>
-
-			{fields.length === 0 && (
-				<div className="text-sm text-muted-foreground">No available dates added yet.</div>
-			)}
-
-			{/* Existing Availabilities - Paginated Card Grid */}
-			<div className="grid grid-cols-1 min-[890px]:grid-cols-2 min-[1280px]:grid-cols-3 gap-4 mr-4">
-				{visibleAvailabilities.map((avail, visibleIndex) => {
-					const globalIndex = startIndex + visibleIndex;
-
-					return (
-						<div
-							key={avail.id}
-							className="flex flex-col bg-card shadow-md border-2 p-5 rounded-lg relative col-span-1 h-fit"
-						>
-							<button
-								className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-pointer"
-								type="button"
-								onClick={() => remove(globalIndex)}
-							>
-								<XCircleIcon className="h-6 w-6 fill-destructive text-destructive-foreground" />
-							</button>
-
-							<div className={!cardCollapsed ? "space-y-4" : ""}>
-								{/* Date */}
-								<FormField
-									control={control}
-									name={`tour_options.${optionIndex}.availabilities.${globalIndex}.date`}
-									render={({ field }) => (
-										<FormItem>
-											<FormControl>
-												<div className="w-full pointer-events-none">
-													<DatePicker
-														value={field.value ? new Date(field.value) : null}
-														defaultMonth={
-															field.value ? new Date(field.value) : new Date()
-														}
-														onDateChange={field.onChange}
-														date_disabled={{ before: startOfToday() }}
-														className={`${cardCollapsed ? "pointer-events-none disabled" : ""}`}
-													/>
-												</div>
-											</FormControl>
-											<FormMessage />
-										</FormItem>
-									)}
-								/>
-
-								<div hidden={cardCollapsed} className="space-y-4">
-									{/* Active Switch */}
-									<FormField
-										control={control}
-										name={`tour_options.${optionIndex}.availabilities.${globalIndex}.isActive`}
-										render={({ field }) => (
-											<FormItem className="flex items-center space-x-3">
-												<FormLabel> Toggle Status</FormLabel>
-												<FormControl>
-													<Switch
-														checked={field.value === "true"}
-														onCheckedChange={(checked) =>
-															field.onChange(checked ? "true" : "false")
-														}
-													/>
-												</FormControl>
-												<FormMessage />
-											</FormItem>
-										)}
-									/>
-									{/* Timeslots for this date */}
-									<TimeslotsSubSection
-										control={control}
-										optionIndex={optionIndex}
-										availIndex={globalIndex}
-									/>
-								</div>
-							</div>
-						</div>
-					);
-				})}
-			</div>
-
-			{/* Pagination Controls */}
-			{totalPages > 1 && (
-				<div>
-					<div className="flex justify-center items-center gap-4 mt-6">
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-							disabled={currentPage === 1}
-							type="button"
-						>
-							<IconChevronLeft className="sm:hidden" />
-							<span className="sm:inline hidden">Previous</span>
-						</Button>
-						<span className="text-sm text-muted-foreground">
-							Page {currentPage} of {totalPages}
-						</span>
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-							disabled={currentPage === totalPages}
-							type="button"
-						>
-							<IconChevronRight className="sm:hidden" />
-							<span className="sm:inline hidden">Next</span>
-						</Button>
-					</div>
-					<div className="sm:flex hidden gap-2">
-						<Label>Go To</Label>
-						<Input
-							type="number"
-							onChange={(e) =>
-								setCurrentPage(
-									parseInt(e.target.value) > totalPages
-										? totalPages
-										: parseInt(e.target.value),
-								)
-							}
-							className="w-16"
-							max={totalPages}
-							min={1}
-							value={currentPage ?? 1}
-						/>
-					</div>
-				</div>
-			)}
-
-			{/* ------------------------- */}
-			{/* Add New Availability Card */}
-			<Card>
-				<CardHeader>
-					<CardTitle className="text-base">Add New Availability</CardTitle>
-				</CardHeader>
-				<CardContent className="space-y-5">
-					{/* Seats Type for this option */}
-					<FormField
-						control={control}
-						name={`tour_options.${optionIndex}.seat_type`}
-						render={({ field }) => (
-							<FormItem className="flex items-center space-x-3">
-								<FormControl>
-									<Label className="cursor-pointer space-x-2">
-										<Checkbox
-											checked={field.value === "UNLIMITED"}
-											onCheckedChange={(checked) => {
-												field.onChange(checked ? "UNLIMITED" : "LIMITED");
-											}}
-										/>
-										<span>Unlimited Seats/Tickets for this tour option</span>
-									</Label>
-								</FormControl>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
-
-					{/* Range Toggle */}
-					<Label className="cursor-pointer space-x-2">
-						<Checkbox checked={isRange} onCheckedChange={() => setIsRange(!isRange)} />
-						<span>Use Date Range</span>
-					</Label>
-
-					{/* Date Picker */}
-					{isRange ? (
-						<div>
-							{[
-								{ class: "picker-xl", months: 4 },
-								{ class: "picker-lg", months: 3 },
-								{ class: "picker-md", months: 2 },
-								{ class: "picker-sm", months: 1 },
-							].map((p) => (
-								<DateRangePicker
-									value={{
-										from: range.from ? new Date(range.from) : undefined,
-										to: range.to ? new Date(range.to) : undefined,
-									}}
-									onDateRangeChange={(r) =>
-										setRange({
-											from: r?.from ? r.from.toISOString() : "",
-											to: r?.to ? r.to.toISOString() : "",
-										})
-									}
-									date_disabled={{ before: startOfToday() }}
-									numberOfMonths={p.months}
-									className={`picker ${p.class}`}
-									key={p.months}
-								/>
-							))}
-						</div>
-					) : (
-						<DatePicker
-							value={singleDate ? new Date(singleDate) : undefined}
-							defaultMonth={singleDate ? new Date(singleDate) : new Date()}
-							onDateChange={(date) => setSingleDate(date ? date.toISOString() : "")}
-							date_disabled={{ before: startOfToday() }}
-						/>
 					)}
+				</div>
 
-					{/* Timeslots Input */}
-					<div className="space-y-3">
-						<Label className="text-base">Timeslots</Label>
-						{newTimeslots.length === 0 && (
-							<div className="text-sm text-destructive">
-								No timeslots found. Please add atleast one timeslot.
-							</div>
-						)}
-						<div className="space-y-2">
-							{newTimeslots.map((ts, tsIndex) => (
-								<div key={tsIndex} className="*:flex *:gap-2 space-y-2">
-									<div>
-										<Input
-											type="time"
-											step="1"
-											placeholder="Time"
-											className="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
-											value={ts.time}
-											onChange={(e) => {
-												updateTimeslot(tsIndex, "time", e.target.value);
-												const formatted = formatTimeLabel(e.target.value);
-												updateTimeslot(tsIndex, "label", formatted);
-											}}
-										/>
-										<Input
-											placeholder="Label"
-											value={ts.label}
-											onChange={(e) => updateTimeslot(tsIndex, "label", e.target.value)}
-										/>
+				{ruleFields.length === 0 && (
+					<p className="text-sm text-muted-foreground">No recurring rules added yet.</p>
+				)}
+
+				<div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
+					{ruleFields.map((rule, idx) => (
+						<div key={rule.id} className="relative">
+							<Card className="border-2 overflow-hidden">
+								<button
+									type="button"
+									className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-pointer"
+									onClick={() => removeRule(idx)}
+								>
+									<XCircleIcon className="h-6 w-6 fill-destructive text-destructive-foreground" />
+								</button>
+
+								<CardHeader>
+									<div className="flex items-center justify-between">
+										<CardTitle className="text-base">Rule {idx + 1}</CardTitle>
+										{rule.is_active === "true" ? (
+											<Badge>Active</Badge>
+										) : (
+											<Badge variant={"destructive"}>Disabled</Badge>
+										)}
 									</div>
+								</CardHeader>
+
+								<Separator />
+
+								<CardContent className="space-y-4 text-sm">
+									<div className="flex gap-3 items-center">
+										<span className="font-medium">Period</span>
+										<span>
+											{rule.start_date.split("T")[0].replace(/-/g, "/")} →{" "}
+											{rule.end_date.split("T")[0].replace(/-/g, "/")}
+										</span>
+									</div>
+
 									<div>
-										<Input
-											type="number"
-											placeholder="Sort Order"
-											min={0}
-											value={ts.sort_order}
-											onChange={(e) =>
-												updateTimeslot(tsIndex, "sort_order", e.target.value)
+										<span className="font-medium mb-1">Weekdays</span>
+										<div className="mt-2 flex flex-wrap gap-1">
+											{rule.weekdays
+												.sort((a, b) => Number(a) - Number(b))
+												.map((d: string) => (
+													<Badge key={d} variant="secondary">
+														{days[Number(d) - 1]}
+													</Badge>
+												))}
+										</div>
+									</div>
+
+									<div>
+										<span className="font-medium">Time Slots</span>
+										<div className="mt-2 space-y-2">
+											{(rule.time_slots || []).map((ts: any, tsi: number) => (
+												<div
+													key={tsi}
+													className="flex items-center gap-3 text-xs bg-muted/40 border rounded-md p-2"
+												>
+													<span className="font-medium">{ts.label}</span>
+													<span className="text-muted-foreground">
+														• {ts.capacity} seats
+													</span>
+													{ts.is_active === "true" ? (
+														<div className="ml-auto rounded-full p-1 bg-primary" />
+													) : (
+														<div className="ml-auto rounded-full p-1 bg-destructive" />
+													)}
+												</div>
+											))}
+										</div>
+									</div>
+								</CardContent>
+							</Card>
+						</div>
+					))}
+				</div>
+
+				{/* Add new rule form */}
+				<Card className="border-dashed">
+					<CardHeader className="">
+						<CardTitle className="text-base">Add New Rule</CardTitle>
+					</CardHeader>
+					<CardContent className="space-y-6">
+						<div className="flex gap-3">
+							<Label>Activate the rule?</Label>
+							<Checkbox
+								checked={newRule.is_active}
+								onCheckedChange={(checked) =>
+									setNewRule((p) => ({ ...p, is_active: checked ? true : false }))
+								}
+							/>
+						</div>
+						{/* Date range */}
+						<div className="space-y-3">
+							<Label>Applicable Date</Label>
+							<div>
+								{[
+									{ class: "picker-xl", months: 4 },
+									{ class: "picker-lg", months: 3 },
+									{ class: "picker-md", months: 2 },
+									{ class: "picker-sm", months: 1 },
+								].map((p) => (
+									<DateRangePicker
+										value={{
+											from: newRule.start_date
+												? new Date(newRule.start_date)
+												: undefined,
+											to: newRule.end_date ? new Date(newRule.end_date) : undefined,
+										}}
+										onDateRangeChange={(range) =>
+											setNewRule((p) => ({
+												...p,
+												start_date: range?.from
+													? format(range.from, "yyyy-MM-dd")
+													: "",
+												end_date: range?.to ? format(range.to, "yyyy-MM-dd") : "",
+											}))
+										}
+										date_disabled={{ before: startOfToday() }}
+										numberOfMonths={p.months}
+										className={`picker ${p.class}`}
+										key={p.months}
+									/>
+								))}
+							</div>
+						</div>
+
+						{/* Weekdays */}
+						<div className="space-y-3">
+							<FormLabel>Applies on these days in any week</FormLabel>
+							<div className="flex flex-wrap gap-3">
+								{days.map((day, i) => (
+									<Label key={day} className="flex items-center gap-2 cursor-pointer">
+										<Checkbox
+											checked={newRule.weekdays.includes((i + 1).toString())}
+											onCheckedChange={(checked) =>
+												setNewRule((p) => ({
+													...p,
+													weekdays: checked
+														? [...p.weekdays, (i + 1).toString()]
+														: p.weekdays.filter((d) => d !== (i + 1).toString()),
+												}))
 											}
 										/>
-										{optionSeatType !== "UNLIMITED" && (
-											<Input
-												type="number"
-												placeholder="Seats"
-												min={0}
-												value={ts.available_seats ?? ""}
-												onChange={(e) =>
-													updateTimeslot(tsIndex, "available_seats", e.target.value)
-												}
-											/>
-										)}
+										{day}
+									</Label>
+								))}
+							</div>
+						</div>
+
+						{/* Time slots */}
+						<div className="space-y-4">
+							<div className="flex items-center justify-between">
+								<FormLabel>Time Slots</FormLabel>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={addTimeSlotToNewRule}
+								>
+									Add Slot
+								</Button>
+							</div>
+
+							{newRule.time_slots.length === 0 && (
+								<div>
+									<p className="text-sm text-muted-foreground">
+										Please add at least one time slot
+									</p>
+								</div>
+							)}
+
+							{newRule.time_slots.map((ts, tsi) => (
+								<div
+									key={tsi}
+									className="grid grid-cols-1 sm:grid-cols-[0.1fr_1fr_1fr_1fr_1fr] gap-3 items-end [&>.newTsFields]:space-y-1"
+								>
+									<div>
+										<Checkbox
+											checked={ts.is_active}
+											onCheckedChange={(v) =>
+												updateNewRuleTimeSlot(tsi, "is_active", v)
+											}
+											className="my-auto mb-2 w-4 h-4"
+										/>
 									</div>
-									<div className="ml-auto w-fit">
+
+									<div className="newTsFields">
+										<FormLabel className="text-xs">Time</FormLabel>
+										<Input
+											type="time"
+											step="300"
+											value={ts.time}
+											onChange={(e) =>
+												updateNewRuleTimeSlot(tsi, "time", e.target.value)
+											}
+											placeholder="Time (HH:MM)"
+											className="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none  select-none"
+										/>
+									</div>
+
+									<div className="newTsFields">
+										<FormLabel className="text-xs">Label</FormLabel>
+										<Input
+											value={ts.label}
+											placeholder="e.g. 10:00 AM"
+											onChange={(e) =>
+												updateNewRuleTimeSlot(tsi, "label", e.target.value)
+											}
+										/>
+									</div>
+
+									<div className="newTsFields">
+										<FormLabel className="text-xs">Capacity</FormLabel>
+										<Input
+											type="number"
+											min={0}
+											value={ts.capacity}
+											placeholder="Base Capacity"
+											onChange={(e) =>
+												updateNewRuleTimeSlot(tsi, "capacity", e.target.value)
+											}
+										/>
+									</div>
+
+									<div className="flex items-center gap-3 ml-auto">
 										<Button
-											type="button"
 											variant="destructive"
-											size="sm"
-											onClick={() => removeTimeslot(tsIndex)}
+											size="icon"
+											className="h-8 w-8"
+											type="button"
+											onClick={() => removeNewRuleTimeSlot(tsi)}
 										>
-											Remove Timeslot
+											<XCircleIcon className="h-4 w-4" />
 										</Button>
 									</div>
 								</div>
 							))}
 						</div>
-						{optionSeatType === "LIMITED" &&
-							newTimeslots.some(
-								(ts) => !ts.available_seats || Number(ts.available_seats) <= 0,
-							) && (
-								<div className="text-sm text-muted-foreground">
-									All timeslots must have at least 1 seat when Limited is selected.
-								</div>
-							)}
-						<div className="w-fit ml-auto mt-4">
-							<Button type="button" variant="outline" size="sm" onClick={addTimeslot}>
-								Add Timeslot
+
+						<div className="w-fit mt-6">
+							<Button
+								type="button"
+								className="w-full sm:w-auto"
+								onClick={handleAddRule}
+								disabled={
+									!newRule.start_date ||
+									!newRule.end_date ||
+									newRule.weekdays.length === 0 ||
+									newRule.time_slots.some((ts) => !ts.label || Number(ts.capacity) < 0)
+								}
+								size={"sm"}
+							>
+								Add Rule
 							</Button>
 						</div>
-					</div>
-				</CardContent>
-				<Separator />
-				<CardContent>
-					{/* Submit Add */}
-					<div className="w-fit">
-						<Button
-							type="button"
-							size="sm"
-							onClick={handleAddAvailabilities}
-							disabled={
-								addingAvailability ||
-								(!isRange && !singleDate) ||
-								(isRange && (!range.from || !range.to)) ||
-								newTimeslots.length === 0 ||
-								newTimeslots.every((ts) => !ts.time) ||
-								(optionSeatType == "LIMITED" &&
-									newTimeslots.every(
-										(ts) => !ts.available_seats == null || ts.available_seats == "",
-									))
-							}
-						>
-							{addingAvailability && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
-							Add{addingAvailability && "ing"} {isRange ? "Availabilities" : "Availability"}
-						</Button>
-					</div>
-				</CardContent>
-			</Card>
+					</CardContent>
+				</Card>
+			</div>
+
+			{/* Overrides Section */}
+			<div className="space-y-5 mt-6">
+				<div className="flex items-center justify-between">
+					<Label className="text-lg font-semibold">
+						Overrides & Exceptions ({overrideFields.length})
+					</Label>
+					{overrideFields.length > 0 && (
+						<div>
+							<Button
+								type="button"
+								variant="destructive"
+								size="sm"
+								onClick={() => removeOverride(overrideFields.map((_, i) => i))}
+							>
+								Clear All Overrides
+							</Button>
+						</div>
+					)}
+				</div>
+
+				{overrideFields.length === 0 && (
+					<p className="text-sm text-muted-foreground">No exceptions/overrides added yet.</p>
+				)}
+
+				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+					{overrideFields.map((ov, idx) => (
+						<div key={ov.id} className="relative">
+							<Card className="border-2 h-full">
+								<button
+									type="button"
+									className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-pointer"
+									onClick={() => removeOverride(idx)}
+								>
+									<XCircleIcon className="h-6 w-6 fill-destructive text-destructive-foreground" />
+								</button>
+								<CardContent className="pt-1 space-y-3 text-sm">
+									<div className="font-medium">
+										{ov.date.split("T")[0].replace(/-/g, "/")}
+									</div>
+									<div className="flex items-center flex-wrap gap-2">
+										<Badge
+											variant={ov.override_type !== "CLOSE" ? "outline" : "secondary"}
+										>
+											{ov.override_type.toUpperCase().replace("_", " ")}
+										</Badge>
+										{ov.override_type === "CAPACITY_CHANGE" && (
+											<span className="text-muted-foreground">
+												→ {ov.new_capacity} seats
+											</span>
+										)}
+									</div>
+									<span className="text-accent-foreground flex gap-2 items-center">
+										<Check className="text-accent-foreground w-4 h-4" />
+										{ov.time_slot_label
+											? `Timeslot: ${timeSlotOptions.find((rt) => rt.value === ov.time_slot_label)?.label}`
+											: "Whole day"}
+									</span>
+								</CardContent>
+							</Card>
+						</div>
+					))}
+				</div>
+
+				{/* Add new override form */}
+				<Card className="border-dashed">
+					<CardHeader>
+						<CardTitle className="text-base">Add New Override</CardTitle>
+					</CardHeader>
+					<CardContent className="space-y-6">
+						<div className="space-y-2">
+							<FormLabel>Date</FormLabel>
+							<DatePicker
+								value={newOverride.date ? new Date(newOverride.date) : undefined}
+								onDateChange={(d) =>
+									setNewOverride((p) => ({
+										...p,
+										date: d ? format(d, "yyyy-MM-dd") : "",
+									}))
+								}
+								date_disabled={{ before: startOfToday() }}
+							/>
+						</div>
+
+						<div className="space-y-2">
+							<FormLabel>Type</FormLabel>
+							<Select
+								value={newOverride.override_type}
+								onValueChange={(v) =>
+									setNewOverride((p) => ({ ...p, override_type: v as any }))
+								}
+							>
+								<SelectTrigger className="w-full">
+									<SelectValue placeholder="Select override type" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="CLOSE">Close</SelectItem>
+									<SelectItem value="CAPACITY_CHANGE">Change Capacity</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+
+						{newOverride.override_type === "CAPACITY_CHANGE" && (
+							<div className="space-y-2">
+								<FormLabel>New Capacity</FormLabel>
+								<Input
+									type="number"
+									min={0}
+									placeholder="New Capacity"
+									value={newOverride.new_capacity}
+									onChange={(e) =>
+										setNewOverride((p) => ({ ...p, new_capacity: e.target.value }))
+									}
+								/>
+							</div>
+						)}
+
+						<div className="space-y-2">
+							<FormLabel>Affect</FormLabel>
+							<Select
+								value={newOverride.time_slot_label ?? "whole_day"}
+								onValueChange={(v) =>
+									setNewOverride((p) => ({
+										...p,
+										time_slot_label: v === "whole_day" ? null : v,
+									}))
+								}
+							>
+								<SelectTrigger className="w-full">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									{timeSlotOptions.map((i) => (
+										<SelectItem key={i.value} value={i.value}>
+											{i.label}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+							<span className="text-sm text-muted-foreground italic">
+								Only works on existing timeslots or whole day
+							</span>
+						</div>
+
+						<div className="w-fit mt-6">
+							<Button
+								type="button"
+								className="w-full sm:w-auto"
+								onClick={handleAddOverride}
+								disabled={
+									!newOverride.date ||
+									(newOverride.override_type === "CAPACITY_CHANGE" &&
+										(!newOverride.new_capacity || Number(newOverride.new_capacity) < 0))
+								}
+								size={"sm"}
+							>
+								Add Override
+							</Button>
+						</div>
+					</CardContent>
+				</Card>
+			</div>
 		</div>
 	);
 };
@@ -891,179 +1021,4 @@ const formatTimeLabel = (time: string) => {
 	} catch {
 		return time;
 	}
-};
-
-// Timeslots SubSection for existing availability
-const TimeslotsSubSection = ({
-	control,
-	optionIndex,
-	availIndex,
-}: {
-	control: UpdateFormControlType;
-	optionIndex: number;
-	availIndex: number;
-}) => {
-	const { fields, append, remove } = useFieldArray({
-		control,
-		name: `tour_options.${optionIndex}.availabilities.${availIndex}.timeslots`,
-	});
-
-	const { setValue } = useFormContext();
-	const optionSeatType = useWatch({ control, name: `tour_options.${optionIndex}.seat_type` }) as SeatType;
-
-	const addTimeslot = () => {
-		const newSlotSortOrder =
-			fields.length > 0 ? (Number(fields[fields.length - 1].sort_order) + 1).toString() : "1";
-
-		append({
-			id: undefined,
-			time_slot_id: undefined,
-			time: "",
-			label: "",
-			sort_order: newSlotSortOrder,
-			available_seats: optionSeatType === "UNLIMITED" ? null : "0",
-		});
-	};
-
-	return (
-		<div className="space-y-4">
-			<div className="space-y-2">
-				<Label className="text-base">Timeslots</Label>
-				{fields.length === 0 && (
-					<div className="text-sm text-destructive">
-						No timeslots found. Please add atleast one timeslot.
-					</div>
-				)}
-				<div className="space-y-4">
-					{fields.map((ts, tsIndex) => {
-						const currentTime = control._getWatch(
-							`tour_options.${optionIndex}.availabilities.${availIndex}.timeslots.${tsIndex}.time`,
-						) as string;
-
-						return (
-							<div key={ts.id} className="*:flex *:gap-2 space-y-2">
-								<p className="text-xs text-muted-foreground">
-									#{ts.time_slot_id != undefined ? ts.time_slot_id : "NEW"}
-								</p>
-								<div>
-									<FormField
-										control={control}
-										name={`tour_options.${optionIndex}.availabilities.${availIndex}.timeslots.${tsIndex}.time`}
-										render={({ field }) => (
-											<FormItem
-												className={`flex-1 ${ts.time_slot_id !== undefined && "disabled cursor-not-allowed"}`}
-											>
-												<FormControl>
-													<Input
-														type="time"
-														step="1"
-														placeholder="Time (HH:MM:SS)"
-														className="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none  select-none"
-														{...field}
-														onChange={(e) => {
-															field.onChange(e);
-															const formatted = formatTimeLabel(e.target.value);
-															setValue(
-																`tour_options.${optionIndex}.availabilities.${availIndex}.timeslots.${tsIndex}.label`,
-																formatted,
-																{ shouldValidate: true },
-															);
-														}}
-														disabled={ts.time_slot_id !== undefined}
-													/>
-												</FormControl>
-												<FormMessage />
-											</FormItem>
-										)}
-									/>
-									<FormField
-										control={control}
-										name={`tour_options.${optionIndex}.availabilities.${availIndex}.timeslots.${tsIndex}.label`}
-										render={({ field }) => (
-											<FormItem className="flex-1">
-												<FormControl>
-													<Input
-														placeholder="Label"
-														{...field}
-														value={
-															field.value || formatTimeLabel(currentTime || "")
-														}
-													/>
-												</FormControl>
-												<FormMessage />
-											</FormItem>
-										)}
-									/>
-								</div>
-								<div>
-									<FormField
-										control={control}
-										name={`tour_options.${optionIndex}.availabilities.${availIndex}.timeslots.${tsIndex}.sort_order`}
-										render={({ field }) => (
-											<FormItem
-												className={`flex-1 ${ts.time_slot_id !== undefined && "disabled cursor-not-allowed"}`}
-											>
-												<FormControl>
-													<Input
-														type="number"
-														min={0}
-														placeholder="Sort Order"
-														disabled={ts.time_slot_id !== undefined}
-														{...field}
-													/>
-												</FormControl>
-												<FormMessage />
-											</FormItem>
-										)}
-									/>
-
-									{optionSeatType !== "UNLIMITED" && (
-										<FormField
-											control={control}
-											name={`tour_options.${optionIndex}.availabilities.${availIndex}.timeslots.${tsIndex}.available_seats`}
-											render={({ field }) => (
-												<FormItem className="flex-1">
-													<FormControl>
-														<Input
-															type="number"
-															placeholder="Seats"
-															min={0}
-															{...field}
-															value={field.value ?? ""}
-														/>
-													</FormControl>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-									)}
-								</div>
-								<Button
-									type="button"
-									variant="destructive"
-									size={"sm"}
-									onClick={() => remove(tsIndex)}
-									className="ml-auto"
-									hidden={ts.time_slot_id !== undefined}
-								>
-									Remove Timeslot
-								</Button>
-							</div>
-						);
-					})}
-				</div>
-			</div>
-			<div className="w-fit ml-auto mt-4">
-				<Button
-					type="button"
-					size={"sm"}
-					variant={"outline"}
-					className="ml-auto"
-					onClick={addTimeslot}
-				>
-					Add Timeslot
-				</Button>
-			</div>
-		</div>
-	);
 };

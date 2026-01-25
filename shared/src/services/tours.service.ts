@@ -7,7 +7,7 @@ import { loggerMiddleware } from "@workspace/shared/middlewares/logger.middlewar
 import { verifyUser } from "@workspace/shared/middlewares/auth.middleware";
 import { asServiceMiddleware } from "@workspace/shared/middlewares/utils";
 import { MetaDetailsService } from "@workspace/shared/services/meta-details.service";
-import type { AddTourActionDate } from "@workspace/shared/schemas/tour.schema";
+import type { AddTourActionDate, UpdateTourActionPayload } from "@workspace/shared/schemas/tour.schema";
 import type { Database, Tables, TablesInsert } from "@workspace/shared/types/supabase";
 import type {
 	GetHighLevelToursResponse,
@@ -19,6 +19,11 @@ import { type TourFilters } from "@workspace/shared/schemas/tours-filter.schema"
 import { type FPTourFilters } from "@workspace/shared/schemas/fp-tours-filter.schema";
 import type { FP_HighLevelTour, GetFPHighLevelToursResponse } from "@workspace/shared/types/fp-tours";
 import { UseMiddleware } from "@workspace/shared/decorators/useMiddleware";
+
+type UpdateTourPayload = UpdateTourActionPayload & {
+	cover_image: File | null;
+	images: File[] | null;
+};
 
 @UseClassMiddleware(loggerMiddleware)
 export class ToursService extends Service {
@@ -650,7 +655,7 @@ export class ToursService extends Service {
 
 	/** Update tour details */
 	@UseMiddleware(asServiceMiddleware<ToursService>(verifyUser))
-	async updateTour(data: any, tour_id: string) {
+	async updateTour(data: UpdateTourPayload, tour_id: string) {
 		const {
 			tour_update,
 			added_tags,
@@ -771,8 +776,6 @@ export class ToursService extends Service {
 				}
 			}
 
-			// === CLEANUP OLD FILES AFTER SUCCESSFUL UPDATE ===
-
 			// Delete old cover image only if we uploaded a new one
 			if (newCoverPath && currentTour.cover_image) {
 				await mediaSvc.deleteImage(currentTour.cover_image);
@@ -797,7 +800,7 @@ export class ToursService extends Service {
 
 			// 6. Handle tour_options_updates
 			if (tour_options_updates) {
-				await this.updateTourOptions_V2(tour_id, tour_options_updates);
+				await this.updateTourOptions_V3(tour_id, tour_options_updates);
 			}
 		} catch (error: any) {
 			// Rollback uploaded images on any failure
@@ -1315,8 +1318,265 @@ export class ToursService extends Service {
 		}
 	}
 
-	async updateTourOptions_V3() {
-		// doing nothing for now >>
+	async updateTourOptions_V3(tour_id: string, payload: UpdateTourActionPayload["tour_options_updates"]) {
+		const new_options = payload?.new_options ?? [];
+		const deleted_options = payload?.deleted_options ?? [];
+		const updated_options = payload?.updated_options ?? [];
+
+		const new_prices = payload?.new_prices ?? [];
+		const deleted_prices = payload?.deleted_prices ?? [];
+		const updated_prices = payload?.updated_prices ?? [];
+
+		const new_rules = payload?.new_rules ?? [];
+		const deleted_rules = payload?.deleted_rules ?? [];
+
+		const new_time_slots = payload?.new_time_slots ?? [];
+		const deleted_time_slots = payload?.deleted_time_slots ?? [];
+
+		const new_overrides = payload?.new_overrides ?? [];
+		const deleted_overrides = payload?.deleted_overrides ?? [];
+
+		// Temp ID mappings (for new entities)
+		const tempOptionIdMap = new Map<string, number>();
+		const tempRuleIdMap = new Map<string, number>();
+
+		// Track IDs inserted in this transaction for rollback
+		const insertedOptionIds: number[] = [];
+		const insertedRuleIds: number[] = [];
+		const insertedTimeSlotIds: number[] = [];
+		const insertedOverrideIds: number[] = [];
+
+		try {
+			// DELETIONS (in dependent order: overrides → time slots → rules → prices → options)
+			if (deleted_overrides.length > 0) {
+				const { error } = await this.supabase
+					.from(this.AVAILABILITY_OVERRIDES_TABLE)
+					.delete()
+					.in("id", deleted_overrides);
+
+				if (error) throw new ApiError(error.message, 500, [error.details || []]);
+			}
+
+			if (deleted_time_slots.length > 0) {
+				const { error } = await this.supabase
+					.from(this.TIMESLOTS_TABLE)
+					.delete()
+					.in("id", deleted_time_slots);
+
+				if (error) throw new ApiError(error.message, 500, [error.details || []]);
+			}
+
+			if (deleted_rules.length > 0) {
+				const { error } = await this.supabase
+					.from(this.AVAILABILITY_RULES_TABLE)
+					.delete()
+					.in("id", deleted_rules);
+
+				if (error) throw new ApiError(error.message, 500, [error.details || []]);
+			}
+
+			if (deleted_prices.length > 0) {
+				const { error } = await this.supabase
+					.from(this.TOUR_OPTION_PRICES_TABLE)
+					.delete()
+					.in("id", deleted_prices);
+
+				if (error) throw new ApiError(error.message, 500, [error.details || []]);
+			}
+
+			if (deleted_options.length > 0) {
+				const { error } = await this.supabase
+					.from(this.TOUR_OPTIONS_TABLE)
+					.delete()
+					.in("id", deleted_options);
+
+				if (error) throw new ApiError(error.message, 500, [error.details || []]);
+			}
+
+			// UPDATES (options → prices → rules)
+			for (const optUpdate of updated_options) {
+				const { error } = await this.supabase
+					.from(this.TOUR_OPTIONS_TABLE)
+					.update(optUpdate)
+					.eq("id", optUpdate.id);
+
+				if (error) throw new ApiError(error.message, 500, [error.details || []]);
+			}
+
+			for (const priceUpdate of updated_prices) {
+				const { error } = await this.supabase
+					.from(this.TOUR_OPTION_PRICES_TABLE)
+					.update(priceUpdate)
+					.eq("id", priceUpdate.id);
+
+				if (error) throw new ApiError(error.message, 500, [error.details || []]);
+			}
+
+			// ────────────────────────────────────────────────
+			// INSERTIONS (options → prices → rules → time slots → overrides)
+			// New options
+			if (new_options.length > 0) {
+				const { data: insertedOptions, error } = await this.supabase
+					.from(this.TOUR_OPTIONS_TABLE)
+					.insert(new_options.map((opt) => ({ ...opt, tour_id })))
+					.select("id");
+
+				if (error) throw new ApiError(error.message, 500, [error.details || []]);
+
+				insertedOptions.forEach((opt) => insertedOptionIds.push(opt.id));
+
+				new_options.forEach((opt, idx) => {
+					tempOptionIdMap.set(`new-opt-${idx + 1}`, insertedOptions[idx].id);
+				});
+			}
+
+			// New prices (resolve tour_option_id if temp)
+			if (new_prices.length > 0) {
+				const resolvedPrices = new_prices.map((price) => {
+					const optionId =
+						typeof price.tour_option_id === "string"
+							? tempOptionIdMap.get(price.tour_option_id) || price.tour_option_id
+							: price.tour_option_id;
+					return { ...price, tour_option_id: optionId };
+				});
+
+				const { error } = await this.supabase
+					.from(this.TOUR_OPTION_PRICES_TABLE)
+					.insert(resolvedPrices);
+
+				if (error) throw new ApiError(error.message, 500, [error.details || []]);
+			}
+
+			// New rules
+			if (new_rules.length > 0) {
+				const rulesWithTempId = new_rules.map((rule, idx) => {
+					const tempId = `new-rule-${idx + 1}`;
+					return { ...rule, temp_id: tempId }; // add temp_id for mapping
+				});
+
+				const resolvedRules = rulesWithTempId.map((rule) => {
+					const optionId =
+						typeof rule.tour_option_id === "string"
+							? tempOptionIdMap.get(rule.tour_option_id) || null
+							: rule.tour_option_id;
+
+					if (!optionId) throw new Error(`Invalid temp tour_option_id for rule`);
+
+					const { temp_id, ...insertData } = rule; // remove temp_id before insert
+					return { ...insertData, tour_option_id: optionId };
+				});
+
+				const { data: insertedRules, error } = await this.supabase
+					.from(this.AVAILABILITY_RULES_TABLE)
+					.insert(resolvedRules)
+					.select("id");
+
+				if (error) throw new ApiError(error.message, 500, [error.details || []]);
+
+				insertedRules.forEach((rule, idx) => {
+					const tempId = rulesWithTempId[idx].temp_id;
+					tempRuleIdMap.set(tempId, rule.id);
+					insertedRuleIds.push(rule.id);
+				});
+			}
+
+			// New time slots
+			if (new_time_slots.length > 0) {
+				const resolvedTimeSlots = new_time_slots.map((slot) => {
+					const ruleId =
+						typeof slot.availability_rule_id === "string"
+							? tempRuleIdMap.get(slot.availability_rule_id) || null
+							: slot.availability_rule_id;
+
+					if (!ruleId)
+						throw new Error(`No mapping found for temp rule ID: ${slot.availability_rule_id}`);
+
+					return { ...slot, availability_rule_id: ruleId };
+				});
+
+				const { data: insertedTimeSlots, error } = await this.supabase
+					.from(this.TIMESLOTS_TABLE)
+					.insert(resolvedTimeSlots)
+					.select("id");
+
+				if (error) throw new ApiError(error.message, 500, [error.details || []]);
+
+				insertedTimeSlots.forEach((slot) => insertedTimeSlotIds.push(slot.id));
+			}
+
+			// New overrides — similar to prices
+			if (new_overrides.length > 0) {
+				const resolvedOverrides = new_overrides.map((ov) => {
+					console.log(ov);
+					console.log(tempOptionIdMap.entries());
+
+					let optionId =
+						typeof ov.tour_option_id === "string"
+							? tempOptionIdMap.get(ov.tour_option_id) || null
+							: ov.tour_option_id;
+
+					if (!optionId)
+						throw new Error(`No mapping found for temp option ID: ${ov.tour_option_id}`);
+
+					return { ...ov, tour_option_id: optionId };
+				});
+
+				const { data: insertedOverrides, error } = await this.supabase
+					.from(this.AVAILABILITY_OVERRIDES_TABLE)
+					.insert(resolvedOverrides)
+					.select("id");
+
+				if (error) throw new ApiError(error.message, 500, [error.details || []]);
+
+				insertedOverrides.forEach((ov) => insertedOverrideIds.push(ov.id));
+			}
+		} catch (error) {
+			try {
+				// 1. Delete new overrides
+				if (insertedOverrideIds.length > 0) {
+					const { error } = await this.supabase
+						.from(this.AVAILABILITY_OVERRIDES_TABLE)
+						.delete()
+						.in("id", insertedOverrideIds);
+
+					if (error) console.error("Rollback failed (overrides):", error);
+				}
+
+				// 2. Delete new time slots
+				if (insertedTimeSlotIds.length > 0) {
+					const { error } = await this.supabase
+						.from(this.TIMESLOTS_TABLE)
+						.delete()
+						.in("id", insertedTimeSlotIds);
+
+					if (error) console.error("Rollback failed (time slots):", error);
+				}
+
+				// 3. Delete new rules
+				if (insertedRuleIds.length > 0) {
+					const { error } = await this.supabase
+						.from(this.AVAILABILITY_RULES_TABLE)
+						.delete()
+						.in("id", insertedRuleIds);
+
+					if (error) console.error("Rollback failed (rules):", error);
+				}
+
+				// 4. Delete new options (last, since others depend on them)
+				if (insertedOptionIds.length > 0) {
+					const { error } = await this.supabase
+						.from(this.TOUR_OPTIONS_TABLE)
+						.delete()
+						.in("id", insertedOptionIds);
+
+					if (error) console.error("Rollback failed (options):", error);
+				}
+			} catch (rollbackError) {
+				console.error("Rollback failed completely:", rollbackError);
+			}
+
+			throw error;
+		}
 	}
 
 	/** Get tours for searching, for main page and for handling all the filters for front panel */

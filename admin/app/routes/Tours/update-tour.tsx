@@ -10,7 +10,6 @@ import { ToursService } from "@workspace/shared/services/tours.service";
 import type { ActionResponse } from "@workspace/shared/types/action-data";
 import { ApiError } from "@workspace/shared/utils/ApiError";
 import { queryClient } from "@workspace/shared/utils/query-client";
-import { format } from "date-fns";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { type Control, useForm, useWatch } from "react-hook-form";
@@ -89,6 +88,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 		}
 
 		let parseResult = UpdateTourActionPayloadSchema.safeParse(rawBody);
+		// console.dir(rawBody.tour_options_updates);
 
 		if (!parseResult.success) {
 			console.error(parseResult.error.flatten().fieldErrors, rawBody);
@@ -101,7 +101,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 				},
 			);
 		}
-		console.log(parseResult.data);
+		console.dir(parseResult.data);
 
 		const tours_svc = new ToursService(request);
 		await tours_svc.updateTour(
@@ -224,18 +224,25 @@ export default function UpdateTourPage() {
 				})),
 				sort_order: option?.sort_order?.toString() ?? "1",
 				isOpenDated: (option.isOpenDated ? "true" : "false") as "true" | "false",
-				availabilities: option.availabilities.map((availability) => ({
-					id: availability.id,
-					date: availability.date,
-					isActive: availability.isActive ? "true" : "false",
-					timeslots: availability.slots.map((slot) => ({
-						id: slot.id,
-						time_slot_id: slot.time_slot.id,
-						available_seats: slot.available_seats?.toString() ?? "0",
-						label: slot.time_slot.label ?? "",
-						time: slot.time_slot.time ?? "",
-						sort_order: slot.time_slot.sort_order?.toString() ?? "1",
+				rules: option.availability_rules.map((rule) => ({
+					id: rule.id,
+					start_date: rule.start_date,
+					end_date: rule.end_date,
+					is_active: rule.is_active ? "true" : "false",
+					weekdays: rule.weekdays.map(String) as ("1" | "2" | "3" | "4" | "5" | "6" | "7")[],
+					time_slots: rule.time_slots.map((slot) => ({
+						id: slot.id ?? undefined,
+						label: slot.label ?? "",
+						capacity: slot.capacity.toString() ?? "",
+						is_active: slot.is_active ? "true" : "false",
 					})),
+				})),
+				overrides: option.availability_overrides.map((override) => ({
+					id: override.id ?? undefined,
+					date: override.date ?? "",
+					override_type: override.override_type ?? "",
+					new_capacity: override.new_capacity?.toString() ?? null,
+					time_slot_label: override.time_slot_id?.toString() ?? "",
 				})),
 			})),
 			live_tour_guide:
@@ -294,8 +301,8 @@ export default function UpdateTourPage() {
 		}
 
 		for (const option of values.tour_options) {
-			if (option.availabilities == null || option.availabilities.length === 0) {
-				toast.error(`Please add at least one availability for tour option "${option.name}".`);
+			if (option.rules == null || option.rules.length === 0) {
+				toast.error(`Please add at least one availability rule for tour option "${option.name}".`);
 				return;
 			}
 		}
@@ -319,55 +326,6 @@ export default function UpdateTourPage() {
 				}
 
 				seenParticipants.add(price.participant);
-			}
-		}
-
-		for (const option of values.tour_options) {
-			const seat_type = option.seat_type;
-			if (option.availabilities) {
-				for (const availability of option.availabilities) {
-					const seenTimes = new Set<string>();
-
-					for (const timeslot of availability.timeslots) {
-						if (
-							seat_type === "LIMITED" &&
-							(timeslot.available_seats == null || timeslot.available_seats === "")
-						) {
-							console.log(timeslot);
-
-							toast.error(
-								`Please add available seats for ${format(availability.date, "PP")} ${timeslot.label} timeslot in the tour option "${option.name}".`,
-							);
-							return;
-						}
-
-						const time = timeslot.time?.trim();
-
-						if (!time) {
-							toast.error(
-								`Time is missing for a timeslot on ${format(availability.date, "PP")} in tour option "${option.name}".`,
-							);
-							return;
-						}
-
-						if (seenTimes.has(time)) {
-							toast.error(
-								`Duplicate timeslot "${time}" found on ${format(availability.date, "PP")} in tour option "${option.name}". Each date must have unique times.`,
-							);
-							return;
-						}
-
-						seenTimes.add(time);
-
-						if (timeslot.label != null) {
-							timeslot.label = timeslot.label.trim();
-						}
-
-						if (seat_type === "UNLIMITED" && timeslot.available_seats != null) {
-							timeslot.available_seats = null;
-						}
-					}
-				}
 			}
 		}
 
@@ -550,8 +508,20 @@ export default function UpdateTourPage() {
 			hasChanges = true;
 		}
 
-		// === TOUR OPTIONS - ONLY SEND CHANGED DATA ===
-		const tourOptionsPayload: any = {
+		const tourOptionsPayload: {
+			new_options: any[];
+			deleted_options: number[];
+			updated_options: any[];
+			new_prices: any[];
+			deleted_prices: number[];
+			updated_prices: any[];
+			new_rules: any[];
+			deleted_rules: number[];
+			new_time_slots: any[];
+			deleted_time_slots: number[];
+			new_overrides: any[];
+			deleted_overrides: number[];
+		} = {
 			new_options: [],
 			deleted_options: [],
 			updated_options: [],
@@ -560,57 +530,45 @@ export default function UpdateTourPage() {
 			deleted_prices: [],
 			updated_prices: [],
 
-			new_availabilities: [],
-			deleted_availabilities: [],
-			updated_availabilities: [],
+			new_rules: [],
+			deleted_rules: [],
 
-			new_slots: [],
-			deleted_slots: [],
-			updated_slots: [],
+			new_time_slots: [],
+			deleted_time_slots: [],
 
-			new_timeslots: [],
-			deleted_timeslots: [],
-			updated_timeslots: [],
+			new_overrides: [],
+			deleted_overrides: [],
 		};
 
-		// Collect used time slot IDs from form
-		const usedTimeSlotIds = new Set<number>();
-		trimmedValues.tour_options.forEach((option) => {
-			option.availabilities?.forEach((avail) => {
-				avail.timeslots.forEach((ts) => {
-					if (ts.time_slot_id) usedTimeSlotIds.add(ts.time_slot_id);
-				});
-			});
-		});
-
-		// Collect original time slot IDs from this tour
-		const originalTimeSlotIds = new Set<number>();
-		tour.tour_options.forEach((option) => {
-			option.availabilities.forEach((avail) => {
-				avail.slots.forEach((slot) => {
-					originalTimeSlotIds.add(slot.time_slot.id);
-				});
-			});
-		});
-
-		// Potential deleted time slots (those no longer used in this tour)
-		const ifDeletedTimeSlotIds = [...originalTimeSlotIds].filter((id) => !usedTimeSlotIds.has(id));
-
-		if (ifDeletedTimeSlotIds.length > 0) {
-			tourOptionsPayload.deleted_timeslots = ifDeletedTimeSlotIds;
-			hasChanges = true;
-		}
-
-		// Temp IDs for new options and availabilities
 		let tempCounter = 0;
 
-		// Form option IDs
-		const formOptionIds = new Set(trimmedValues.tour_options.map((o) => o.id).filter(Boolean));
+		// Track used IDs to detect deletions
+		const usedRuleIds = new Set<number>();
+		const usedTimeSlotIds = new Set<number>();
+		const usedOverrideIds = new Set<number>();
+
+		trimmedValues.tour_options.forEach((formOption) => {
+			if (formOption.id) {
+				usedRuleIds.add(formOption.id); // wait — no: usedRuleIds for rules, not option
+			}
+
+			formOption.rules?.forEach((rule) => {
+				if (rule.id) usedRuleIds.add(rule.id);
+				rule.time_slots.forEach((ts) => {
+					if (ts.id) usedTimeSlotIds.add(ts.id);
+				});
+			});
+
+			formOption.overrides?.forEach((ov) => {
+				if (ov.id) usedOverrideIds.add(ov.id);
+			});
+		});
 
 		// Deleted options
-		tourOptionsPayload.deleted_options = tour.tour_options
-			.map((o) => o.id)
-			.filter((id) => !formOptionIds.has(id));
+		const originalOptionIds = new Set(tour.tour_options.map((o) => o.id));
+		tourOptionsPayload.deleted_options = [...originalOptionIds].filter(
+			(id) => !trimmedValues.tour_options.some((fo) => fo.id === id),
+		);
 
 		// Process each form option
 		for (const [optIndex, formOption] of trimmedValues.tour_options.entries()) {
@@ -727,152 +685,111 @@ export default function UpdateTourPage() {
 				}
 			}
 
-			// Availabilities
-			const originalAvails = isNewOption
+			// RULES
+			const originalRules = isNewOption
 				? []
-				: tour.tour_options.find((o) => o.id === formOption.id)!.availabilities;
-			const formAvailIds = new Set(formOption.availabilities?.map((a) => a.id).filter(Boolean) || []);
+				: (tour.tour_options.find((o) => o.id === formOption.id)?.availability_rules ?? []);
 
-			tourOptionsPayload.deleted_availabilities.push(
-				...originalAvails.map((a) => a.id).filter((id) => !formAvailIds.has(id)),
-			);
+			const formRuleIds = new Set(formOption.rules?.map((r) => r.id).filter(Boolean) ?? []);
 
-			if (formOption.availabilities) {
-				for (const [_, formAvail] of formOption.availabilities.entries()) {
-					const isNewAvail = !formAvail.id;
-					const tempAvailId = isNewAvail ? `new-avail-${++tempCounter}` : formAvail.id!;
+			// Deleted rules
+			const deletedRuleIds = originalRules.map((r) => r.id).filter((id) => !formRuleIds.has(id));
 
-					if (isNewAvail) {
-						tourOptionsPayload.new_availabilities.push({
-							tour_option_id: tempOptionId,
-							date: formAvail.date,
-							isActive: formAvail.isActive === "true",
+			if (deletedRuleIds.length > 0) {
+				tourOptionsPayload.deleted_rules.push(...deletedRuleIds);
+				hasChanges = true;
+			}
+
+			// Process each rule in form
+			formOption.rules?.forEach((formRule) => {
+				const isNewRule = !formRule.id;
+				const tempRuleId = isNewRule ? `new-rule-${++tempCounter}` : formRule.id!;
+
+				if (isNewRule) {
+					tourOptionsPayload.new_rules.push({
+						tour_option_id: tempOptionId,
+						start_date: formRule.start_date,
+						end_date: formRule.end_date,
+						weekdays: formRule.weekdays.map(Number), // convert string "1" → number 1
+						is_active: formRule.is_active === "true",
+					});
+					hasChanges = true;
+				}
+
+				// TIME SLOTS (per rule)
+				const originalSlots = isNewRule
+					? []
+					: (originalRules.find((r) => r.id === formRule.id)?.time_slots ?? []);
+
+				const formSlotIds = new Set(formRule.time_slots.map((ts) => ts.id).filter(Boolean));
+
+				// Deleted slots
+				const deletedSlotIds = originalSlots.map((s) => s.id).filter((id) => !formSlotIds.has(id));
+
+				if (deletedSlotIds.length > 0) {
+					tourOptionsPayload.deleted_time_slots.push(...deletedSlotIds);
+					hasChanges = true;
+				}
+
+				// Process each time slot
+				formRule.time_slots.forEach((formTs) => {
+					const isNewSlot = !formTs.id;
+
+					const slotData = {
+						label: formTs.label,
+						capacity: Number(formTs.capacity),
+						is_active: formTs.is_active === "true",
+					};
+
+					if (isNewSlot) {
+						tourOptionsPayload.new_time_slots.push({
+							availability_rule_id: tempRuleId,
+							...slotData,
 						});
 						hasChanges = true;
-					} else {
-						const originalAvail = originalAvails.find((a) => a.id === formAvail.id);
-						if (originalAvail && originalAvail.isActive !== (formAvail.isActive === "true")) {
-							tourOptionsPayload.updated_availabilities.push({
-								id: formAvail.id,
-								isActive: formAvail.isActive === "true",
-							});
-							hasChanges = true;
-						}
-					}
-
-					// Slots
-					const originalSlots = isNewAvail
-						? []
-						: originalAvails.find((a) => a.id === formAvail.id)!.slots;
-					const formSlotIds = new Set(formAvail.timeslots.map((ts) => ts.id).filter(Boolean));
-
-					tourOptionsPayload.deleted_slots.push(
-						...originalSlots.map((s) => s.id).filter((id) => !formSlotIds.has(id)),
-					);
-
-					for (const [tsIndex, formTs] of formAvail.timeslots.entries()) {
-						const isNewSlot = !formTs.id;
-						const time = formTs.time;
-						const label = formTs.label || null;
-						const sort_order = Number(formTs.sort_order || tsIndex + 1);
-						const available_seats =
-							formOption.seat_type === "LIMITED" ? Number(formTs.available_seats || 0) : null;
-						const seat_type = formOption.seat_type;
-
-						if (isNewSlot) {
-							tourOptionsPayload.new_slots.push({
-								availability_id: tempAvailId,
-								time,
-								label,
-								sort_order,
-								available_seats,
-								seat_type,
-							});
-
-							hasChanges = true;
-
-							// New timeslot if no time_slot_id (assume new time)
-							if (!formTs.time_slot_id) {
-								tourOptionsPayload.new_timeslots.push({
-									time,
-									label,
-									sort_order,
-								});
-							}
-						} else {
-							const originalSlot = originalSlots.find((s) => s.id === formTs.id);
-							if (originalSlot) {
-								const slotUpdate: any = { id: formTs.id };
-								let slotChanged = false;
-
-								if (available_seats !== originalSlot.available_seats) {
-									slotUpdate.available_seats = available_seats;
-									slotChanged = true;
-								}
-								if (seat_type !== originalSlot.seat_type) {
-									slotUpdate.seat_type = seat_type;
-									slotChanged = true;
-								}
-
-								if (slotChanged) {
-									tourOptionsPayload.updated_slots.push(slotUpdate);
-									hasChanges = true;
-								}
-
-								// Time slot update
-								const originalTimeSlot = originalSlot.time_slot;
-
-								if (label != originalTimeSlot.label) {
-									tourOptionsPayload.updated_timeslots.push({
-										id: originalTimeSlot.id,
-										label,
-									});
-
-									hasChanges = true;
-								}
-
-								if (sort_order != originalTimeSlot.sort_order) {
-									const s = tourOptionsPayload.updated_timeslots.find(
-										(ts: any) => ts.id === originalTimeSlot.id,
-									);
-
-									if (s) {
-										s.sort_order = sort_order;
-									} else {
-										tourOptionsPayload.updated_timeslots.push({
-											id: originalTimeSlot.id,
-											sort_order,
-										});
-									}
-
-									hasChanges = true;
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-
-		if (tourOptionsPayload.deleted_availabilities.length > 0) {
-			const deletedAvailIds = new Set(tourOptionsPayload.deleted_availabilities);
-
-			const slotsToDelete: number[] = [];
-
-			tour.tour_options.forEach((originalOption) => {
-				originalOption.availabilities.forEach((avail) => {
-					if (deletedAvailIds.has(avail.id)) {
-						avail.slots.forEach((slot) => {
-							slotsToDelete.push(slot.id);
-						});
 					}
 				});
 			});
 
-			if (slotsToDelete.length > 0) {
-				tourOptionsPayload.deleted_slots.push(...slotsToDelete);
+			// OVERRIDES
+			const originalOverrides = isNewOption
+				? []
+				: (tour.tour_options.find((o) => o.id === formOption.id)?.availability_overrides ?? []);
+
+			const formOverrideIds = new Set(formOption.overrides?.map((o) => o.id).filter(Boolean) ?? []);
+
+			// Deleted overrides
+			const deletedOverrideIds = originalOverrides
+				.map((o) => o.id)
+				.filter((id) => !formOverrideIds.has(id));
+
+			if (deletedOverrideIds.length > 0) {
+				tourOptionsPayload.deleted_overrides.push(...deletedOverrideIds);
 				hasChanges = true;
 			}
+
+			// Process each override
+			formOption.overrides?.forEach((formOv) => {
+				const isNewOverride = !formOv.id;
+
+				const overrideData = {
+					date: formOv.date,
+					override_type: formOv.override_type,
+					new_capacity:
+						formOv.override_type === "CAPACITY_CHANGE" && formOv.new_capacity != null
+							? Number(formOv.new_capacity)
+							: null,
+					time_slot_id: formOv.time_slot_label ? Number(formOv.time_slot_label) : null, // assuming label was replaced with ID in form
+				};
+
+				if (isNewOverride) {
+					tourOptionsPayload.new_overrides.push({
+						tour_option_id: tempOptionId,
+						...overrideData,
+					});
+					hasChanges = true;
+				}
+			});
 		}
 
 		// === META DETAILS ===

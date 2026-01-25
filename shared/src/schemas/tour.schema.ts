@@ -400,37 +400,43 @@ export const UpdateTourSchema = z
 							message: "At least one price is required.",
 						}),
 
-					availabilities: z
-						.array(
-							z.object({
-								id: z.number().optional(), // Added for existing availabilities
-								date: z
-									.string({ required_error: "Date is required." })
-									.min(1, "Date is required.")
-									.refine((value) => value.trim().length > 0, {
-										message: "Date is required.",
-									}),
+					rules: z.array(
+						z.object({
+							id: z.number().optional(), // Added for existing availabilities
+							start_date: z.string().min(1, "Date is required."),
+							end_date: z.string().min(1, "End date is required"),
+							weekdays: z.array(weekdaySchema).min(1, "At least one weekday must be selected"),
+							is_active: z.enum(["true", "false"]),
+							time_slots: z
+								.array(
+									z.object({
+										id: z.number().optional(),
+										label: z.string().min(1, "Time slot label is required"),
+										capacity: z
+											.string()
+											.min(1, "Capacity is required")
+											.refine((val) => !isNaN(Number(val)) && Number(val) >= 0, {
+												message: "Capacity must be a non-negative number",
+											}),
 
-								isActive: z.enum(["true", "false"]),
-								timeslots: z
-									.array(
-										z.object({
-											id: z.number().optional(), // tour_availability_slots.id
-											time_slot_id: z.number().optional(), // tour_time_slots.id
-											time: z
-												.string({ required_error: "Time is required." })
-												.min(1, "Time is required."),
-											label: z.string().optional(),
-											sort_order: z.string().optional(),
-											available_seats: z.string().nullable(),
-										}),
-									)
-									.refine((value) => value.length > 0, {
-										message: "At least one timeslot is required.",
+										is_active: z.enum(["true", "false"]),
 									}),
-							}),
-						)
-						.optional(),
+								)
+								.refine((value) => value.length > 0, {
+									message: "At least one timeslot is required.",
+								}),
+						}),
+					),
+
+					overrides: z.array(
+						z.object({
+							id: z.number().optional(),
+							date: z.string().min(1, "Override date is required"),
+							override_type: z.enum(AVAILABILITY_OVERRIDE_TYPE),
+							new_capacity: z.string().nullable(),
+							time_slot_label: z.string().nullable(),
+						}),
+					),
 				}),
 			)
 			.refine((value) => value.length > 0, {
@@ -487,48 +493,31 @@ const TourOptionPriceUpdateSchema = z.object({
 	participant_type_id: z.number().optional(),
 });
 
-// Availability for new
-const TourAvailabilityNewSchema = z.object({
-	tour_option_id: z.union([z.number(), z.string()]),
-	date: z.string(),
-	isActive: z.boolean(),
+// Time Slots (new / delete only)
+const TimeSlotNewSchema = z.object({
+	label: z.string().min(1, "Time slot label is required"),
+	capacity: z.number().min(0, "Capacity must be non-negative"),
+	is_active: z.boolean(),
+	availability_rule_id: z.union([z.number(), z.string()]), // number for existing rule, string for temp new rule
 });
 
-// Availability for update
-const TourAvailabilityUpdateSchema = z.object({
-	id: z.number(),
-	isActive: z.boolean(),
+// Availability Rules (new / delete only)
+const AvailabilityRuleNewSchema = z.object({
+	tour_option_id: z.number(),
+	start_date: z.string().min(1, "Start date is required"),
+	end_date: z.string().min(1, "End date is required"),
+	weekdays: z.array(z.number()).min(1, "At least one weekday required"),
+	is_active: z.boolean(),
 });
 
-// Slot for new
-const TourAvailabilitySlotNewSchema = z.object({
-	availability_id: z.union([z.number(), z.string()]),
-	time: z.string(),
-	label: z.string().nullable().optional(),
-	sort_order: z.number().optional(),
-	available_seats: z.number().nullable().optional(),
-	seat_type: z.enum(["UNLIMITED", "LIMITED"] as const),
-});
-
-// Slot for update
-const TourAvailabilitySlotUpdateSchema = z.object({
-	id: z.number(),
-	available_seats: z.number().nullable().optional(),
-	seat_type: z.enum(["UNLIMITED", "LIMITED"] as const).optional(),
-});
-
-// Time slot for new
-const TourTimeSlotNewSchema = z.object({
-	time: z.string(),
-	label: z.string().nullable().optional(),
-	sort_order: z.number().optional(),
-});
-
-// Time slot for update
-const TourTimeSlotUpdateSchema = z.object({
-	id: z.number(),
-	label: z.string().nullable().optional(),
-	sort_order: z.number().optional(),
+// ────────────────────────────────────────────────
+// Overrides (new / delete only)
+const AvailabilityOverrideNewSchema = z.object({
+	tour_option_id: z.number(),
+	date: z.string().min(1, "Override date required"),
+	override_type: z.enum(AVAILABILITY_OVERRIDE_TYPE),
+	new_capacity: z.number().min(0).nullable().optional(),
+	time_slot_id: z.number().nullable().optional(), // null = whole day
 });
 
 // Full tour_options_updates
@@ -541,19 +530,20 @@ const TourOptionsUpdatesSchema = z.object({
 	deleted_prices: z.array(z.number()).optional(),
 	updated_prices: z.array(TourOptionPriceUpdateSchema).optional(),
 
-	new_availabilities: z.array(TourAvailabilityNewSchema).optional(),
-	deleted_availabilities: z.array(z.number()).optional(),
-	updated_availabilities: z.array(TourAvailabilityUpdateSchema).optional(),
+	// Availability Rules (new / delete only)
+	new_rules: z.array(AvailabilityRuleNewSchema).optional(),
+	deleted_rules: z.array(z.number()).optional(),
 
-	new_slots: z.array(TourAvailabilitySlotNewSchema).optional(),
-	deleted_slots: z.array(z.number()).optional(),
-	updated_slots: z.array(TourAvailabilitySlotUpdateSchema).optional(),
+	// Time Slots (new / delete only)
+	new_time_slots: z.array(TimeSlotNewSchema).optional(),
+	deleted_time_slots: z.array(z.number()).optional(),
 
-	new_timeslots: z.array(TourTimeSlotNewSchema).optional(),
-	deleted_timeslots: z.array(z.number()).optional(),
-	updated_timeslots: z.array(TourTimeSlotUpdateSchema).optional(),
+	// Overrides (new / delete only)
+	new_overrides: z.array(AvailabilityOverrideNewSchema).optional(),
+	deleted_overrides: z.array(z.number()).optional(),
 });
 
+// basic details schemafor update
 const PartialUpdateTourSchema = z.object({
 	address_link: z.string().optional(),
 	address_name: z.string().optional(),

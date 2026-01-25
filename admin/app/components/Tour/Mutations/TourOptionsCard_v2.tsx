@@ -19,8 +19,8 @@ import { IconCurrencyDirham } from "@tabler/icons-react";
 import { Badge } from "~/components/ui/badge";
 import { type AddFormControlType } from "~/routes/Tours/add-tour";
 import type { GetAllParticipantTypes } from "@workspace/shared/types/participant-types";
-import { Database } from "@workspace/shared/types/supabase";
 import { toast } from "sonner";
+import type { AvailabilityOverrideType } from "@workspace/shared/types/tours";
 
 export const TourOptionsCard = ({
 	control,
@@ -441,7 +441,7 @@ const AvailabilitySettingsSubSection = ({
 	// Temp state for new override
 	const [newOverride, setNewOverride] = useState({
 		date: "",
-		override_type: "CLOSE" as Database["public"]["Enums"]["availability_override_type"],
+		override_type: "CLOSE" as AvailabilityOverrideType,
 		new_capacity: "",
 		time_slot_label: "Whole Day" as string | null,
 	});
@@ -849,9 +849,7 @@ const AvailabilitySettingsSubSection = ({
 									</div>
 									<div className="flex items-center gap-2">
 										<Badge
-											variant={
-												ov.override_type !== "CLOSE" ? "destructive" : "secondary"
-											}
+											variant={ov.override_type !== "CLOSE" ? "outline" : "secondary"}
 										>
 											{ov.override_type.toUpperCase().replace("_", " ")}
 										</Badge>
