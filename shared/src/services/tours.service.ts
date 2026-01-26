@@ -1308,4 +1308,137 @@ export class ToursService extends Service {
 			},
 		};
 	}
+
+	private getDayOfWeek(dateStr: string): number {
+		const date = new Date(dateStr);
+		const day = date.getDay();
+		return day === 0 ? 7 : day;
+	}
+
+	/**
+	 * Returns time slots with real available_seats for a specific date
+	 */
+	async getTourTimeSlotAvailability(
+		tourOptionId: number,
+		date: string,
+	): Promise<
+		{
+			id: number;
+			available_seats: number;
+		}[]
+	> {
+		let weekday = await this.getDayOfWeek(date);
+
+		const { data: rules, error: ruleErr } = await this.supabase
+			.from(this.AVAILABILITY_RULES_TABLE)
+			.select(
+				`
+				id,
+				${this.TIMESLOTS_TABLE} (
+					id,
+					label,
+					capacity
+				)
+				`,
+			)
+			.eq("tour_option_id", tourOptionId)
+			.lte("start_date", date)
+			.gte("end_date", date)
+			.contains("weekdays", [weekday]);
+
+		if (ruleErr || !rules?.length) {
+			throw new ApiError("No availability rules for this date", 404);
+		}
+
+		const allTimeSlots = rules.flatMap((rule) =>
+			rule.time_slots.map((slot) => ({
+				...slot,
+				rule_id: rule.id,
+			})),
+		);
+
+		if (!allTimeSlots.length) {
+			return [];
+		}
+
+		const timeSlotLabels = allTimeSlots.map((s) => s.label);
+
+		const { data: bookedData, error: bookedErr } = await this.supabase
+			.from(this.BOOKINGS_TABLE)
+			.select(
+				`
+				id,
+				preferred_timeslot,
+				${this.BOOKING_PARTICIPANTS_TABLE} (quantity)
+				`,
+			)
+			.eq("tour_option_id", tourOptionId)
+			.eq("preferred_date", date)
+			.in("preferred_timeslot", timeSlotLabels)
+			.in("booking_status", ["PENDING", "CONFIRMED"]);
+
+		if (bookedErr) throw new ApiError("Failed to fetch bookings", 500);
+
+		const bookedByLabel = new Map<string, number>();
+
+		bookedData?.forEach((booking) => {
+			const label = booking.preferred_timeslot;
+			const qty = booking.booking_participants?.reduce((sum, p) => sum + (p.quantity || 0), 0) || 0;
+
+			bookedByLabel.set(label, (bookedByLabel.get(label) || 0) + qty);
+		});
+
+		const { data: overrides, error: overrideErr } = await this.supabase
+			.from(this.AVAILABILITY_OVERRIDES_TABLE)
+			.select("*")
+			.eq("tour_option_id", tourOptionId)
+			.eq("date", date);
+
+		if (overrideErr) throw new ApiError("Failed to fetch overrides", 500);
+
+		const overridesBySlotId = new Map<number | null, any>();
+
+		overrides?.forEach((ov) => {
+			const key = ov.time_slot_id ?? null;
+			overridesBySlotId.set(key, ov);
+		});
+
+		const result = allTimeSlots.map((slot) => {
+			const label = slot.label;
+			const baseCapacity = slot.capacity ?? Infinity;
+
+			let effectiveCapacity = baseCapacity;
+			let isClosed = false;
+
+			const slotOverride = overridesBySlotId.get(slot.id);
+			if (slotOverride) {
+				if (slotOverride.override_type === "CLOSE") {
+					isClosed = true;
+				} else if (slotOverride.override_type === "CAPACITY_CHANGE") {
+					effectiveCapacity = slotOverride.new_capacity ?? baseCapacity;
+				}
+			}
+
+			const wholeDayOverride = overridesBySlotId.get(null);
+			if (wholeDayOverride) {
+				if (wholeDayOverride.override_type === "CLOSE") {
+					isClosed = true;
+				} else if (wholeDayOverride.override_type === "CAPACITY_CHANGE") {
+					effectiveCapacity = wholeDayOverride.new_capacity ?? effectiveCapacity;
+				}
+			}
+
+			const booked = bookedByLabel.get(label) || 0;
+
+			let available = isClosed ? 0 : effectiveCapacity - booked;
+			available = Math.max(0, available);
+
+			return {
+				id: slot.id,
+				available_seats: available,
+			};
+		});
+
+		return result;
+	}
 }

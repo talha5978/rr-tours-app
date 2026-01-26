@@ -37,3 +37,23 @@ export const toursQuery = ({
 		},
 	});
 };
+
+export const availabilityQuery = (request: Request, optionId: number | null, dateStr: string | null) => {
+	return queryOptions<
+		Promise<
+			{
+				id: number;
+				available_seats: number;
+			}[]
+		>
+	>({
+		queryKey: ["tour-availability", optionId, dateStr],
+		queryFn: async () => {
+			if (!optionId || !dateStr) return [];
+			const svc = new ToursService(request);
+			return svc.getTourTimeSlotAvailability(optionId, dateStr);
+		},
+		staleTime: 1000 * 60 * 5,
+		gcTime: 1000 * 60 * 10,
+	});
+};

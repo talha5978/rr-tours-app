@@ -1,4 +1,13 @@
-import { Link, type LoaderFunctionArgs, useLoaderData, useNavigate } from "react-router";
+import {
+	Link,
+	type LoaderFunctionArgs,
+	useLoaderData,
+	useLocation,
+	useNavigate,
+	useNavigation,
+	useRevalidator,
+	useSearchParams,
+} from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "~/components/ui/dialog";
@@ -23,7 +32,7 @@ import DatePicker from "~/components/Inputs/date-picker";
 import TourImageCarousel from "~/components/Tour/TourImageCarousel";
 import { Separator } from "~/components/ui/separator";
 import { queryClient } from "@workspace/shared/utils/query-client";
-import { tourDetailsQuery, toursQuery } from "~/queries/tours.q";
+import { availabilityQuery, tourDetailsQuery, toursQuery } from "~/queries/tours.q";
 import type { GetTourDetails, TourDetailOption } from "@workspace/shared/types/tours";
 import { cn, formatTourDurationHours } from "@workspace/shared/utils/ui";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
@@ -42,6 +51,7 @@ import {
 	isDateCoveredByAnyRule,
 } from "@workspace/shared/utils/tourDetails";
 import { useIsMobile } from "~/hooks/use-mobile";
+import { Skeleton } from "~/components/ui/skeleton";
 
 const participantSchema = z.object({
 	quantities: z.record(z.number().min(0).int()),
@@ -74,10 +84,30 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 		relatedToursByCategory = relatedTours.tours;
 	}
 
+	const url = new URL(request.url);
+	const optionId = Number(url.searchParams.get("optionId"));
+	const dateStr = url.searchParams.get("date");
+
+	let availability: {
+		id: number;
+		available_seats: number;
+	}[] = [];
+
+	console.log(optionId, dateStr);
+
+	if (optionId && dateStr) {
+		availability = await queryClient.fetchQuery(availabilityQuery(request, optionId, dateStr));
+	}
+
+	// console.log(availability);
+
 	return {
 		tour: data,
 		relatedToursByCity: relatedToursByCity ?? [],
 		relatedToursByCategory: relatedToursByCategory ?? [],
+		availability,
+		optionId,
+		dateStr,
 	};
 };
 
@@ -115,7 +145,7 @@ function getStructuredData(tour: GetTourDetails) {
 				if (opt.availability_rules == null) return false;
 				return opt.availability_rules.every((a) =>
 					a.time_slots.every((s) => {
-						return s.capacity > 0;
+						return s.capacity > 0 && s.is_active;
 					}),
 				);
 			})
@@ -137,6 +167,10 @@ export default function TourDetailsPage() {
 	const loaderData = useLoaderData<typeof loader>();
 	const tour = loaderData?.tour ?? null;
 	const isMobile = useIsMobile();
+	const revalidator = useRevalidator();
+	const navigation = useNavigation();
+	const location = useLocation();
+	const [_, setSearchParams] = useSearchParams();
 
 	const [selectedOption, setSelectedOption] = useState<TourDetailOption | null>(null);
 	const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
@@ -145,6 +179,10 @@ export default function TourDetailsPage() {
 	const [stepsDialogOpen, setStepsDialogOpen] = useState(false);
 
 	if (!tour) return <div>Tour not found</div>;
+
+	const handleDateNextClick = () => {
+		setStep("time");
+	};
 
 	const handleButtonClick = (option: TourDetailOption) => {
 		setStepsDialogOpen(true);
@@ -155,6 +193,11 @@ export default function TourDetailsPage() {
 	const handleDateSelect = (date: Date | undefined) => {
 		if (date) {
 			setSelectedDate(date);
+			setSearchParams({
+				optionId: selectedOption?.id.toString() ?? "",
+				date: format(date, "yyyy-MM-dd"),
+			});
+			revalidator.revalidate();
 		}
 	};
 
@@ -183,6 +226,26 @@ export default function TourDetailsPage() {
 		tour.meta_details?.url_key != undefined
 			? `${process.env.VITE_MAIN_APP_URL}/tours/tour/` + tour.id + "/" + tour.meta_details?.url_key
 			: undefined;
+
+	const availability = loaderData?.availability ?? [];
+
+	const isLoadingSlots =
+		(selectedDate &&
+			selectedOption?.id &&
+			format(selectedDate, "yyyy-MM-dd") &&
+			availability.length === 0) ||
+		(navigation.state === "loading" && navigation.location?.pathname === location.pathname);
+
+	const updatedTimeSlots = useMemo(() => {
+		if (!selectedDate || !selectedOption) return [];
+		const baseSlots = getTimeSlotsForDate(selectedDate, selectedOption);
+		const availabilityMap = new Map(availability.map((s) => [s.id, s.available_seats]));
+
+		return baseSlots.map((slot) => ({
+			...slot,
+			capacity: availabilityMap.get(slot.id) ?? slot.capacity,
+		}));
+	}, [availability, selectedDate, selectedOption]);
 
 	return (
 		<>
@@ -337,7 +400,10 @@ export default function TourDetailsPage() {
 														{getUpcomingAvailableDates(option, 3).length == 0 &&
 															((option.availability_rules ?? []).every((a) =>
 																(a.time_slots ?? []).every(
-																	(s) => s.capacity == 0,
+																	(s) =>
+																		availability.find(
+																			(a) => a.id === s.id,
+																		)?.available_seats,
 																),
 															) ||
 																option.availability_rules.length == 0) && (
@@ -496,6 +562,14 @@ export default function TourDetailsPage() {
 															onOpenChange={() => {
 																setSelectedDate(undefined);
 																setStepsDialogOpen(false);
+																const newUrl = new URL(window.location.href);
+																newUrl.searchParams.delete("optionId");
+																newUrl.searchParams.delete("date");
+																window.history.replaceState(
+																	{},
+																	"",
+																	newUrl.toString(),
+																);
 															}}
 															open={stepsDialogOpen}
 														>
@@ -567,12 +641,18 @@ export default function TourDetailsPage() {
 																							</span>
 																						</button>
 																					</div>
-																					{selectedTimeSlot.capacity && (
+																					{availability.length >
+																						0 && (
 																						<p className="text-sm">
 																							{
-																								selectedTimeSlot.capacity
+																								availability.find(
+																									(a) =>
+																										a.id ===
+																										selectedTimeSlot.id,
+																								)
+																									?.available_seats
 																							}{" "}
-																							seats available
+																							seat(s) available
 																						</p>
 																					)}
 																				</div>
@@ -657,9 +737,7 @@ export default function TourDetailsPage() {
 																		<div className="w-fit ml-auto">
 																			<Button
 																				size={"sm"}
-																				onClick={() =>
-																					setStep("time")
-																				}
+																				onClick={handleDateNextClick}
 																				disabled={
 																					(selectedDate &&
 																						getTimeSlotsForDate(
@@ -685,39 +763,50 @@ export default function TourDetailsPage() {
 																					: "a timeslot"}
 																			</p>
 																			<div className="flex gap-2 flex-wrap">
-																				{getTimeSlotsForDate(
-																					selectedDate,
-																					selectedOption,
-																				).map(
-																					(
-																						slot: AvailabilitySlot,
-																					) => {
-																						const disabled =
-																							slot.capacity ===
-																								0 ||
-																							slot.is_active ==
-																								false;
+																				{isLoadingSlots ? (
+																					<>
+																						<Skeleton className="h-10 w-28 rounded-md" />
+																						<Skeleton className="h-10 w-28 rounded-md" />
+																						<Skeleton className="h-10 w-28 rounded-md" />
+																					</>
+																				) : (
+																					updatedTimeSlots.map(
+																						(slot) => {
+																							const seats =
+																								slot.capacity;
+																							const disabled =
+																								seats <= 0 ||
+																								!slot.is_active;
 
-																						return (
-																							<Button
-																								key={slot.id}
-																								variant={
-																									"secondary"
-																								}
-																								className={`w-fit ${disabled ? "pointer-events-none" : "border-2 border-primary"}`}
-																								onClick={() =>
-																									handleTimeSelect(
-																										slot,
-																									)
-																								}
-																								disabled={
-																									disabled
-																								}
-																							>
-																								{slot.label}
-																							</Button>
-																						);
-																					},
+																							return (
+																								<Button
+																									key={
+																										slot.id
+																									}
+																									variant="secondary"
+																									className={cn(
+																										"w-fit min-w-25",
+																										disabled
+																											? "opacity-60 cursor-not-allowed pointer-events-none"
+																											: "border-2 border-primary hover:bg-primary/10",
+																									)}
+																									onClick={() =>
+																										handleTimeSelect(
+																											slot,
+																										)
+																									}
+																									disabled={
+																										disabled
+																									}
+																								>
+																									{
+																										slot.label
+																									}
+																									{` (${seats})`}
+																								</Button>
+																							);
+																						},
+																					)
 																				)}
 																			</div>
 																		</div>
@@ -728,9 +817,11 @@ export default function TourDetailsPage() {
 																	selectedDate && (
 																		<ParticipantFormComponent
 																			option={selectedOption}
-																			selectedTimeSlot={
-																				selectedTimeSlot
-																			}
+																			selectedTimeSlot={{
+																				...selectedTimeSlot,
+																				capacity:
+																					selectedTimeSlot.capacity,
+																			}}
 																			selectedDate={selectedDate}
 																		/>
 																	)}
@@ -881,6 +972,26 @@ const ParticipantFormComponent = memo(
 			if (Object.values(data.quantities).some((qty) => qty > 0) === false) {
 				toast.error("Please select at least one participant.");
 				return;
+			}
+
+			let availability_slots = loaderData?.availability;
+			if (availability_slots && availability_slots.length > 0) {
+				const available_seats =
+					availability_slots.find((slot) => slot.id === selectedTimeSlot.id)?.available_seats ||
+					selectedTimeSlot.capacity;
+
+				let input_qty = 0;
+				for (const key in data.quantities) {
+					key in data.quantities && (input_qty += data.quantities[key]);
+				}
+
+				if (input_qty > available_seats) {
+					toast.error(
+						`There ${available_seats <= 1 ? "is" : "are"} only ${available_seats} available seat(s) for this time slot. Please select a different time slot or reduce the number of participants.`,
+					);
+
+					return;
+				}
 			}
 
 			navigate("/booking", {

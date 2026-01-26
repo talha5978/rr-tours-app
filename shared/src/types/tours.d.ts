@@ -3,7 +3,7 @@ import type { Database, Tables } from "@workspace/shared/types/supabase";
 export type SeatType = Database["public"]["Enums"]["timeslot_seat_type"];
 
 export type TourDetailAvailability = Tables<"availability_rules"> & {
-	time_slots: Array<Tables<"time_slots">>;
+	time_slots: Array<Tables<"time_slots"> & { available_seats: number }>;
 };
 
 export type TourDetailOption = Tables<"tour_options"> & {

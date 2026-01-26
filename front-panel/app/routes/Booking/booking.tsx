@@ -86,7 +86,7 @@ export default function BookingPage() {
 		tour: GetTourDetails;
 		option: TourDetailOption;
 		date: Date;
-		timeSlot: TourDetailAvailability["slots"][0];
+		timeSlot: TourDetailAvailability["time_slots"][0];
 		quantities: Record<number, number>;
 	} = location.state || {};
 
@@ -166,7 +166,7 @@ export default function BookingPage() {
 			tour_option_id: option.id,
 			tour_option_name: option.name,
 			date: format(date, "yyyy-MM-dd"),
-			timeslot: timeSlot.time_slot.label || timeSlot.time_slot.time,
+			timeslot: timeSlot.label,
 			isOpenDated: option.isOpenDated,
 			participants: Object.entries(quantities)
 				.filter(([, qty]) => qty > 0)
@@ -342,7 +342,7 @@ export default function BookingPage() {
 							</div>
 							<div className="booking-page-row">
 								<h3>Time Slot</h3>
-								<span>{timeSlot.time_slot.label || timeSlot.time_slot.time}</span>
+								<span>{timeSlot.label}</span>
 							</div>
 						</CardContent>
 						<Separator />

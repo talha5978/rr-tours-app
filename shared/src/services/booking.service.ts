@@ -40,6 +40,12 @@ export class BookingService extends Service {
 		}
 	}
 
+	private getDayOfWeek(dateStr: string): number {
+		const date = new Date(dateStr);
+		const day = date.getDay();
+		return day === 0 ? 7 : day;
+	}
+
 	/** create a booking */
 	async createBooking(input: CreateBookingInput): Promise<string> {
 		const {
@@ -52,7 +58,7 @@ export class BookingService extends Service {
 			tour_option_name,
 			date,
 			timeslot,
-			// isOpenDated,
+			isOpenDated,
 			participants,
 			subtotal,
 			discount,
@@ -61,6 +67,73 @@ export class BookingService extends Service {
 		} = input;
 
 		try {
+			if (!isOpenDated) {
+				const totalRequested = participants.reduce((sum, p) => sum + p.quantity, 0);
+				const { data: booked, error: bookedErr } = await this.supabase
+					.from(this.BOOKINGS_TABLE)
+					.select(
+						`
+						id,
+						${this.BOOKING_PARTICIPANTS_TABLE} (quantity)
+					`,
+					)
+					.eq("tour_option_id", tour_option_id)
+					.eq("preferred_date", date)
+					.eq("preferred_timeslot", timeslot)
+					.in("booking_status", ["PENDING", "CONFIRMED"]);
+
+				if (bookedErr) throw new ApiError("Failed to check booked capacity", 500);
+
+				const alreadyBooked =
+					booked?.reduce(
+						(sum, b) => sum + (b.booking_participants?.reduce((s, p) => s + p.quantity, 0) ?? 0),
+						0,
+					) ?? 0;
+
+				const weekday = await this.getDayOfWeek(date);
+
+				const { data: capacityData, error: capErr } = await this.supabase
+					.from(this.AVAILABILITY_RULES_TABLE)
+					.select(
+						`
+						${this.TIMESLOTS_TABLE}!inner (
+							id,
+							label,
+							capacity
+						)
+					`,
+					)
+					.eq("tour_option_id", tour_option_id)
+					.lte("start_date", date)
+					.gte("end_date", date)
+					.contains("weekdays", [weekday])
+					.single();
+
+				if (capErr || !capacityData) {
+					console.error(capErr ?? "No api error");
+
+					throw new ApiError("No availability rule found for this date", 400);
+				}
+
+				const matchingSlot = capacityData.time_slots.find((slot) => slot.label === timeslot);
+
+				if (!matchingSlot) {
+					throw new ApiError(`Time slot "${timeslot}" not available on ${date}`, 400);
+				}
+
+				const maxCapacity = matchingSlot.capacity ?? Infinity;
+
+				// console.log(alreadyBooked, totalRequested, maxCapacity);
+
+				if (alreadyBooked + totalRequested > maxCapacity) {
+					throw new ApiError(
+						`Not enough capacity available (Only ${maxCapacity - alreadyBooked} left)`,
+						409,
+						[],
+					);
+				}
+			}
+
 			// Generate unique booking_ref
 			const booking_ref = await this.generateUniqueBookingRef();
 
