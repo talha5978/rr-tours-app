@@ -5,7 +5,7 @@ import { FB_URL, INSTAGRAM_URL } from "@workspace/shared/constants/constants";
 
 export default function Footer({ categories }: { categories: FPHighLevelCategory[] }) {
 	return (
-		<footer className="border-t bg-background max-container ">
+		<footer className="border-t bg-background max-container">
 			<div className="mx-auto py-10">
 				<div className="grid gap-8 md:grid-cols-[2fr_1fr_1fr_1fr]">
 					{/* Brand */}
@@ -124,14 +124,43 @@ export default function Footer({ categories }: { categories: FPHighLevelCategory
 					</div>
 				</div>
 
-				{/* Bottom bar */}
-				<div className="mt-8 flex flex-col gap-3 border-t pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-					<p>© {new Date().getFullYear()} Top Attractions Dubai. All rights reserved.</p>
+				{/* Bottom bar - Payment logos added here */}
+				<div className="mt-8 flex flex-col gap-4 border-t pt-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+					<div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+						<p>© {new Date().getFullYear()} Top Attractions Dubai. All rights reserved.</p>
 
-					<span className="flex gap-2 items-center">
-						<span>Made with care for travelers</span>
-						<Heart className="size-4 text-destructive fill-destructive" />
-					</span>
+						<span className="flex gap-2 items-center">
+							<span>Made with care for travelers</span>
+							<Heart className="size-4 text-destructive fill-destructive" />
+						</span>
+					</div>
+
+					<div className="flex items-center gap-4 max-sm:mt-5 sm:gap-5 justify-center sm:justify-end flex-wrap">
+						<img
+							src="https://cdn-icons-png.flaticon.com/512/349/349221.png"
+							alt="Visa"
+							className="sm:h-6 h-8 w-auto"
+							loading="lazy"
+						/>
+						<img
+							src="https://cdn-icons-png.flaticon.com/512/349/349228.png"
+							alt="Mastercard"
+							className="sm:h-6 h-8 w-auto"
+							loading="lazy"
+						/>
+						<img
+							src="https://www.mastercard.com/brandcenter/us/en/download-artwork/_jcr_content/root/container/container_1578756628/container_copy/container/container/teaser2.coreimg.png/1751029719778/mastercard-symbol-square-black.png"
+							className="sm:h-6 h-8 w-auto"
+							alt="Master Card"
+							loading="lazy"
+						/>
+						<img
+							src="https://cdn-icons-png.freepik.com/512/6124/6124998.png"
+							alt="G Pay"
+							className="h-8 w-auto"
+							loading="lazy"
+						/>
+					</div>
 				</div>
 			</div>
 		</footer>
