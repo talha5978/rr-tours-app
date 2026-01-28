@@ -48,6 +48,7 @@ export default defineConfig(({ mode }) => {
 			"process.env.VITE_PROJECT_ID": JSON.stringify(env.VITE_PROJECT_ID),
 			"process.env.VITE_SUPABASE_URL": JSON.stringify(env.VITE_SUPABASE_URL),
 			"process.env.VITE_MAIN_APP_URL": JSON.stringify(env.VITE_MAIN_APP_URL),
+			"process.env.VITE_RECAPTCHA_SITE_KEY": JSON.stringify(env.VITE_RECAPTCHA_SITE_KEY),
 		},
 		server: {
 			port: 5175,
