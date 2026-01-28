@@ -11,6 +11,7 @@ import HeroSection from "~/components/Home/HeroSection";
 import { allHeroSectionsQuery } from "@workspace/shared/queries/hero-sections.q";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
 import { SUPABASE_IMAGE_BUCKET_PATH } from "@workspace/shared/constants/constants";
+import { InquiryBanner } from "~/components/Contact/InquirySection";
 
 export const loader = async ({ request }: Route.LoaderArgs) => {
 	const featuredToursResp = await queryClient.fetchQuery(
@@ -40,6 +41,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 				<CitiesSection cities={loaderData.citiesResp.data ?? []} />
 				<WhyUsSection />
 				<CategoriesSection categories={loaderData.categoriesResp.data ?? []} />
+				<InquiryBanner />
 			</section>
 		</>
 	);

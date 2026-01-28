@@ -26,6 +26,7 @@ import { TourSort } from "~/components/Tour/TourSort";
 import { type FPTourFilters } from "@workspace/shared/schemas/fp-tours-filter.schema";
 import { SquareArrowOutUpRight } from "lucide-react";
 import { cityTagsQuery } from "~/queries/tags.q";
+import { InquiryBanner } from "~/components/Contact/InquirySection";
 
 const pageSize = 20;
 
@@ -204,8 +205,12 @@ export default function CityPage() {
 					</div>
 				</section>
 
-				<section className="mt-16">
+				<section className="space-y-10 mt-16">
 					<WhyUsSection />
+					<InquiryBanner
+						heading={`Ready to experience top attractions in ${cityData.data.name ?? "UAE"}?`}
+						details={`Send us a quick inquiry! We’ll help you plan a perfect ${cityData.data.name ?? "UAE"} experience.`}
+					/>
 				</section>
 			</div>
 		</>
