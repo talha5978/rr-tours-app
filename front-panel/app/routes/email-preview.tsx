@@ -1,7 +1,7 @@
 import { render } from "@react-email/render";
 import { Await, useLoaderData } from "react-router";
 import { Suspense } from "react";
-import SoftBookingEmail from "@workspace/shared/emails/templates/SoftBookingCreationEmail";
+import BookingConfirmationEmail from "@workspace/shared/emails/templates/BookingConfirmationEmail";
 
 export const loader = async () => {
 	const sampleData = {
@@ -13,26 +13,20 @@ export const loader = async () => {
 
 	// Render to HTML string (for <div dangerouslySetInnerHTML>)
 	const html = render(
-		<SoftBookingEmail
-			booking_ref="LKSFA234"
-			date="2026-02-15"
-			total={1250}
-			customer_name="Sara Khan"
-			customer_email="sara@example.com"
-			customer_phone="+971501234567"
-			tour_id="tour-abc123"
-			tour_name="Dubai Desert Safari with BBQ Dinner"
-			tour_option_id={2}
-			tour_option_name="Private 4x4"
-			timeslot="Afternoon (15:00)"
-			isOpenDated={false}
-			participants={[
-				{ participant_name: "Adult", participant_type_id: 1, quantity: 2, unit_price: 350 },
-				{ participant_name: "Child", participant_type_id: 2, quantity: 1, unit_price: 200 },
-			]}
-			subtotal={900}
-			discount={0}
-			taxes={0}
+		<BookingConfirmationEmail
+			booking_ref="BK-20260215-7842"
+			customer_name="Aisha Malik"
+			customer_email="aisha@example.com"
+			customer_phone="+971 50 123 4567"
+			confirmed_timeslot="Afternoon (15:00)"
+			confirmed_date="2026-03-10"
+			tour_name="Abu Dhabi Full Day Tour"
+			tour_option_name="Private Transfer"
+			total_amount={1850}
+			number_of_participants={3}
+			meeting_point="Hotel lobby – please be ready 15 min early"
+			important_notes="Bring passport copy, sunscreen, comfortable shoes.\nNo refunds within 48 hours."
+			attachments={[{ filename: "sample_pdf.pdf", content: "base64stringhere..." }]}
 		/>,
 		{
 			pretty: true,

@@ -1,6 +1,10 @@
 import { queryOptions } from "@tanstack/react-query";
 import { BookingService } from "@workspace/shared/services/booking.service";
-import type { GetBookingDetailByID, GetHighLevelBookings } from "@workspace/shared/types/booking";
+import type {
+	GetBookingDetailByID,
+	GetBookingDetailsForConfirm,
+	GetHighLevelBookings,
+} from "@workspace/shared/types/booking";
 
 export const highLevelBookingsQuery = ({
 	request,
@@ -29,6 +33,17 @@ export const getBookingDetailById = ({ request, id }: { request: Request; id: st
 		queryFn: async () => {
 			const svc = new BookingService(request);
 			const result = await svc.getBookingById(id);
+			return result;
+		},
+	});
+};
+
+export const getBookingForConfirmation = ({ request, id }: { request: Request; id: string }) => {
+	return queryOptions<GetBookingDetailsForConfirm>({
+		queryKey: ["booking_for_confirmation", id],
+		queryFn: async () => {
+			const svc = new BookingService(request);
+			const result = await svc.getBookingForConfirmation(id);
 			return result;
 		},
 	});

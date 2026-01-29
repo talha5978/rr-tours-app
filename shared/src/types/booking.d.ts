@@ -75,3 +75,19 @@ export type GetBookingDetailByID = {
 	booking: BookingDetailById | null;
 	error: ApiError | null;
 };
+
+export type GetBookingDetailsForConfirm = {
+	booking: {
+		booking_ref: string;
+		customer_name: string;
+		customer_email: string;
+		customer_phone: string;
+		confirmed_timeslot: string;
+		confirmed_date: string;
+		tour_name: string;
+		tour_option_name?: string;
+		total_amount: string;
+		number_of_participants: number;
+	} | null;
+	error: ApiError | null;
+};

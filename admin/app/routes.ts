@@ -33,10 +33,10 @@ export default [
 			]),
 		]),
 
-		...prefix("bookings", [
-			index("./routes/Booking/bookings.tsx"),
-			route(":id/:ref/update", "./routes/Booking/update-booking.tsx"),
+		route("bookings", "./routes/Booking/bookings.tsx", [
+			route("send-confirmation-email/:booking_id", "./routes/Booking/send-confirmation-email.tsx"),
 		]),
+		route("bookings/:id/:ref/update", "./routes/Booking/update-booking.tsx"),
 
 		route("hero-sections", "./routes/HeroSections/hero-sections.tsx", [
 			route("add", "./routes/HeroSections/add-hero-section.tsx"),

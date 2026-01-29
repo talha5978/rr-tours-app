@@ -2,12 +2,13 @@ import { ColumnDef, getCoreRowModel, useReactTable } from "@tanstack/react-table
 import { HighLevelBooking } from "@workspace/shared/types/booking";
 import { queryClient } from "@workspace/shared/utils/query-client";
 import { format } from "date-fns";
-import { MoreHorizontal, Search } from "lucide-react";
+import { Loader2, MoreHorizontal, Search } from "lucide-react";
 
 import {
 	Form,
 	Link,
 	type LoaderFunctionArgs,
+	Outlet,
 	useLoaderData,
 	useLocation,
 	useNavigation,
@@ -27,6 +28,7 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
 import { Input } from "~/components/ui/input";
@@ -222,6 +224,9 @@ export default function BookingsPage() {
 			id: "actions",
 			cell: ({ row }) => {
 				const rowData: HighLevelBooking = row.original;
+				const isGoingToEmailDialog =
+					navigation.state === "loading" &&
+					navigation.location.pathname === "/bookings/send-confirmation-email/" + rowData.id;
 
 				return (
 					<>
@@ -232,6 +237,19 @@ export default function BookingsPage() {
 								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="end">
+								{rowData.booking_status === "CONFIRMED" &&
+									rowData.payment_status === "PAID" && (
+										<>
+											<Link to={`send-confirmation-email/${rowData.id}`} viewTransition>
+												<DropdownMenuItem>
+													{isGoingToEmailDialog && <Loader2 />}
+													Send Email
+												</DropdownMenuItem>
+											</Link>
+											<DropdownMenuSeparator />
+										</>
+									)}
+
 								{rowData.tour_id && (
 									<>
 										<Link
@@ -314,6 +332,7 @@ export default function BookingsPage() {
 					)}
 				</div>
 			</section>
+			<Outlet />
 		</>
 	);
 }

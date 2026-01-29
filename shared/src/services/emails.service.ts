@@ -5,21 +5,9 @@ import { ApiError } from "@workspace/shared/utils/ApiError";
 import { type ReactNode } from "react";
 import { Resend } from "resend";
 import type { Attachment } from "resend";
-import type { SoftBookingEmailProps } from "@workspace/shared/types/emails";
+import type { BookingConfirmationPayload, SoftBookingEmailProps } from "@workspace/shared/types/emails";
 import SoftBookingEmail from "@workspace/shared/emails/templates/SoftBookingCreationEmail";
-
-interface OrderConfirmationPayload {
-	orderId: string;
-	customerEmail: string;
-	customerName: string;
-	orderDetails: string; // Or better: object with items, total, etc. – render to HTML/text
-	attachments?: Array<{
-		filename: string;
-		content: Buffer | string; // Buffer from fetch or string (base64)
-		contentType?: string; // defaults to 'application/pdf'
-	}>;
-	// You can pass a pre-rendered HTML string or use React Email here
-}
+import BookingConfirmationEmail from "@workspace/shared/emails/templates/BookingConfirmationEmail";
 
 class EmailService {
 	private static instance: EmailService | null = null;
@@ -51,6 +39,7 @@ class EmailService {
 		text,
 		attachments,
 		react,
+		cc,
 	}: {
 		from: string;
 		to: string | string[];
@@ -58,6 +47,7 @@ class EmailService {
 		text?: string;
 		react?: ReactNode;
 		attachments?: Attachment[];
+		cc?: string | string[];
 	}) {
 		this.initializeResend();
 
@@ -73,6 +63,7 @@ class EmailService {
 				text,
 				react,
 				attachments,
+				cc,
 			});
 
 			if (error) {
@@ -119,32 +110,34 @@ class EmailService {
 		});
 	}
 
-	/** Send confirmation email to customer (triggered by admin after payment confirmed) */
-	public async sendOrderConfirmation(payload: OrderConfirmationPayload, react: string) {
-		const { orderId, customerEmail, customerName, orderDetails, attachments = [] } = payload;
+	/** Send confirmation email to customer */
+	public async sendBookingConfirmation(payload: BookingConfirmationPayload) {
+		const { booking_ref, tour_name, customer_name } = payload;
 
-		// Convert attachments to Resend format if needed
-		const resendAttachments: Attachment[] = attachments.map((att) => ({
-			filename: att.filename,
-			content: att.content instanceof Buffer ? att.content.toString("base64") : att.content,
-			contentType: att.contentType || "application/pdf",
-		}));
+		const resendAttachments =
+			payload.attachments?.map((att) => ({
+				filename: att.filename,
+				content: att.content instanceof Buffer ? att.content.toString("base64") : att.content,
+				contentType: att.contentType || "application/pdf",
+			})) ?? [];
 
 		return this.sendEmail({
 			from: `Top Attractions Dubai <bookings@topattractionsdubai.com>`,
-			to: customerEmail,
-			subject: `Order Confirmation - #${orderId}`,
-			text: `Thank you for your order, ${customerName}!\n\nYour order #${orderId} is confirmed.\n\nDetails:\n${orderDetails}`,
-			// html: `
-			//     <h2>Order Confirmed!</h2>
-			//     <p>Dear ${customerName},</p>
-			//     <p>Your order <strong>#${orderId}</strong> has been confirmed and is being processed.</p>
-			//     <h3>Order Details</h3>
-			//     <pre>${orderDetails}</pre> <!-- Or better: render a table with items, total, etc. -->
-			//     <p>Attached are your tour tickets (if applicable).</p>
-			//     <p>Thank you for shopping with us!</p>
-			// `,
-			react,
+			to: payload.customer_email,
+			cc: EMAIL_ADDRESS_1,
+			subject: `Booking Confirmed – ${tour_name} #${booking_ref}`,
+			text: [
+				`Dear ${customer_name},`,
+				``,
+				`Your booking #${booking_ref} is confirmed!`,
+				`Tour: ${tour_name}`,
+				`Date: ${payload.confirmed_date} at ${payload.confirmed_timeslot}`,
+				`Total: AED ${payload.total_amount.toFixed(2)}`,
+				``,
+				`Tickets attached.`,
+				`Thank you for choosing Top Attractions Dubai!`,
+			].join("\n"),
+			react: BookingConfirmationEmail(payload),
 			attachments: resendAttachments.length > 0 ? resendAttachments : undefined,
 		});
 	}

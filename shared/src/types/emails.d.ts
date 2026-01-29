@@ -21,3 +21,23 @@ export interface SoftBookingEmailProps {
 	discount: number;
 	taxes: number;
 }
+
+export interface BookingConfirmationPayload {
+	booking_ref: string;
+	customer_name: string;
+	customer_email: string;
+	customer_phone: string;
+	confirmed_timeslot: string;
+	confirmed_date: string;
+	tour_name: string;
+	tour_option_name?: string;
+	total_amount: number;
+	number_of_participants: number;
+	meeting_point?: string;
+	important_notes?: string;
+	attachments?: Array<{
+		filename: string;
+		content: Buffer | string; // Buffer from fetch or string (base64)
+		contentType?: string; // defaults to 'application/pdf'
+	}>;
+}

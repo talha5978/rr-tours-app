@@ -8,6 +8,7 @@ import type {
 	BookingDetailById,
 	FPBookingByRefDetail,
 	GetBookingDetailByID,
+	GetBookingDetailsForConfirm,
 	GetHighLevelBookings,
 	HighLevelBooking,
 } from "@workspace/shared/types/booking";
@@ -538,5 +539,60 @@ export class BookingService extends Service {
 		} catch (error) {
 			throw error instanceof ApiError ? error : new ApiError("Failed to update booking", 500, []);
 		}
+	}
+
+	/** get booking details for confirmation email dialog */
+	async getBookingForConfirmation(booking_id: string): Promise<GetBookingDetailsForConfirm> {
+		if (!booking_id || booking_id === "") {
+			throw new ApiError("Missing booking id", 400, []);
+		}
+
+		const { data, error } = await this.supabase
+			.from(this.BOOKINGS_TABLE)
+			.select(
+				`
+					booking_ref,
+					customer_name,
+					customer_email,
+					customer_phone,
+					confirmed_date,
+					confirmed_timeslot,
+					tour_name,
+					tour_option_name,
+					total_amount:total.sum(),
+					${this.BOOKING_PARTICIPANTS_TABLE}!inner(id)
+				`,
+			)
+			.eq("id", booking_id)
+			.limit(1)
+			.maybeSingle();
+
+		if (error) {
+			return {
+				booking: null,
+				error: new ApiError(error.message, 500, []),
+			};
+		}
+
+		let payload: GetBookingDetailsForConfirm["booking"] = {
+			confirmed_date: data?.confirmed_date ?? "N/A",
+			confirmed_timeslot: data?.confirmed_timeslot ?? "N/A",
+			customer_email: data?.customer_email ?? "N/A",
+			customer_name: data?.customer_name ?? "N/A",
+			customer_phone: data?.customer_phone ?? "N/A",
+			tour_name: data?.tour_name ?? "N/A",
+			tour_option_name: data?.tour_option_name ?? "N/A",
+			booking_ref: data?.booking_ref ?? "N/A",
+			number_of_participants:
+				data?.booking_participants && data?.booking_participants.length > 0
+					? data?.booking_participants.length
+					: 0,
+			total_amount: data?.total_amount.toString() ?? "N/A",
+		};
+
+		return {
+			booking: payload ?? null,
+			error: null,
+		};
 	}
 }
