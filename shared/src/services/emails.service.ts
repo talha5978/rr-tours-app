@@ -5,13 +5,8 @@ import { ApiError } from "@workspace/shared/utils/ApiError";
 import { type ReactNode } from "react";
 import { Resend } from "resend";
 import type { Attachment } from "resend";
-
-interface OrderCreatedNotificationPayload {
-	orderId: string;
-	customerName: string;
-	customerEmail: string;
-	total: number;
-}
+import type { SoftBookingEmailProps } from "@workspace/shared/types/emails";
+import SoftBookingEmail from "@workspace/shared/emails/templates/SoftBookingCreationEmail";
 
 interface OrderConfirmationPayload {
 	orderId: string;
@@ -111,28 +106,16 @@ class EmailService {
 		});
 	}
 
-	/** Send notification to agency when a new order/booking is created */
-	public async sendOrderCreatedNotification(payload: OrderCreatedNotificationPayload, react: string) {
-		const { orderId, customerName, customerEmail, total } = payload;
-
-		const EMAIL_ADDRESS_1 = process.env.STORE_EMAIL || "admin@yourstore.com";
+	/** Send email to agency when a new booking is created */
+	public async sendSoftBookingCreationEmail(payload: SoftBookingEmailProps) {
+		const { booking_ref, customer_email, customer_name, total, customer_phone, tour_name } = payload;
 
 		return this.sendEmail({
 			from: `Top Attractions Dubai <bookings@topattractionsdubai.com>`,
 			to: EMAIL_ADDRESS_1,
-			subject: `New Order Received: #${orderId}`,
-			text: `A new order has been placed!\n\nOrder ID: ${orderId}\nCustomer: ${customerName} (${customerEmail})\nTotal: $${total.toFixed(2)}`,
-			// html: `
-			//     <h2>New Order Notification</h2>
-			//     <p>A new order has been created on your store.</p>
-			//     <ul>
-			//     <li><strong>Order ID:</strong> ${orderId}</li>
-			//     <li><strong>Customer:</strong> ${customerName} (${customerEmail})</li>
-			//     <li><strong>Total Amount:</strong> $${total.toFixed(2)}</li>
-			//     </ul>
-			//     <p>Check the admin panel for full details.</p>
-			// `,
-			react,
+			subject: `New Booking: #${booking_ref} - ${tour_name}`,
+			text: `A new booking has been placed!\n\nBooking Reference: ${booking_ref}\nCustomer: ${customer_name} (${customer_email}, ${customer_phone})\nTotal: $${total.toFixed(2)}`,
+			react: SoftBookingEmail(payload),
 		});
 	}
 

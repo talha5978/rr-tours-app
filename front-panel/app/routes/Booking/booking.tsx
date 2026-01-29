@@ -14,7 +14,7 @@ import { Input } from "~/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Separator } from "~/components/ui/separator";
 import { format } from "date-fns";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { TourDetailOption, TourDetailAvailability } from "@workspace/shared/types/tours";
 import { GetTourDetails } from "@workspace/shared/types/tours";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
@@ -32,19 +32,38 @@ import {
 } from "@workspace/shared/schemas/booking.schema";
 import { BookingService } from "@workspace/shared/services/booking.service";
 import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
+import { GoogleReCaptcha, verifyRecaptcha } from "~/components/ReCaptcha/GoogleReCaptcha";
+import { emailService } from "@workspace/shared/services/emails.service";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
 	try {
-		// return { success: true, booking_ref: "HELLO234" }
 		if (request.method !== "POST") {
 			throw new ApiError("Invalid request method", 405, []);
 		}
 
 		const rawBody = await request.json();
-		// console.log(rawBody);
+
+		const recaptchaToken = rawBody["recaptchaToken"] as string;
+
+		if (!recaptchaToken || recaptchaToken == "") {
+			return {
+				success: false,
+				error: "Captcha identification failed",
+			};
+		}
+
+		const captchaResult = await verifyRecaptcha(recaptchaToken);
+
+		if (!captchaResult.success) {
+			return {
+				success: false,
+				error: "Captcha verification failed",
+			};
+		}
 
 		const svc = new BookingService(request);
 		const booking_ref = await svc.createBooking(rawBody);
+		await emailService.sendSoftBookingCreationEmail({ ...rawBody, booking_ref });
 
 		const cacheSvc = new CacheInvalidationService(request);
 		await cacheSvc.pushCacheInvalidationEvent({
@@ -99,7 +118,10 @@ export default function BookingPage() {
 		},
 	});
 
-	const { handleSubmit, control, setError } = form;
+	const { handleSubmit, control, setError, reset } = form;
+	const recaptchaRef = useRef(null);
+
+	const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
 	const subtotal = useMemo(() => {
 		if (!option || !quantities) {
@@ -120,8 +142,6 @@ export default function BookingPage() {
 
 	useEffect(() => {
 		if (actionData) {
-			console.log(actionData);
-
 			if (actionData.success) {
 				toast.success("Booking created successfully!", {
 					description: "You can track your booking using the provided reference ID.",
@@ -130,8 +150,21 @@ export default function BookingPage() {
 				if (actionData.booking_ref) {
 					setBookingRef(actionData.booking_ref);
 				}
+
+				setRecaptchaToken(null);
+				reset();
+				if (recaptchaRef.current !== null) {
+					// @ts-ignore
+					recaptchaRef.current.reset();
+				}
 			} else if (actionData.error) {
 				toast.error(actionData.error);
+				setRecaptchaToken(null);
+				reset();
+				if (recaptchaRef.current !== null) {
+					// @ts-ignore
+					recaptchaRef.current.reset();
+				}
 			} else if (actionData.validationErrors) {
 				toast.error("Invalid form data. Please check your inputs.");
 				Object.entries(actionData.validationErrors).forEach(([field, errors]) => {
@@ -157,7 +190,7 @@ export default function BookingPage() {
 			return;
 		}
 
-		let payload: CreateBookingInput = {
+		let payload: CreateBookingInput & { recaptchaToken: string } = {
 			customer_name: data.customer_name.trim(),
 			customer_email: data.customer_email.trim(),
 			customer_phone: data.customer_phone.trim(),
@@ -171,6 +204,11 @@ export default function BookingPage() {
 			participants: Object.entries(quantities)
 				.filter(([, qty]) => qty > 0)
 				.map(([typeId, qty]) => ({
+					participant_name:
+						tour.tour_options
+							.find((opt) => opt.id === option.id)
+							?.prices.find((p) => p.participant_type.id === Number(typeId))
+							?.participant_type.name.trim() || 0,
 					participant_type_id: Number(typeId),
 					quantity: qty,
 					unit_price:
@@ -180,6 +218,7 @@ export default function BookingPage() {
 			discount,
 			taxes,
 			total,
+			recaptchaToken: recaptchaToken ?? "",
 		};
 
 		submit(payload, {
@@ -305,8 +344,14 @@ export default function BookingPage() {
 										)}
 									/>
 
-									<div className="w-fit ml-auto">
-										<Button type="submit" disabled={isSubmitting}>
+									<GoogleReCaptcha
+										siteKey={process.env.VITE_RECAPTCHA_SITE_KEY as string}
+										onChange={(token) => setRecaptchaToken(token)}
+										ref={recaptchaRef}
+									/>
+
+									<div className="w-fit ml-auto mt-6">
+										<Button type="submit" disabled={isSubmitting || !recaptchaToken}>
 											{isSubmitting && <Loader2 className="animate-spin" />}
 											{isSubmitting ? "Submitting" : "Confirm Booking"}
 										</Button>
