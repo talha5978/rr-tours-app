@@ -1,5 +1,5 @@
 import type { ApiError } from "@workspace/shared/utils/ApiError";
-import type { AdminUser } from "@workspace/shared/types/user";
+import type { AdminUser, FullCurrentUser } from "@workspace/shared/types/user";
 import { type Session } from "@supabase/supabase-js";
 
 export type GetCurrentUser = {
@@ -27,4 +27,9 @@ export type VerifyOtp = {
 export type Logout = {
 	error: ApiError | null;
 	headers: Headers;
+};
+
+export type GetFullCurrentUser = {
+	user: FullCurrentUser | null;
+	error: ApiError | null;
 };

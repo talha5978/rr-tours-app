@@ -1,4 +1,4 @@
-import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
+import { Links, Meta, Outlet, redirect, Scripts, ScrollRestoration } from "react-router";
 import type { Route } from "./+types/root";
 import "./app.css";
 import ErrorPage from "~/components/Error/ErrorPage";
@@ -8,6 +8,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@workspace/shared/utils/query-client";
 import { getCacheInvalidationEvents } from "@workspace/shared/queries/cache-events.q";
 import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
+import { GetFullCurrentUser } from "@workspace/shared/types/auth";
+import { currentFullUserQuery } from "~/queries/auth.q";
 
 export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -23,7 +25,6 @@ export const links: Route.LinksFunction = () => [
 ];
 
 export async function loader({ request }: Route.LoaderArgs) {
-	console.log("🌸 ROOT LOADER RUNNING!");
 	const cacheEvents = await queryClient.fetchQuery(
 		getCacheInvalidationEvents({ request, target: "front" }),
 	);
@@ -63,7 +64,47 @@ export async function loader({ request }: Route.LoaderArgs) {
 		}
 	}
 
-	return null;
+	const url = new URL(request.url);
+	const pathname = url.pathname;
+
+	if (pathname.startsWith("/login")) {
+		const { genAuthSecurity } = await import("@workspace/shared/utils/auth-utils.server");
+		const { authId } = genAuthSecurity(request);
+
+		if (authId) {
+			const resp: GetFullCurrentUser = await queryClient.fetchQuery(
+				currentFullUserQuery({ request, authId }),
+			);
+			if (resp?.user) return redirect("/");
+		}
+
+		return {
+			headers: null,
+			user: null,
+			current_user_error: null,
+		};
+	}
+
+	const { genAuthSecurity } = await import("@workspace/shared/utils/auth-utils.server");
+	const { authId, headers } = genAuthSecurity(request);
+
+	const resp: GetFullCurrentUser = await queryClient.fetchQuery(currentFullUserQuery({ request, authId }));
+
+	const user = resp?.user ?? null;
+	const current_user_error = resp?.error ?? null;
+
+	if (!user || current_user_error) {
+		console.warn("❌ No user found");
+	}
+
+	user && console.log(user?.email, " logged in");
+	console.log(user);
+
+	return {
+		headers,
+		user: user,
+		current_user_error,
+	};
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -98,3 +139,9 @@ export default function App() {
 export function ErrorBoundary() {
 	return <ErrorPage />;
 }
+
+// Add authentication dialog (signup/login through email + google)
+// If logged in -> faster checkout (auto filled booking form)
+// Otherwise guest
+// show past bookings, reviews in the account section
+// Show reviews in the tour details page + in the home page + in the admin panel + in the structured data of the tour details page

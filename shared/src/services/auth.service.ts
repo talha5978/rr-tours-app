@@ -1,9 +1,16 @@
-import type { GetCurrentUser, GetSession, Login, Logout, VerifyOtp } from "@workspace/shared/types/auth.d";
-import type { AdminUser } from "@workspace/shared/types/user.d";
+import type {
+	GetCurrentUser,
+	GetFullCurrentUser,
+	GetSession,
+	Login,
+	Logout,
+	VerifyOtp,
+} from "@workspace/shared/types/auth.d";
+import type { AdminUser, FullCurrentUser } from "@workspace/shared/types/user.d";
 import { loggerMiddleware } from "@workspace/shared/middlewares/logger.middleware";
 import { UseClassMiddleware } from "@workspace/shared/decorators/useClassMiddleware";
 import { Service } from "@workspace/shared/services/service.base";
-import { type Session, type User, type UserResponse } from "@supabase/auth-js";
+import { Provider, type Session, type User, type UserResponse } from "@supabase/auth-js";
 import { ApiError } from "@workspace/shared/utils/ApiError";
 
 @UseClassMiddleware(loggerMiddleware)
@@ -170,7 +177,6 @@ export class AuthService extends Service {
 		}
 	}
 
-	// @UseMiddleware(verifyUser)
 	async logout(): Promise<Logout> {
 		try {
 			// Signout the user for this session only
@@ -212,6 +218,133 @@ export class AuthService extends Service {
 				error: err instanceof ApiError ? err : new ApiError("Unknown error", 500, [err]),
 				headers: this.headers,
 				data: null,
+			};
+		}
+	}
+
+	async getFullCurrentUser(): Promise<GetFullCurrentUser> {
+		console.log("FETCHING CURRENT USER -------->");
+		try {
+			const {
+				data: { user: authUser },
+				error: authUserErr,
+			} = await this.supabase.auth.getUser();
+			// console.log("Auth user: ", authUser);
+
+			let error: null | ApiError = null;
+			if (authUserErr || authUser == null) {
+				error = new ApiError(authUserErr?.message || "User not found", 401, []);
+				return { user: null, error };
+			}
+
+			const { data: userDetails, error: userDetailsErr } = await this.supabase
+				.from(this.USERS_TABLE)
+				.select(
+					`
+					user_id,
+					first_name,
+					last_name,
+					phone_number,
+					role,
+					created_at,
+					${this.USER_ROLES_TABLE}(id, role_name)
+				`,
+				)
+				.eq("user_id", authUser.id)
+				.eq("status", true)
+				.single();
+
+			if (userDetailsErr || userDetails == null) {
+				error = new ApiError(userDetailsErr?.message || "User not found", 401, []);
+				return { user: null, error };
+			}
+
+			const frontPanelUser: FullCurrentUser = {
+				id: authUser.id ?? userDetails.user_id,
+				email: authUser.email ?? "",
+				is_email_verified: authUser.user_metadata.email_verified ?? true,
+				first_name: userDetails.first_name ?? null,
+				last_name: userDetails.last_name ?? null,
+				phone_number: userDetails.phone_number ?? null,
+				role: {
+					role_id: userDetails.user_roles.id,
+					role_name: userDetails.user_roles.role_name,
+				},
+				created_at: userDetails.created_at ?? "N/A",
+			};
+
+			return { user: frontPanelUser, error };
+		} catch (err: any) {
+			if (err instanceof ApiError) {
+				return { user: null, error: err };
+			}
+			return {
+				user: null,
+				error: new ApiError("Unknown error", 500, [err]),
+			};
+		}
+	}
+
+	async loginWithPassword({ email, password }: { email: string; password: string }): Promise<Login> {
+		try {
+			const { error: fetchError } = await this.supabase.auth.signInWithPassword({
+				email,
+				password: password,
+			});
+
+			let error: null | ApiError = null;
+			if (fetchError) {
+				error = new ApiError(fetchError.message, 500, []);
+			}
+
+			return { error, headers: this.headers };
+		} catch (err: any) {
+			return {
+				error: err instanceof ApiError ? err : new ApiError("Unknown error", 500, [err]),
+				headers: this.headers,
+			};
+		}
+	}
+
+	async loginWithGoogle({
+		redirectToOrigin,
+	}: {
+		redirectToOrigin: string;
+	}): Promise<Login & { url: string | null }> {
+		try {
+			const PROVIDER: Provider = "google";
+			const redirectTo =
+				process.env.NODE_ENV === "production"
+					? process.env.VITE_MAIN_APP_URL + "/auth/callback"
+					: redirectToOrigin + "/auth/callback";
+
+			const { error: fetchError, data } = await this.supabase.auth.signInWithOAuth({
+				provider: PROVIDER,
+				options: {
+					redirectTo: redirectTo,
+					queryParams: {
+						access_type: "offline",
+						prompt: "consent",
+					},
+				},
+			});
+
+			let error: null | ApiError = null;
+			if (fetchError) {
+				console.error(fetchError);
+				error = new ApiError(fetchError.message, Number(fetchError.code) || 500, []);
+			}
+
+			return { error, headers: this.headers, url: data.url };
+		} catch (err: any) {
+			if (err instanceof ApiError) {
+				return { error: err, headers: this.headers, url: null };
+			}
+
+			return {
+				error: new ApiError("Unknown error", 500, [err]),
+				headers: this.headers,
+				url: null,
 			};
 		}
 	}

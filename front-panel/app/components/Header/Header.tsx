@@ -1,10 +1,22 @@
-import { Link, NavLink } from "react-router";
-import { Menu, Heart } from "lucide-react";
+import { Form, Link, NavLink, useActionData, useNavigation, useRouteLoaderData } from "react-router";
+import { Menu, Heart, User, LogIn, LogOutIcon, Loader2, Info, Star, Calendar } from "lucide-react";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTrigger } from "~/components/ui/sheet";
 import { Button } from "~/components/ui/button";
 import { useFavourites } from "~/utils/favourites.utils";
 import { FB_URL, INSTAGRAM_URL } from "@workspace/shared/constants/constants";
 import type { FPHighLevelCategory } from "@workspace/shared/types/categories";
+import { loader } from "~/root";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuGroup,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
+import { useEffect } from "react";
+import { toast } from "sonner";
 
 const NAV_LINKS = [
 	{ label: "Home", to: "/" },
@@ -159,6 +171,7 @@ export default function Header({ categories }: { categories: FPHighLevelCategory
 						</Link>
 					</div>
 					<HeaderFavouriteButton />
+					<UserAccountButton />
 				</div>
 				{/* Right actions */}
 			</div>
@@ -184,5 +197,90 @@ function HeaderFavouriteButton() {
 				)}
 			</Button>
 		</Link>
+	);
+}
+
+function UserAccountButton() {
+	const rootLoaderData = useRouteLoaderData<typeof loader>("root");
+	const navigation = useNavigation();
+	const actionData = useActionData();
+
+	const isLoggingOut =
+		navigation.state === "submitting" &&
+		navigation.formAction === "/logout" &&
+		navigation.formMethod === "POST";
+
+	useEffect(() => {
+		if (actionData?.error) {
+			toast.error(actionData.error);
+		} else if (actionData == undefined && navigation.formAction === "/logout") {
+			toast.success("Logged out successfully");
+		}
+	}, [actionData]);
+
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild tabIndex={0} className="cursor-pointer">
+				<Button variant={"outline"} size={"icon"}>
+					<User className="w-6 h-6" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent
+				className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+				side={"bottom"}
+				align="end"
+				sideOffset={4}
+			>
+				{rootLoaderData?.user && (
+					<>
+						<DropdownMenuLabel className="p-0 font-normal">
+							<div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+								<div className="grid flex-1 text-left text-sm gap-1">
+									<span className="truncate font-medium">
+										👋 Welcome
+										{rootLoaderData?.user ? ", " + rootLoaderData.user.last_name : ""}
+									</span>
+								</div>
+							</div>
+						</DropdownMenuLabel>
+						<DropdownMenuSeparator />
+					</>
+				)}
+				<DropdownMenuGroup>
+					<DropdownMenuItem>
+						<Info />
+						Account Details
+					</DropdownMenuItem>
+					<DropdownMenuItem>
+						<Calendar />
+						My Bookings
+					</DropdownMenuItem>
+					<DropdownMenuItem>
+						<Star />
+						Reviews
+					</DropdownMenuItem>
+					{!rootLoaderData?.user ? (
+						<Link to={"/login"}>
+							<DropdownMenuItem>
+								<LogIn />
+								Login
+							</DropdownMenuItem>
+						</Link>
+					) : (
+						<>
+							<DropdownMenuSeparator />
+							<Form action="/logout" method="POST">
+								<button disabled={isLoggingOut} type="submit" className="w-full rounded-sm">
+									<DropdownMenuItem variant="destructive" disabled={isLoggingOut}>
+										{isLoggingOut ? <Loader2 className="animate-spin" /> : <LogOutIcon />}
+										Logout
+									</DropdownMenuItem>
+								</button>
+							</Form>
+						</>
+					)}
+				</DropdownMenuGroup>
+			</DropdownMenuContent>
+		</DropdownMenu>
 	);
 }
