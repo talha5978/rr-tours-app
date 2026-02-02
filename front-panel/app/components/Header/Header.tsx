@@ -247,10 +247,12 @@ function UserAccountButton() {
 					</>
 				)}
 				<DropdownMenuGroup>
-					<DropdownMenuItem>
-						<Info />
-						Account Details
-					</DropdownMenuItem>
+					<Link to={"account-details"} prefetch="intent" viewTransition>
+						<DropdownMenuItem>
+							<Info />
+							Account Details
+						</DropdownMenuItem>
+					</Link>
 					<DropdownMenuItem>
 						<Calendar />
 						My Bookings

@@ -29,6 +29,10 @@ export default [
 		route("faqs", "./routes/FAQs/faqs.tsx"),
 
 		route("email-preview", "./routes/email-preview.tsx"),
+
+		layout("./routes/Account/account-layout.tsx", [
+			route("account-details", "./routes/Account/account-details.tsx"),
+		]),
 	]),
 
 	route("*", "./routes/Error/404.tsx"),

@@ -1,0 +1,176 @@
+import { Service } from "@workspace/shared/services/service.base";
+import { UseClassMiddleware } from "@workspace/shared/decorators/useClassMiddleware";
+import { loggerMiddleware } from "@workspace/shared/middlewares/logger.middleware";
+import type {
+	GetTourReviewsOptions,
+	GetTourReviewsResp,
+	TourReview,
+} from "@workspace/shared/types/tour-reviews";
+import { AuthService } from "@workspace/shared/services/auth.service";
+
+@UseClassMiddleware(loggerMiddleware)
+export class ReviewsService extends Service {
+	private readonly MAX_ALLOWED_REVIEWS = 3; // PER USER
+
+	/** Check if the user has the added the review or not on the tour */
+	async isAddingReviewAvailable(tour_id: string): Promise<boolean> {
+		if (!this.currentUser?.id) {
+			return false;
+		}
+
+		const { data: existingReviews, error: reviewError } = await this.supabase
+			.from(this.REVIEWS_TABLE)
+			.select("id")
+			.eq("tour_id", tour_id)
+			.eq("user_id", this.currentUser.id)
+			.limit(this.MAX_ALLOWED_REVIEWS);
+
+		if (reviewError) {
+			console.error(reviewError);
+			return false;
+		}
+
+		if (existingReviews && existingReviews.length >= this.MAX_ALLOWED_REVIEWS) {
+			return false;
+		}
+
+		const { data: bookings, error: bookingError } = await this.supabase
+			.from(this.BOOKINGS_TABLE)
+			.select("id, status")
+			.eq("tour_id", tour_id)
+			.eq("user_id", this.currentUser.id)
+			.eq("status", "CONFIRMED")
+			.limit(1);
+
+		if (bookingError) {
+			console.error(bookingError);
+			return false;
+		}
+
+		return !!bookings && bookings.length > 0;
+	}
+
+	/** Get reviews for a tour */
+	async getTourReviews(tour_id: string, options: GetTourReviewsOptions = {}): Promise<GetTourReviewsResp> {
+		const { limit = 10, offset = 0, filters = {} } = options;
+		const { min_rating, sort_by = "date", sort_order = "desc" } = filters;
+
+		let reviewsQuery = this.supabase
+			.from(this.REVIEWS_TABLE)
+			.select("*")
+			.eq("tour_id", tour_id)
+			.range(offset, offset + limit - 1);
+
+		if (min_rating !== undefined) {
+			reviewsQuery = reviewsQuery.gte("rating", min_rating);
+		}
+
+		const sortField = sort_by === "rating" ? "rating" : "created_at";
+		reviewsQuery = reviewsQuery.order(sortField, { ascending: sort_order === "asc" });
+
+		const { data: reviewsResp, error: reviewsError } = await reviewsQuery;
+
+		if (reviewsError) {
+			throw new Error(`Failed to fetch reviews: ${reviewsError.message}`);
+		}
+
+		let reviewsData: TourReview[] = reviewsResp.map((r) => ({
+			booking_id: r.booking_id,
+			comment: r.comment,
+			created_at: r.created_at,
+			id: r.id,
+			is_verified: r.is_verified,
+			rating: r.rating,
+			user: null,
+		}));
+
+		if (reviewsData != null) {
+			for (let i = 0; i < reviewsData.length; i++) {
+				const auth_svc = await this.createSubService(AuthService);
+				const { data: email_resp } = await auth_svc.getAuthSchemaUser(reviewsResp[i].user_id);
+
+				reviewsData[i].user = {
+					id: reviewsResp[i].user_id,
+					full_name: email_resp.user?.user_metadata?.full_name ?? "",
+					avatar: email_resp.user?.user_metadata?.avatar_url ?? "",
+				};
+			}
+		}
+
+		const reviews = Array.isArray(reviewsData) ? reviewsData : [];
+
+		let countQuery = this.supabase
+			.from(this.REVIEWS_TABLE)
+			.select("rating, count()")
+			.eq("tour_id", tour_id);
+
+		if (min_rating !== undefined) {
+			countQuery = countQuery.gte("rating", min_rating);
+		}
+
+		const { data: countRows = [], error: countError } = await countQuery;
+
+		if (countError) {
+			throw new Error(`Failed to fetch rating distribution: ${countError.message}`);
+		}
+
+		let summaryQuery = this.supabase
+			.from(this.REVIEWS_TABLE)
+			.select("avg:rating.avg(), count()")
+			.eq("tour_id", tour_id);
+
+		if (min_rating !== undefined) {
+			summaryQuery = summaryQuery.gte("rating", min_rating);
+		}
+
+		const { data: summaryRow, error: summaryError } = await summaryQuery.single();
+
+		if (summaryError) {
+			throw new Error(`Failed to fetch summary stats: ${summaryError.message}`);
+		}
+
+		const rating_counts: Record<1 | 2 | 3 | 4 | 5, number> = {
+			1: 0,
+			2: 0,
+			3: 0,
+			4: 0,
+			5: 0,
+		};
+
+		let total_reviews = 0;
+		let sum_weighted = 0;
+
+		(countRows ?? []).forEach((row: any) => {
+			if (!row || typeof row !== "object") return;
+
+			const r = Number(row.rating);
+			const cnt = Number(row.count) || 0;
+
+			if (Number.isInteger(r) && r >= 1 && r <= 5) {
+				rating_counts[r as 1 | 2 | 3 | 4 | 5] = cnt;
+				total_reviews += cnt;
+				sum_weighted += r * cnt;
+			}
+		});
+
+		let average_rating = 0;
+
+		if (summaryRow?.avg != null) {
+			const dbAvg = Number(summaryRow.avg);
+			average_rating = Number.isFinite(dbAvg) ? Number(dbAvg.toFixed(2)) : 0;
+		} else if (total_reviews > 0) {
+			average_rating = Number((sum_weighted / total_reviews).toFixed(2));
+		}
+
+		total_reviews = Number(summaryRow?.count) || total_reviews;
+
+		return {
+			reviews,
+			stats: {
+				average_rating,
+				rating_counts,
+				total_reviews,
+			},
+		};
+	}
+}

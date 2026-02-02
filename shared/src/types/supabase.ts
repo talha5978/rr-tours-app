@@ -654,6 +654,61 @@ export type Database = {
 					},
 				];
 			};
+			tour_reviews: {
+				Row: {
+					booking_id: string;
+					comment: string;
+					created_at: string;
+					id: number;
+					is_verified: boolean;
+					rating: number;
+					tour_id: string;
+					user_id: string;
+				};
+				Insert: {
+					booking_id: string;
+					comment: string;
+					created_at?: string;
+					id?: number;
+					is_verified?: boolean;
+					rating: number;
+					tour_id: string;
+					user_id: string;
+				};
+				Update: {
+					booking_id?: string;
+					comment?: string;
+					created_at?: string;
+					id?: number;
+					is_verified?: boolean;
+					rating?: number;
+					tour_id?: string;
+					user_id?: string;
+				};
+				Relationships: [
+					{
+						foreignKeyName: "tour_reviews_booking_id_fkey";
+						columns: ["booking_id"];
+						isOneToOne: true;
+						referencedRelation: "bookings";
+						referencedColumns: ["id"];
+					},
+					{
+						foreignKeyName: "tour_reviews_tour_id_fkey";
+						columns: ["tour_id"];
+						isOneToOne: false;
+						referencedRelation: "tours";
+						referencedColumns: ["id"];
+					},
+					{
+						foreignKeyName: "tour_reviews_user_id_fkey";
+						columns: ["user_id"];
+						isOneToOne: false;
+						referencedRelation: "app_users";
+						referencedColumns: ["user_id"];
+					},
+				];
+			};
 			tour_tags: {
 				Row: {
 					id: number;

@@ -10,6 +10,7 @@ import { getCacheInvalidationEvents } from "@workspace/shared/queries/cache-even
 import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
 import { GetFullCurrentUser } from "@workspace/shared/types/auth";
 import { currentFullUserQuery } from "~/queries/auth.q";
+import { extractAuthId } from "@workspace/shared/utils/auth-utils.server";
 
 export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -86,7 +87,8 @@ export async function loader({ request }: Route.LoaderArgs) {
 	}
 
 	const { genAuthSecurity } = await import("@workspace/shared/utils/auth-utils.server");
-	const { authId, headers } = genAuthSecurity(request);
+	const { headers } = genAuthSecurity(request);
+	const authId = extractAuthId(request);
 
 	const resp: GetFullCurrentUser = await queryClient.fetchQuery(currentFullUserQuery({ request, authId }));
 

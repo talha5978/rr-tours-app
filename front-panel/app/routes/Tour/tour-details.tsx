@@ -1,4 +1,5 @@
 import {
+	Await,
 	Link,
 	type LoaderFunctionArgs,
 	useLoaderData,
@@ -22,12 +23,13 @@ import {
 	Edit,
 	Heart,
 	MapPinned,
+	Star,
 } from "lucide-react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Label } from "~/components/ui/label";
-import { HTMLAttributes, type HtmlHTMLAttributes, memo, useMemo, useState } from "react";
+import { HTMLAttributes, type HtmlHTMLAttributes, memo, Suspense, useMemo, useState } from "react";
 import DatePicker from "~/components/Inputs/date-picker";
 import TourImageCarousel from "~/components/Tour/TourImageCarousel";
 import { Separator } from "~/components/ui/separator";
@@ -52,6 +54,8 @@ import {
 } from "@workspace/shared/utils/tourDetails";
 import { useIsMobile } from "~/hooks/use-mobile";
 import { Skeleton } from "~/components/ui/skeleton";
+import { checkIfReviewAllowedQuery, tourReviewsQuery } from "~/queries/reviews.q";
+import TourReviews, { TourReviewsSkeleton } from "~/components/Tour/TourReviews";
 
 const participantSchema = z.object({
 	quantities: z.record(z.number().min(0).int()),
@@ -60,6 +64,8 @@ const participantSchema = z.object({
 type ParticipantForm = z.infer<typeof participantSchema>;
 type AvailabilitySlot = Tables<"time_slots"> & { capacity: number };
 type DialogSteps = "date" | "time" | "participants";
+
+const REVIEWS_PAGE_SIZE = 10;
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 	if (!params.id || params.id === "") return null;
@@ -93,13 +99,33 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 		available_seats: number;
 	}[] = [];
 
-	console.log(optionId, dateStr);
-
 	if (optionId && dateStr) {
 		availability = await queryClient.fetchQuery(availabilityQuery(request, optionId, dateStr));
 	}
 
-	// console.log(availability);
+	let isReviewAllowed = queryClient.fetchQuery(checkIfReviewAllowedQuery({ request, tour_id: params.id }));
+
+	const review_page = Number(url.searchParams.get("reviews_page") ?? "1");
+	const min_rating = url.searchParams.get("min_rating")
+		? Number(url.searchParams.get("min_rating"))
+		: undefined;
+	const sort_by = url.searchParams.get("sort_by") as "date" | "rating" | undefined;
+	const sort_order = url.searchParams.get("sort_order") as "asc" | "desc" | undefined;
+
+	const reviewsData = queryClient.fetchQuery(
+		tourReviewsQuery({
+			request,
+			tour_id: params.id,
+			options: {
+				limit: REVIEWS_PAGE_SIZE * review_page,
+				filters: {
+					min_rating,
+					sort_by,
+					sort_order,
+				},
+			},
+		}),
+	);
 
 	return {
 		tour: data,
@@ -108,6 +134,9 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 		availability,
 		optionId,
 		dateStr,
+		isReviewAllowed,
+		reviewsData,
+		currentReviewPage: review_page,
 	};
 };
 
@@ -193,10 +222,17 @@ export default function TourDetailsPage() {
 	const handleDateSelect = (date: Date | undefined) => {
 		if (date) {
 			setSelectedDate(date);
-			setSearchParams({
-				optionId: selectedOption?.id.toString() ?? "",
-				date: format(date, "yyyy-MM-dd"),
-			});
+			setSearchParams(
+				{
+					optionId: selectedOption?.id.toString() ?? "",
+					date: format(date, "yyyy-MM-dd"),
+				},
+				{
+					preventScrollReset: true,
+					replace: true,
+					state: { scrollPosition: window.scrollY },
+				},
+			);
 			revalidator.revalidate();
 		}
 	};
@@ -866,15 +902,28 @@ export default function TourDetailsPage() {
 												{tour.address_name}
 											</a>
 										</div>
-										<iframe
-											src={tour.address_link}
-											width="100%"
-											height="400"
-											style={{ border: "0", borderRadius: "10px", marginTop: "1rem" }}
-											allowFullScreen
-											loading="lazy"
-											referrerPolicy="no-referrer-when-downgrade"
-										></iframe>
+										<Suspense>
+											<Await
+												resolve={tour}
+												children={(tour) =>
+													tour.address_link && (
+														<iframe
+															src={tour.address_link}
+															width="100%"
+															height="400"
+															style={{
+																border: "0",
+																borderRadius: "10px",
+																marginTop: "1rem",
+															}}
+															allowFullScreen
+															loading="lazy"
+															referrerPolicy="no-referrer-when-downgrade"
+														></iframe>
+													)
+												}
+											/>
+										</Suspense>
 									</section>
 								)}
 							</div>
@@ -910,6 +959,25 @@ export default function TourDetailsPage() {
 					)}
 				</div>
 			</section>
+			{loaderData && (
+				<Suspense fallback={<TourReviewsSkeleton />}>
+					<Await
+						resolve={loaderData.reviewsData}
+						children={(reviewsData) => (
+							<section className="py-20">
+								<TourReviews
+									reviews={reviewsData.reviews}
+									average_rating={reviewsData.stats.average_rating}
+									total_reviews={reviewsData.stats.total_reviews}
+									rating_counts={reviewsData.stats.rating_counts}
+									currentPage={loaderData.currentReviewPage}
+									hasMore={reviewsData.reviews.length === REVIEWS_PAGE_SIZE}
+								/>
+							</section>
+						)}
+					/>
+				</Suspense>
+			)}
 			<section className="py-20 space-y-10">
 				<section>
 					<RelatedTours
@@ -1079,6 +1147,8 @@ const AttributesCard = memo(
 		tour: GetTourDetails;
 		className?: HtmlHTMLAttributes<HTMLDivElement>["className"];
 	}) => {
+		const loaderData = useLoaderData<typeof loader>();
+
 		return (
 			<Card className={cn("h-fit", className)}>
 				<CardContent className="space-y-4">
@@ -1177,7 +1247,29 @@ const AttributesCard = memo(
 
 				<Separator className="lg:hidden" />
 
-				<CardContent>
+				<CardContent className="flex justify-between flex-wrap gap-4">
+					<Suspense fallback={<></>}>
+						<Await
+							resolve={loaderData?.reviewsData}
+							children={(reviewsData) =>
+								reviewsData?.stats.total_reviews &&
+								reviewsData?.stats.total_reviews > 0 &&
+								reviewsData?.stats.average_rating > 2 ? (
+									<div className="flex items-center gap-2 lg:hidden">
+										<div className="flex items-center">
+											<Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+											<span className="ml-1.5 text-xl font-semibold">
+												{reviewsData.stats.average_rating.toFixed(1)}
+											</span>
+										</div>
+										<span className="text-muted-foreground">
+											· {reviewsData?.stats.total_reviews} reviews
+										</span>
+									</div>
+								) : null
+							}
+						/>
+					</Suspense>
 					<div className="lg:hidden flex gap-2 ml-auto w-fit">
 						<AddToFavouriteBtn tour_id={tour.id} />
 						<ShareDialog

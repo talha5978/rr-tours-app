@@ -5,6 +5,7 @@ import {
 	useLocation,
 	useNavigate,
 	useNavigation,
+	useRouteLoaderData,
 	useSubmit,
 } from "react-router";
 import { useForm } from "react-hook-form";
@@ -91,6 +92,7 @@ export default function BookingPage() {
 	const navigation = useNavigation();
 	const submit = useSubmit();
 	const [bookingRef, setBookingRef] = useState("");
+	const rootLoaderData = useRouteLoaderData("root");
 
 	// @ts-ignore
 	const actionData: ActionResponse & { booking_ref: string | null } = useActionData();
@@ -112,9 +114,12 @@ export default function BookingPage() {
 	const form = useForm<CustomerInput>({
 		resolver: zodResolver(customerBookingSchema),
 		defaultValues: {
-			customer_email: "",
-			customer_name: "",
-			customer_phone: "",
+			customer_email: rootLoaderData?.user?.email ?? "",
+			customer_name:
+				rootLoaderData?.user?.first_name && rootLoaderData?.user?.first_name
+					? rootLoaderData?.user?.first_name + " " + rootLoaderData?.user?.last_name
+					: "",
+			customer_phone: rootLoaderData?.user?.phone_number ?? "",
 		},
 	});
 
