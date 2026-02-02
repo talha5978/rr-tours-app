@@ -7,7 +7,7 @@ export function InquiryBanner({
 	details = "Send us a quick inquiry! We’ll help you plan a perfect Dubai experience.",
 }) {
 	return (
-		<section className="w-full rounded-xl bg-linear-to-r from-primary/20 via-primary/10 to-background border-y border-border/50">
+		<section className="w-full rounded-xl bg-linear-to-r from-primary/20 via-primary/10 to-background border-y border-border/50 mt-20">
 			<div className="container px-4 md:px-6 py-10 md:py-14 lg:py-16">
 				<div className="flex flex-col md:flex-row items-center justify-between gap-8">
 					<div className="space-y-3 text-center md:text-left">

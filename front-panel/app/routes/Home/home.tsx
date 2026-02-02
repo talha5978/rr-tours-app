@@ -12,6 +12,8 @@ import { allHeroSectionsQuery } from "@workspace/shared/queries/hero-sections.q"
 import { MetaDetails } from "~/components/SEO/MetaDetails";
 import { SUPABASE_IMAGE_BUCKET_PATH } from "@workspace/shared/constants/constants";
 import { InquiryBanner } from "~/components/Contact/InquirySection";
+import { homeTourReviewsQuery } from "~/queries/reviews.q";
+import ReviewsSection from "~/components/Home/ReviewsSection";
 
 export const loader = async ({ request }: Route.LoaderArgs) => {
 	const featuredToursResp = await queryClient.fetchQuery(
@@ -20,8 +22,9 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
 	const citiesResp = await queryClient.fetchQuery(FPhighLevelCitiesQuery({ request }));
 	const categoriesResp = await queryClient.fetchQuery(FPhighLevelCategoriesQuery({ request }));
 	const heroSectionsResp = await queryClient.fetchQuery(allHeroSectionsQuery({ request }));
+	const reviewsResp = await queryClient.fetchQuery(homeTourReviewsQuery({ request }));
 
-	return { featuredToursResp, citiesResp, categoriesResp, heroSectionsResp };
+	return { featuredToursResp, citiesResp, categoriesResp, heroSectionsResp, reviewsResp };
 };
 
 export default function Home({ loaderData }: Route.ComponentProps) {
@@ -39,6 +42,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 				<HeroSection hero_sections={loaderData.heroSectionsResp ?? []} />
 				<FeaturedToursSection tours={loaderData.featuredToursResp.tours ?? []} />
 				<CitiesSection cities={loaderData.citiesResp.data ?? []} />
+				<ReviewsSection reviews={loaderData.reviewsResp.reviews} />
 				<WhyUsSection />
 				<CategoriesSection categories={loaderData.categoriesResp.data ?? []} />
 				<InquiryBanner />

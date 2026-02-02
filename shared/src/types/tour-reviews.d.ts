@@ -36,3 +36,25 @@ export interface GetTourReviewsResp {
 	reviews: TourReview[];
 	stats: TourReviewStats;
 }
+
+export interface HomePageTourReview {
+	comment: string;
+	created_at: string;
+	id: number;
+	rating: number;
+	tour: {
+		id: string;
+		name: string;
+		url_key: string;
+	};
+	user: {
+		id: string;
+		full_name: string;
+		avatar: string | null;
+	} | null;
+}
+
+export interface HomePageReviewsResp {
+	reviews: HomePageReview[];
+	error: null | ApiError;
+}

@@ -1,6 +1,10 @@
 import { queryOptions } from "@tanstack/react-query";
 import { ReviewsService } from "@workspace/shared/services/reviews.service";
-import { GetTourReviewsOptions, GetTourReviewsResp } from "@workspace/shared/types/tour-reviews";
+import type {
+	GetTourReviewsOptions,
+	GetTourReviewsResp,
+	HomePageReviewsResp,
+} from "@workspace/shared/types/tour-reviews";
 
 export const checkIfReviewAllowedQuery = ({ request, tour_id }: { request: Request; tour_id: string }) => {
 	return queryOptions<boolean>({
@@ -27,6 +31,17 @@ export const tourReviewsQuery = ({
 		queryFn: async () => {
 			const svc = new ReviewsService(request);
 			const result = await svc.getTourReviews(tour_id, options);
+			return result;
+		},
+	});
+};
+
+export const homeTourReviewsQuery = ({ request }: { request: Request }) => {
+	return queryOptions<HomePageReviewsResp>({
+		queryKey: ["home_tour_reviews"],
+		queryFn: async () => {
+			const svc = new ReviewsService(request);
+			const result = await svc.getHomeTourReviews();
 			return result;
 		},
 	});

@@ -4,9 +4,12 @@ import { loggerMiddleware } from "@workspace/shared/middlewares/logger.middlewar
 import type {
 	GetTourReviewsOptions,
 	GetTourReviewsResp,
+	HomePageReviewsResp,
+	HomePageTourReview,
 	TourReview,
 } from "@workspace/shared/types/tour-reviews";
 import { AuthService } from "@workspace/shared/services/auth.service";
+import { ApiError } from "@workspace/shared/utils/ApiError";
 
 @UseClassMiddleware(loggerMiddleware)
 export class ReviewsService extends Service {
@@ -171,6 +174,71 @@ export class ReviewsService extends Service {
 				rating_counts,
 				total_reviews,
 			},
+		};
+	}
+
+	/** Get reviews for home page */
+	async getHomeTourReviews(): Promise<HomePageReviewsResp> {
+		const limit = 12;
+
+		let reviewsQuery = this.supabase
+			.from(this.REVIEWS_TABLE)
+			.select(
+				`
+				id,
+				comment,
+				rating,
+				created_at,
+				user_id,
+				tour:${this.TOURS_TABLE}(
+					id, name,
+					${this.META_DETAILS_TABLE}(url_key)
+				)
+			`,
+			)
+			.eq("is_verified", true)
+			.order("rating", { ascending: false })
+			.order("created_at", { ascending: false })
+			.limit(limit);
+
+		const { data: reviewsResp, error: reviewsError } = await reviewsQuery;
+
+		if (reviewsError) {
+			return {
+				reviews: [],
+				error: new ApiError(reviewsError?.message, 500, [reviewsError?.details]) ?? null,
+			};
+		}
+
+		let reviewsData: HomePageTourReview[] = reviewsResp.map((r) => ({
+			comment: r.comment,
+			created_at: r.created_at,
+			id: r.id,
+			rating: r.rating,
+			user: null,
+			tour: {
+				id: r.tour.id,
+				name: r.tour.name,
+				url_key: r.tour.meta_details.url_key,
+			},
+		}));
+
+		if (reviewsData != null) {
+			for (let i = 0; i < reviewsData.length; i++) {
+				const auth_svc = await this.createSubService(AuthService);
+				const { data: email_resp } = await auth_svc.getAuthSchemaUser(reviewsResp[i].user_id);
+
+				reviewsData[i].user = {
+					id: reviewsResp[i].user_id,
+					full_name: email_resp.user?.user_metadata?.full_name ?? "",
+					avatar: email_resp.user?.user_metadata?.avatar_url ?? "",
+				};
+			}
+		}
+
+		return {
+			reviews: reviewsData ?? [],
+			error: null,
 		};
 	}
 }
