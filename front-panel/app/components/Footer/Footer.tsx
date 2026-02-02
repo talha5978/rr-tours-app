@@ -80,12 +80,22 @@ export default function Footer({ categories }: { categories: FPHighLevelCategory
 								</Link>
 							</li>
 							<li>
-								<Link to="#" className="hover:text-foreground">
-									Terms & Conditions
+								<Link
+									to="terms-of-usage"
+									prefetch="intent"
+									viewTransition
+									className="hover:text-foreground"
+								>
+									Terms of Usage
 								</Link>
 							</li>
 							<li>
-								<Link to="#" className="hover:text-foreground">
+								<Link
+									to="/privacy-policy"
+									prefetch="intent"
+									viewTransition
+									className="hover:text-foreground"
+								>
 									Privacy Policy
 								</Link>
 							</li>

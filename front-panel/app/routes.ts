@@ -27,6 +27,8 @@ export default [
 		route("contact-us", "./routes/Contact/contact-us.tsx"),
 		route("about", "./routes/About/about.tsx"),
 		route("faqs", "./routes/FAQs/faqs.tsx"),
+		route("privacy-policy", "./routes/Miscellaneous/PrivacyPolicy.tsx"),
+		route("terms-of-usage", "./routes/Miscellaneous/TermsOfUsage.tsx"),
 
 		route("email-preview", "./routes/email-preview.tsx"),
 
