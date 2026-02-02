@@ -49,6 +49,26 @@ export async function loader({ request }: LoaderFunctionArgs) {
             `,
 	);
 
+	urls.push(
+		`
+            <url>
+            <loc>${baseUrl}/terms-of-usage</loc>
+            <changefreq>weekly</changefreq>
+            <priority>0.8</priority>
+            </url>
+            `,
+	);
+
+	urls.push(
+		`
+            <url>
+            <loc>${baseUrl}/privacy-policy</loc>
+            <changefreq>weekly</changefreq>
+            <priority>0.8</priority>
+            </url>
+            `,
+	);
+
 	for (const tour of toursResp.tours) {
 		urls.push(`
         <url>
