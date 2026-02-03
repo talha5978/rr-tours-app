@@ -6,7 +6,7 @@ import {
 	Link,
 	type LoaderFunctionArgs,
 	redirect,
-	// useActionData,
+	useActionData,
 	useNavigate,
 	useNavigation,
 	useSearchParams,
@@ -23,7 +23,7 @@ import {
 	emailPasswordLoginSchema,
 } from "@workspace/shared/schemas/login.schema";
 import { ApiError } from "@workspace/shared/utils/ApiError";
-// import type { ActionResponse } from "@workspace/shared/types/action-data";
+import type { ActionResponse } from "@workspace/shared/types/action-data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Separator } from "~/components/ui/separator";
 import { currentFullUserQuery } from "~/queries/auth.q";
@@ -83,7 +83,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 function LoginPage() {
-	// const actionData: ActionResponse | undefined = useActionData();
+	const actionData: ActionResponse | undefined = useActionData();
 	const [searchParams] = useSearchParams();
 	const navigation = useNavigation();
 	const navigate = useNavigate();
@@ -140,6 +140,21 @@ function LoginPage() {
 			navigate("/login", { replace: true });
 		}
 	}, [searchParams, navigate]);
+
+	useEffect(() => {
+		if (actionData) {
+			if (actionData.success) {
+				toast.success("Logged in successfully");
+				navigate("/login");
+			} else if (actionData.error) {
+				toast.error(actionData.error, {
+					description: "Please try again",
+				});
+			} else if (actionData.validationErrors) {
+				toast.error("Invalid form data. Please check your inputs.");
+			}
+		}
+	}, [actionData, navigate]);
 
 	return (
 		<>
