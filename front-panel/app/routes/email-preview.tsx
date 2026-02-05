@@ -1,7 +1,7 @@
 import { render } from "@react-email/render";
 import { Await, useLoaderData } from "react-router";
 import { Suspense } from "react";
-import BookingConfirmationEmail from "@workspace/shared/emails/templates/BookingConfirmationEmail";
+import PasswordResetEmail from "@workspace/shared/emails/templates/PasswordResetEmail";
 
 export const loader = async () => {
 	const sampleData = {
@@ -13,20 +13,9 @@ export const loader = async () => {
 
 	// Render to HTML string (for <div dangerouslySetInnerHTML>)
 	const html = render(
-		<BookingConfirmationEmail
-			booking_ref="BK-20260215-7842"
-			customer_name="Aisha Malik"
-			customer_email="aisha@example.com"
-			customer_phone="+971 50 123 4567"
-			confirmed_timeslot="Afternoon (15:00)"
-			confirmed_date="2026-03-10"
-			tour_name="Abu Dhabi Full Day Tour"
-			tour_option_name="Private Transfer"
-			total_amount={1850}
-			number_of_participants={3}
-			meeting_point="Hotel lobby – please be ready 15 min early"
-			important_notes="Bring passport copy, sunscreen, comfortable shoes.\nNo refunds within 48 hours."
-			attachments={[{ filename: "sample_pdf.pdf", content: "base64stringhere..." }]}
+		<PasswordResetEmail
+			email="hello@gmail.com"
+			recoveryLink="sometlinkfdsa?authtoken=fsadfaf324939402394"
 		/>,
 		{
 			pretty: true,

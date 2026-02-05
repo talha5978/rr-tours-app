@@ -41,7 +41,6 @@ export async function loader({ request }: Route.LoaderArgs) {
 				uniqueSerializedKeys.add(serializedKey);
 			}
 		}
-		console.log(uniqueSerializedKeys);
 
 		for (const serializedKey of uniqueSerializedKeys) {
 			if (serializedKey.includes("||")) {
@@ -68,8 +67,9 @@ export async function loader({ request }: Route.LoaderArgs) {
 	const url = new URL(request.url);
 	const pathname = url.pathname;
 
+	const { genAuthSecurity } = await import("@workspace/shared/utils/auth-utils.server");
+
 	if (pathname.startsWith("/login")) {
-		const { genAuthSecurity } = await import("@workspace/shared/utils/auth-utils.server");
 		const { authId } = genAuthSecurity(request);
 
 		if (authId) {
@@ -86,9 +86,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 		};
 	}
 
-	const { genAuthSecurity } = await import("@workspace/shared/utils/auth-utils.server");
-	const { headers } = genAuthSecurity(request);
-	const authId = extractAuthId(request);
+	const { headers, authId } = genAuthSecurity(request);
 
 	const resp: GetFullCurrentUser = await queryClient.fetchQuery(currentFullUserQuery({ request, authId }));
 
@@ -100,7 +98,6 @@ export async function loader({ request }: Route.LoaderArgs) {
 	}
 
 	user && console.log(user?.email, " logged in");
-	console.log(user);
 
 	return {
 		headers,

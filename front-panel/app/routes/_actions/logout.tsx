@@ -2,14 +2,14 @@ import type { ActionFunctionArgs } from "react-router";
 import { redirect } from "react-router";
 import { AuthService } from "@workspace/shared/services/auth.service";
 import type { GetFullCurrentUser } from "@workspace/shared/types/auth";
-import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
+import { extractAuthId, genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
 import { currentFullUserQuery } from "~/queries/auth.q";
 import { queryClient } from "@workspace/shared/utils/query-client";
 import { ApiError } from "@workspace/shared/utils/ApiError";
 
 export async function action({ request }: ActionFunctionArgs) {
-	const { authId } = genAuthSecurity(request);
-	// console.log("Extracted authId in /logout:", authId);
+	const authId = extractAuthId(request);
+	console.log("Extracted authId in /logout:", authId);
 
 	let resp: GetFullCurrentUser | null = null;
 	if (authId) {

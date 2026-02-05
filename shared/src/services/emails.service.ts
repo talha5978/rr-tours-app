@@ -8,6 +8,7 @@ import type { Attachment } from "resend";
 import type { BookingConfirmationPayload, SoftBookingEmailProps } from "@workspace/shared/types/emails";
 import SoftBookingEmail from "@workspace/shared/emails/templates/SoftBookingCreationEmail";
 import BookingConfirmationEmail from "@workspace/shared/emails/templates/BookingConfirmationEmail";
+import PasswordResetEmail from "@workspace/shared/emails/templates/PasswordResetEmail";
 
 class EmailService {
 	private static instance: EmailService | null = null;
@@ -139,6 +140,17 @@ class EmailService {
 			].join("\n"),
 			react: BookingConfirmationEmail(payload),
 			attachments: resendAttachments.length > 0 ? resendAttachments : undefined,
+		});
+	}
+
+	/** Send password reset link email */
+	public async sendPasswordResetLink(recoveryLink: string, email: string) {
+		return this.sendEmail({
+			from: `Top Attractions Dubai <no-reply@topattractionsdubai.com>`,
+			to: email,
+			subject: `Password Reset Request - Top Attractions Dubai`,
+			text: `Password reset link`,
+			react: PasswordResetEmail({ recoveryLink, email }),
 		});
 	}
 }

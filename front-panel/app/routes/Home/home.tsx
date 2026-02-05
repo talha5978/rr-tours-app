@@ -14,6 +14,8 @@ import { SUPABASE_IMAGE_BUCKET_PATH } from "@workspace/shared/constants/constant
 import { InquiryBanner } from "~/components/Contact/InquirySection";
 import { homeTourReviewsQuery } from "~/queries/reviews.q";
 import ReviewsSection from "~/components/Home/ReviewsSection";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 export const loader = async ({ request }: Route.LoaderArgs) => {
 	const featuredToursResp = await queryClient.fetchQuery(
@@ -24,10 +26,18 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
 	const heroSectionsResp = await queryClient.fetchQuery(allHeroSectionsQuery({ request }));
 	const reviewsResp = await queryClient.fetchQuery(homeTourReviewsQuery({ request }));
 
-	return { featuredToursResp, citiesResp, categoriesResp, heroSectionsResp, reviewsResp };
+	const errors = decodeURIComponent(new URLSearchParams(request.url.split("?")[1]).get("error") || "");
+
+	return { featuredToursResp, citiesResp, categoriesResp, heroSectionsResp, reviewsResp, errors };
 };
 
 export default function Home({ loaderData }: Route.ComponentProps) {
+	useEffect(() => {
+		if (loaderData.errors != null && loaderData.errors !== "") {
+			toast.error(loaderData.errors);
+		}
+	}, [loaderData]);
+
 	return (
 		<>
 			<MetaDetails

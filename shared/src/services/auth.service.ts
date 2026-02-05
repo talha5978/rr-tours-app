@@ -10,7 +10,7 @@ import type { AdminUser, FullCurrentUser } from "@workspace/shared/types/user.d"
 import { loggerMiddleware } from "@workspace/shared/middlewares/logger.middleware";
 import { UseClassMiddleware } from "@workspace/shared/decorators/useClassMiddleware";
 import { Service } from "@workspace/shared/services/service.base";
-import { Provider, type Session, type User, type UserResponse } from "@supabase/auth-js";
+import { GenerateLinkParams, type Session, type User, type UserResponse } from "@supabase/auth-js";
 import { ApiError } from "@workspace/shared/utils/ApiError";
 
 @UseClassMiddleware(loggerMiddleware)
@@ -312,14 +312,13 @@ export class AuthService extends Service {
 		redirectToOrigin: string;
 	}): Promise<Login & { url: string | null }> {
 		try {
-			const PROVIDER: Provider = "google";
 			const redirectTo =
 				process.env.NODE_ENV === "production"
 					? process.env.VITE_MAIN_APP_URL + "/auth/callback"
 					: redirectToOrigin + "/auth/callback";
 
 			const { error: fetchError, data } = await this.supabase.auth.signInWithOAuth({
-				provider: PROVIDER,
+				provider: "google",
 				options: {
 					redirectTo: redirectTo,
 					queryParams: {
@@ -359,5 +358,32 @@ export class AuthService extends Service {
 		} catch (error) {
 			throw error;
 		}
+	}
+
+	async sendResetPasswordRequest(email: string, redirectTo: string) {
+		const { data, error } = await this.supabase.auth.resetPasswordForEmail(email, {
+			redirectTo: redirectTo,
+		});
+
+		return {
+			data,
+			error: error ? new ApiError(error.message, Number(error.code ?? 500), [error.stack]) : null,
+		};
+	}
+
+	async updatePassword(newPassword: string) {
+		const { error } = await this.supabase.auth.updateUser({ password: newPassword });
+		return {
+			error: error ? new ApiError(error.message, Number(error.code ?? 500), [error.stack]) : null,
+		};
+	}
+
+	async generateLink(params: GenerateLinkParams) {
+		const { data, error } = await this.supabase.auth.admin.generateLink(params);
+
+		return {
+			data,
+			error: error ? new ApiError(error.message, Number(error.code ?? 500), [error.stack]) : null,
+		};
 	}
 }

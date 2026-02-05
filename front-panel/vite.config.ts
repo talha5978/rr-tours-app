@@ -46,6 +46,7 @@ export default defineConfig(({ mode }) => {
 		define: {
 			"process.env.VITE_ENV": JSON.stringify(env.VITE_ENV),
 			"process.env.VITE_PROJECT_ID": JSON.stringify(env.VITE_PROJECT_ID),
+			"process.env.VITE_SUPABASE_ANON_KEY": JSON.stringify(env.VITE_SUPABASE_ANON_KEY),
 			"process.env.VITE_SUPABASE_URL": JSON.stringify(env.VITE_SUPABASE_URL),
 			"process.env.VITE_MAIN_APP_URL": JSON.stringify(env.VITE_MAIN_APP_URL),
 			"process.env.VITE_RECAPTCHA_SITE_KEY": JSON.stringify(env.VITE_RECAPTCHA_SITE_KEY),

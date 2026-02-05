@@ -145,7 +145,7 @@ function LoginPage() {
 		if (actionData) {
 			if (actionData.success) {
 				toast.success("Logged in successfully");
-				navigate("/login");
+				navigate("/", { replace: true });
 			} else if (actionData.error) {
 				toast.error(actionData.error, {
 					description: "Please try again",
@@ -164,7 +164,7 @@ function LoginPage() {
 				metaKeywords="Top Attractions Dubai"
 			/>
 
-			<section className="flex w-full h-svh items-center py-4 px-4">
+			<section className="flex w-full my-6 items-center py-4 sm:px-4">
 				<div className="flex flex-col gap-6 max-w-md w-full mx-auto">
 					<form action="" onSubmit={handleSubmit(onFormSubmit)}>
 						<Form {...form}>
@@ -255,6 +255,8 @@ function LoginPage() {
 																</div>
 																<Link
 																	to="/forgot-password"
+																	viewTransition
+																	prefetch="intent"
 																	className="ml-auto text-sm underline-offset-4 hover:underline"
 																>
 																	Forgot your password?

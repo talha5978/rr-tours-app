@@ -13,7 +13,7 @@ export const currentFullUserQuery = ({ request, authId, headers }: currentUserQu
 	console.log("authId: ", authId);
 
 	return queryOptions<GetFullCurrentUser>({
-		queryKey: ["full_current_user", authId ?? "NONE"],
+		queryKey: ["full_current_user", authId],
 		queryFn: async () => {
 			const authSvc = new AuthService(request, {
 				headers: headers,

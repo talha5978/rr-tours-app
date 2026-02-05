@@ -23,13 +23,9 @@ export function extractAuthId(request: Request): string | null {
 	if (cookies.session) return `session:${cookies.session}`;
 
 	const candidates = [
-		"sb-access-token",
-		"sb-refresh-token",
-		"access_token",
-		"refresh_token",
-		`sb-${process.env.VITE_PROJECT_ID}-auth-token`,
-		`sb-${process.env.VITE_PROJECT_ID}-access-token`,
-		`sb-${process.env.VITE_PROJECT_ID}-refresh-token`,
+		`sb-${process.env.VITE_PROJECT_ID}-auth-token.1`,
+		`sb-${process.env.VITE_PROJECT_ID}-access-token.1`,
+		`sb-${process.env.VITE_PROJECT_ID}-refresh-token.1`,
 	];
 
 	let rawToken = null;
@@ -39,6 +35,7 @@ export function extractAuthId(request: Request): string | null {
 			break;
 		}
 	}
+	// console.log(request.headers);
 
 	if (!rawToken) {
 		const authHeader = request.headers.get("authorization") ?? "";
@@ -79,10 +76,8 @@ export function genAuthSecurity(request: Request): {
 	if (!authId) {
 		const cookieHeader = request.headers.get("Cookie") ?? "";
 		const cookies = parseCookies(cookieHeader);
-		// console.log(cookies);
 
 		let anon = cookies["anon_session"];
-		// let anon = cookies[`sb-${process.env.VITE_PROJECT_ID}-auth-token.1`];
 
 		if (!anon) {
 			anon = uuidv4();
@@ -91,7 +86,6 @@ export function genAuthSecurity(request: Request): {
 				"Set-Cookie",
 				`anon_session=${anon}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}`,
 			);
-			// console.log("Settin anon_session cookie for guest:", anon);
 		}
 
 		authId = `guest:${anon}`;
