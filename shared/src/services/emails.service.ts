@@ -9,6 +9,7 @@ import type { BookingConfirmationPayload, SoftBookingEmailProps } from "@workspa
 import SoftBookingEmail from "@workspace/shared/emails/templates/SoftBookingCreationEmail";
 import BookingConfirmationEmail from "@workspace/shared/emails/templates/BookingConfirmationEmail";
 import PasswordResetEmail from "@workspace/shared/emails/templates/PasswordResetEmail";
+import AdminLoginOtpEmail from "@workspace/shared/emails/templates/LoginOtpEmail";
 
 class EmailService {
 	private static instance: EmailService | null = null;
@@ -151,6 +152,17 @@ class EmailService {
 			subject: `Password Reset Request - Top Attractions Dubai`,
 			text: `Password reset link`,
 			react: PasswordResetEmail({ recoveryLink, email }),
+		});
+	}
+
+	/** Send otp for admin login */
+	public async sendAdminLoginOtpEmail(code: string, email: string) {
+		return this.sendEmail({
+			from: `Top Attractions Dubai <no-reply@topattractionsdubai.com>`,
+			to: email,
+			subject: `Login Verification Code - Top Attractions Dubai`,
+			text: `Your login verification code is: ${code}`,
+			react: AdminLoginOtpEmail({ code, email }),
 		});
 	}
 }

@@ -14,7 +14,7 @@ import { SUPABASE_IMAGE_BUCKET_PATH } from "@workspace/shared/constants/constant
 import { InquiryBanner } from "~/components/Contact/InquirySection";
 import { homeTourReviewsQuery } from "~/queries/reviews.q";
 import ReviewsSection from "~/components/Home/ReviewsSection";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { toast } from "sonner";
 
 export const loader = async ({ request }: Route.LoaderArgs) => {

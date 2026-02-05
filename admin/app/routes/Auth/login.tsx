@@ -31,6 +31,7 @@ import { Mail } from "lucide-react";
 import { Badge } from "~/components/ui/badge";
 import { currentUserQuery } from "@workspace/shared/queries/auth.q";
 import { GoogleReCaptcha, verifyRecaptcha } from "~/components/ReCaptcha/GoogleReCaptcha";
+import { emailService } from "@workspace/shared/services/emails.service";
 
 export async function action({ request }: ActionFunctionArgs) {
 	const formData = await request.formData();
@@ -105,17 +106,24 @@ export async function action({ request }: ActionFunctionArgs) {
 			}
 
 			const authSvc = new AuthService(request);
-			const { error, headers } = await authSvc.getCode({ email });
+			// const { error, headers } = await authSvc.getCode({ email });
+			const { data, error } = await authSvc.generateLink({
+				type: "magiclink",
+				email,
+			});
 
-			if (error) {
-				return { success: false, intent: "send", error: error.message || "Failed to send code" };
+			const otp = data?.properties?.email_otp ?? null;
+
+			if (error || !otp || otp.length === 0) {
+				return { success: false, intent: "send", error: error?.message || "Failed to send code" };
 			}
+
+			await emailService.sendAdminLoginOtpEmail(otp, email);
 
 			return new Response(JSON.stringify({ success: true, intent: "send", email }), {
 				status: 200,
 				headers: {
 					"Content-Type": "application/json",
-					"Set-Cookie": headers.get("Set-Cookie") || "",
 				},
 			});
 		}

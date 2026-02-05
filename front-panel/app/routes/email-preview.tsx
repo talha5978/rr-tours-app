@@ -2,6 +2,7 @@ import { render } from "@react-email/render";
 import { Await, useLoaderData } from "react-router";
 import { Suspense } from "react";
 import PasswordResetEmail from "@workspace/shared/emails/templates/PasswordResetEmail";
+import AdminLoginOtpEmail from "@workspace/shared/emails/templates/LoginOtpEmail";
 
 export const loader = async () => {
 	const sampleData = {
@@ -12,15 +13,9 @@ export const loader = async () => {
 	};
 
 	// Render to HTML string (for <div dangerouslySetInnerHTML>)
-	const html = render(
-		<PasswordResetEmail
-			email="hello@gmail.com"
-			recoveryLink="sometlinkfdsa?authtoken=fsadfaf324939402394"
-		/>,
-		{
-			pretty: true,
-		},
-	);
+	const html = render(<AdminLoginOtpEmail email="hello@gmail.com" code="12390875" />, {
+		pretty: true,
+	});
 
 	return { html, sampleData };
 };

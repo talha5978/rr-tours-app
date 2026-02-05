@@ -9,14 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { toast } from "sonner";
-import {
-	type ActionFunctionArgs,
-	type LoaderFunctionArgs,
-	useActionData,
-	useNavigate,
-	useSubmit,
-	useSearchParams,
-} from "react-router";
+import { useActionData, useNavigate, useSearchParams } from "react-router";
 import { ActionResponse } from "@workspace/shared/types/action-data";
 import { useSupabaseClient } from "@workspace/shared/hooks/use-supabase-client";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
@@ -80,7 +73,7 @@ export default function UpdatePassword() {
 	useEffect(() => {
 		if (supabase) {
 			const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-				console.log("Auth event:", event, "Session:", !!session);
+				// console.log("Auth event:", event, "Session:", !!session);
 				if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
 					setIsRecoveryMode(true);
 					setIsVerifying(false);
@@ -114,8 +107,8 @@ export default function UpdatePassword() {
 
 		const code = searchParams.get("code");
 
-		console.log("Hash params:", { access_token, type });
-		console.log("Query code:", code);
+		// console.log("Hash params:", { access_token, type });
+		// console.log("Query code:", code);
 
 		if (access_token && refresh_token && type === "recovery") {
 			supabase.auth.setSession({ access_token, refresh_token }).then(({ data: _, error }) => {
@@ -141,8 +134,8 @@ export default function UpdatePassword() {
 				}
 			});
 		} else {
-			supabase.auth.getSession().then(({ data: { session }, error }) => {
-				console.log("getSession result:", !!session, error);
+			supabase.auth.getSession().then(({ data: { session }, error: _error }) => {
+				// console.log("getSession result:", !!session, error);
 				if (session) {
 					setIsRecoveryMode(true);
 				}
@@ -160,7 +153,7 @@ export default function UpdatePassword() {
 		try {
 			if (!supabase) return;
 			const { data, error } = await supabase.auth.updateUser({ password: values.password.trim() });
-			console.log("updateUser result:", data, error);
+			// console.log("updateUser result:", data, error);
 			if (error) throw error;
 			if (data) {
 				toast.success("Password updated successfully!");

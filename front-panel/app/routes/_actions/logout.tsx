@@ -2,7 +2,7 @@ import type { ActionFunctionArgs } from "react-router";
 import { redirect } from "react-router";
 import { AuthService } from "@workspace/shared/services/auth.service";
 import type { GetFullCurrentUser } from "@workspace/shared/types/auth";
-import { extractAuthId, genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
+import { extractAuthId } from "@workspace/shared/utils/auth-utils.server";
 import { currentFullUserQuery } from "~/queries/auth.q";
 import { queryClient } from "@workspace/shared/utils/query-client";
 import { ApiError } from "@workspace/shared/utils/ApiError";

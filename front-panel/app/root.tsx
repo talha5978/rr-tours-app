@@ -10,7 +10,6 @@ import { getCacheInvalidationEvents } from "@workspace/shared/queries/cache-even
 import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
 import { GetFullCurrentUser } from "@workspace/shared/types/auth";
 import { currentFullUserQuery } from "~/queries/auth.q";
-import { extractAuthId } from "@workspace/shared/utils/auth-utils.server";
 
 export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
