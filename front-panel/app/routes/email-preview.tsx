@@ -1,8 +1,7 @@
 import { render } from "@react-email/render";
 import { Await, useLoaderData } from "react-router";
 import { Suspense } from "react";
-import PasswordResetEmail from "@workspace/shared/emails/templates/PasswordResetEmail";
-import AdminLoginOtpEmail from "@workspace/shared/emails/templates/LoginOtpEmail";
+import WelcomeEmail from "@workspace/shared/emails/templates/WelcomeEmail";
 
 export const loader = async () => {
 	const sampleData = {
@@ -13,7 +12,7 @@ export const loader = async () => {
 	};
 
 	// Render to HTML string (for <div dangerouslySetInnerHTML>)
-	const html = render(<AdminLoginOtpEmail email="hello@gmail.com" code="12390875" />, {
+	const html = render(<WelcomeEmail email="hello@gmail.com" firstName="Talha" loginUrl="loginurl" />, {
 		pretty: true,
 	});
 
@@ -32,10 +31,16 @@ export default function EmailPreview() {
 				{/* Raw HTML view */}
 				<div className="mb-12">
 					<h2 className="text-xl mb-3">Rendered HTML</h2>
-					<div
-						className="border border-gray-300 rounded-lg overflow-hidden bg-white"
-						dangerouslySetInnerHTML={{ __html: html }}
-					/>
+					<Suspense fallback={"Loading...."}>
+						<Await
+							resolve={html}
+							children={(html) => (
+								<div className="border border-gray-300 rounded-lg overflow-hidden bg-white">
+									{JSON.stringify(html, null, 2)}
+								</div>
+							)}
+						/>
+					</Suspense>
 				</div>
 
 				{/* iframe preview (more realistic email client feel) */}

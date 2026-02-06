@@ -28,7 +28,7 @@ export default function AppLayout() {
 const WhatsAppButton = () => {
 	return (
 		<Link to={`https://wa.me/${CONTACT_NUMBER_1}`} target="_blank" rel="noopener noreferrer">
-			<div className="rounded-full p-3 bg-accent fixed sm:bottom-10 sm:right-10 bottom-5 right-5">
+			<div className="rounded-full p-3 bg-accent fixed sm:bottom-10 sm:right-10 bottom-5 right-5 z-50">
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					viewBox="0 0 24 24"

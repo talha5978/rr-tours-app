@@ -27,14 +27,42 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
 	const reviewsResp = await queryClient.fetchQuery(homeTourReviewsQuery({ request }));
 
 	const errors = decodeURIComponent(new URLSearchParams(request.url.split("?")[1]).get("error") || "");
+	const success_msg = decodeURIComponent(
+		new URLSearchParams(request.url.split("?")[1]).get("success") || "",
+	);
 
-	return { featuredToursResp, citiesResp, categoriesResp, heroSectionsResp, reviewsResp, errors };
+	return {
+		featuredToursResp,
+		citiesResp,
+		categoriesResp,
+		heroSectionsResp,
+		reviewsResp,
+		errors,
+		success_msg,
+	};
 };
 
 export default function Home({ loaderData }: Route.ComponentProps) {
 	useEffect(() => {
-		if (loaderData.errors != null && loaderData.errors !== "") {
+		if (loaderData.errors != null && loaderData.errors !== "" && typeof window !== "undefined") {
 			toast.error(loaderData.errors);
+			const searchParams = new URLSearchParams(window.location.search);
+			searchParams.delete("error");
+			const newRelativePathQuery =
+				window.location.pathname + (searchParams.toString() ? `?${searchParams.toString()}` : "");
+			window.history.replaceState(null, "", newRelativePathQuery);
+		}
+		if (
+			loaderData.success_msg != null &&
+			loaderData.success_msg !== "" &&
+			typeof window !== "undefined"
+		) {
+			toast.success(loaderData.success_msg);
+			const searchParams = new URLSearchParams(window.location.search);
+			searchParams.delete("success");
+			const newRelativePathQuery =
+				window.location.pathname + (searchParams.toString() ? `?${searchParams.toString()}` : "");
+			window.history.replaceState(null, "", newRelativePathQuery);
 		}
 	}, [loaderData]);
 

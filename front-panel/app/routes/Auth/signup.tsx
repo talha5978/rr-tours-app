@@ -1,4 +1,4 @@
-import { EyeIcon, EyeOffIcon, Loader2, LockIcon, MailIcon } from "lucide-react";
+import { EyeIcon, EyeOffIcon, Loader2, LockIcon, MailIcon, UserIcon } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import {
@@ -9,7 +9,6 @@ import {
 	useActionData,
 	useNavigate,
 	useNavigation,
-	useSearchParams,
 	useSubmit,
 } from "react-router";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,10 +17,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { AuthService } from "@workspace/shared/services/auth.service";
-import {
-	type emailPasswordLoginFormData,
-	emailPasswordLoginSchema,
-} from "@workspace/shared/schemas/login.schema";
+import { signupSchema, type SignupFormData } from "@workspace/shared/schemas/signup.schema";
 import { ApiError } from "@workspace/shared/utils/ApiError";
 import type { ActionResponse } from "@workspace/shared/types/action-data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
@@ -30,28 +26,53 @@ import { currentFullUserQuery } from "~/queries/auth.q";
 import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
 import { queryClient } from "@workspace/shared/utils/query-client";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
+import { PhoneInput } from "~/components/Booking/phone-number-input";
+import { emailService } from "@workspace/shared/services/emails.service";
 
 export async function action({ request }: ActionFunctionArgs) {
 	try {
 		const formData = await request.formData();
+		const firstName = (formData.get("firstName") as string)?.trim();
+		const lastName = (formData.get("lastName") as string)?.trim();
 		const email = (formData.get("email") as string)?.trim();
+		const phone = (formData.get("phone") as string)?.trim() || undefined;
 		const password = (formData.get("password") as string)?.trim();
 
-		if (!email || !password) {
-			return { error: "Email and password are required", success: false };
+		if (!firstName || !lastName || !email || !password) {
+			return { error: "Required fields are missing", success: false };
 		}
 
-		const parseResult = emailPasswordLoginSchema.safeParse({ email, password });
+		const parseResult = signupSchema.safeParse({
+			firstName,
+			lastName,
+			email,
+			phone,
+			password,
+		});
 		if (!parseResult.success) {
 			const firstError = Object.values(parseResult.error.flatten().fieldErrors).flat()[0]!;
 			return { error: firstError, success: false };
 		}
 
 		const authSvc = new AuthService(request);
-		const { error, headers } = await authSvc.loginWithPassword({ email, password });
+		const { error, session, success, user } = await authSvc.signUpWithPasswordAndProfile({
+			firstName,
+			lastName,
+			email,
+			phone,
+			password,
+		});
 
-		if (error) {
-			return { error: error.message || "Failed to login", success: false };
+		if (error || !success || !user || !session) {
+			return { error: error || "Failed to sign up", success: false };
+		}
+
+		await emailService.sendWelcomeEmail(firstName, email);
+
+		const { error: loginErr, headers } = await authSvc.loginWithPassword({ email, password });
+
+		if (loginErr) {
+			return { error: loginErr.message || "Failed to login", success: false };
 		}
 
 		let response = new Response(JSON.stringify({ success: true, error: null }), {
@@ -70,12 +91,8 @@ export async function action({ request }: ActionFunctionArgs) {
 
 		return response;
 	} catch (error: any) {
-		const errorMessage = error instanceof ApiError ? error.message : error.message || "Failed to login";
-
-		return {
-			success: false,
-			error: errorMessage,
-		};
+		const errorMessage = error instanceof ApiError ? error.message : error.message || "Failed to sign up";
+		return { success: false, error: errorMessage };
 	}
 }
 
@@ -90,76 +107,59 @@ export async function loader({ request }: LoaderFunctionArgs) {
 	return { user: null };
 }
 
-function LoginPage() {
+export default function SignupPage() {
 	const actionData: ActionResponse | undefined = useActionData();
-	const [searchParams] = useSearchParams();
 	const navigation = useNavigation();
 	const navigate = useNavigate();
 
 	const isSubmitting = navigation.state === "submitting" && navigation.formMethod === "POST";
 
 	const [showPassword, setShowPassword] = useState(false);
-	const togglePasswordVisibility = () => {
-		setShowPassword(!showPassword);
-	};
+	const togglePasswordVisibility = () => setShowPassword(!showPassword);
 
-	const form = useForm<emailPasswordLoginFormData>({
-		resolver: zodResolver(emailPasswordLoginSchema),
+	const form = useForm<SignupFormData>({
+		resolver: zodResolver(signupSchema),
 		mode: "onChange",
 		defaultValues: {
+			firstName: "",
+			lastName: "",
 			email: "",
+			phone: "",
 			password: "",
 		},
 	});
 
 	const { handleSubmit, control } = form;
 
-	const onFormSubmit = (data: emailPasswordLoginFormData) => {
+	const onFormSubmit = (data: SignupFormData) => {
 		const formData = new FormData();
+		formData.append("firstName", data.firstName.trim());
+		formData.append("lastName", data.lastName.trim());
 		formData.append("email", data.email.trim());
+		if (data.phone) formData.append("phone", data.phone.trim());
 		formData.append("password", data.password.trim());
-		submit(formData, { method: "POST", action: "/login" });
+		submit(formData, { method: "POST", action: "/signup" });
 	};
 
 	const submit = useSubmit();
 
-	const handleGoogleLogin = () => {
+	const handleGoogleSignup = () => {
 		const formData = new FormData();
 		formData.append("redirectToOrigin", window.location.origin);
 		submit(formData, { method: "POST", action: "/login/google", replace: true });
 	};
 
 	useEffect(() => {
-		const error = searchParams.get("error");
-		const errorDescription = searchParams.get("error_description");
-
-		if (error) {
-			let message = "Login failed. Please try again.";
-
-			if (errorDescription?.includes("Database error saving new user")) {
-				message = "Failed to create account — server configuration issue (contact support)";
-			} else if (errorDescription) {
-				message = decodeURIComponent(errorDescription.replace(/\+/g, " "));
-			}
-
-			toast.error(message);
-
-			// Clean URL so error doesn't stay when user retries
-			navigate("/login", { replace: true });
-		}
-	}, [searchParams, navigate]);
-
-	useEffect(() => {
 		if (actionData) {
 			if (actionData.success) {
-				toast.success("Logged in successfully");
-				navigate("/", { replace: true });
+				toast.success("Signed up successfully.");
+				navigate("/login", { replace: true });
 			} else if (actionData.error) {
-				toast.error(actionData.error, {
-					description: "Please try again",
-				});
-			} else if (actionData.validationErrors) {
-				toast.error("Invalid form data. Please check your inputs.");
+				if (actionData.error === "Failed to login") {
+					navigate("/login", { replace: true });
+				} else {
+					toast.error(actionData.error, { description: "Please try again" });
+				}
 			}
 		}
 	}, [actionData, navigate]);
@@ -167,24 +167,20 @@ function LoginPage() {
 	return (
 		<>
 			<MetaDetails
-				metaTitle="Login | Top Attractions Dubai"
-				metaDescription="Login into our website and add reviews and book tour tickets without any hassle"
+				metaTitle="Sign Up | Top Attractions Dubai"
+				metaDescription="Create an account to book tours and manage your bookings"
 				metaKeywords="Top Attractions Dubai"
 			/>
 
 			<section className="flex w-full my-6 items-center py-4 sm:px-4">
 				<div className="flex flex-col gap-6 max-w-md w-full mx-auto">
-					<form action="" onSubmit={handleSubmit(onFormSubmit)}>
+					<form onSubmit={handleSubmit(onFormSubmit)}>
 						<Form {...form}>
-							<div className={"flex flex-col gap-6"}>
+							<div className="flex flex-col gap-6">
 								<Card>
 									<CardHeader className="text-center">
-										<CardTitle className="text-xl">
-											<h1>Welcome!</h1>
-										</CardTitle>
-										<CardDescription>
-											<h2>Login with your Google account</h2>
-										</CardDescription>
+										<CardTitle className="text-xl">Create Account</CardTitle>
+										<CardDescription>Sign up with Google or email</CardDescription>
 									</CardHeader>
 									<CardContent>
 										<div className="flex *:flex-1 gap-2 sm:flex-row flex-col">
@@ -192,34 +188,85 @@ function LoginPage() {
 												variant="outline"
 												type="button"
 												className="w-full"
-												onClick={handleGoogleLogin}
+												onClick={handleGoogleSignup}
 												disabled={isSubmitting}
 											>
 												<GoogleIcon />
-												Login with Google
+												Sign up with Google
 											</Button>
 										</div>
+
 										<div className="relative my-4 flex items-center justify-center overflow-hidden">
 											<Separator />
 											<div className="px-2 text-center bg-card text-sm">OR</div>
 											<Separator />
 										</div>
+
 										<div className="flex flex-col gap-4 my-4">
+											<div className="grid sm:grid-cols-2 gap-4">
+												<FormField
+													control={control}
+													name="firstName"
+													render={({ field }) => (
+														<FormItem>
+															<FormLabel>First Name</FormLabel>
+															<FormControl>
+																<div className="relative">
+																	<UserIcon
+																		className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+																		width={18}
+																	/>
+																	<Input
+																		placeholder="e.g. John"
+																		className="pl-8"
+																		{...field}
+																	/>
+																</div>
+															</FormControl>
+															<FormMessage />
+														</FormItem>
+													)}
+												/>
+												<FormField
+													control={control}
+													name="lastName"
+													render={({ field }) => (
+														<FormItem>
+															<FormLabel>Last Name</FormLabel>
+															<FormControl>
+																<div className="relative">
+																	<UserIcon
+																		className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+																		width={18}
+																	/>
+																	<Input
+																		placeholder="e.g. Smith"
+																		className="pl-8"
+																		{...field}
+																	/>
+																</div>
+															</FormControl>
+															<FormMessage />
+														</FormItem>
+													)}
+												/>
+											</div>
+
 											<FormField
 												control={control}
 												name="email"
 												render={({ field }) => (
 													<FormItem>
-														<FormLabel htmlFor="email">Email</FormLabel>
+														<FormLabel>Email</FormLabel>
 														<FormControl>
 															<div className="relative">
 																<MailIcon
-																	className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground"
+																	className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground"
 																	width={18}
 																/>
 																<Input
 																	placeholder="user@email.com"
-																	className="w-full px-8"
+																	className="pl-8"
 																	{...field}
 																/>
 															</div>
@@ -228,47 +275,55 @@ function LoginPage() {
 													</FormItem>
 												)}
 											/>
+
+											<FormField
+												control={control}
+												name="phone"
+												render={({ field }) => (
+													<FormItem>
+														<FormLabel>Phone (optional)</FormLabel>
+														<FormControl>
+															<PhoneInput
+																value={field.value}
+																onChange={field.onChange}
+																placeholder="Enter phone number"
+																defaultCountry="AE"
+															/>
+														</FormControl>
+														<FormMessage />
+													</FormItem>
+												)}
+											/>
+
 											<FormField
 												control={control}
 												name="password"
 												render={({ field }) => (
 													<FormItem>
-														<FormLabel htmlFor="password">Password</FormLabel>
+														<FormLabel>Password</FormLabel>
 														<FormControl>
-															<div className="flex flex-col gap-1">
-																<div className="relative">
-																	<LockIcon
-																		className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground"
-																		width={18}
-																	/>
-																	<Input
-																		type={
-																			showPassword ? "text" : "password"
-																		}
-																		placeholder="Password"
-																		className="w-full px-8"
-																		{...field}
-																	/>
-																	<button
-																		onClick={togglePasswordVisibility}
-																		type="button"
-																		className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground"
-																	>
-																		{showPassword ? (
-																			<EyeOffIcon className="h-5 w-5 text-muted-foreground" />
-																		) : (
-																			<EyeIcon className="h-5 w-5 text-muted-foreground" />
-																		)}
-																	</button>
-																</div>
-																<Link
-																	to="/forgot-password"
-																	viewTransition
-																	prefetch="intent"
-																	className="ml-auto text-sm underline-offset-4 hover:underline"
+															<div className="relative">
+																<LockIcon
+																	className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+																	width={18}
+																/>
+																<Input
+																	type={showPassword ? "text" : "password"}
+																	placeholder="Password"
+																	className="pl-8 pr-10"
+																	{...field}
+																/>
+																<button
+																	type="button"
+																	onClick={togglePasswordVisibility}
+																	className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
 																>
-																	Forgot your password?
-																</Link>
+																	{showPassword ? (
+																		<EyeOffIcon size={18} />
+																	) : (
+																		<EyeIcon size={18} />
+																	)}
+																</button>
 															</div>
 														</FormControl>
 														<FormMessage />
@@ -276,19 +331,21 @@ function LoginPage() {
 												)}
 											/>
 										</div>
+
 										<Button type="submit" className="w-full" disabled={isSubmitting}>
-											{isSubmitting && <Loader2 className="animate-spin" />}
-											<span>Login</span>
+											{isSubmitting && (
+												<Loader2 className="animate-spin mr-2 h-4 w-4" />
+											)}
+											Create Account
 										</Button>
-										<div className="flex justify-center gap-1 items-center">
-											<p className="text-sm mt-2">Don&apos;t have an account?</p>
+
+										<div className="flex justify-center gap-1 items-center mt-4">
+											<p className="text-sm">Already have an account?</p>
 											<Link
-												to="/signup"
-												viewTransition
-												prefetch="intent"
-												className="text-sm underline-offset-4 hover:underline mt-2"
+												to="/login"
+												className="text-sm underline-offset-4 hover:underline"
 											>
-												Signup
+												Login
 											</Link>
 										</div>
 									</CardContent>
@@ -328,5 +385,3 @@ const GoogleIcon = () => {
 		</svg>
 	);
 };
-
-export default LoginPage;

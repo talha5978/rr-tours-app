@@ -10,7 +10,12 @@ type currentUserQueryArgs = {
 
 export const currentFullUserQuery = ({ request, authId, headers }: currentUserQueryArgs) => {
 	const customStaleTime = 60 * 1000 * (process.env.VITE_ENV === "production" ? 10 : 25);
-	console.log("authId: ", authId);
+	// console.log("authId: ", authId);
+
+	// console.log(
+	// 	"Cookies available in getFullCurrentUser:",
+	// 	request?.headers.get("Cookie")?.includes("sb-") ? "YES" : "NO",
+	// );
 
 	return queryOptions<GetFullCurrentUser>({
 		queryKey: ["full_current_user", authId],

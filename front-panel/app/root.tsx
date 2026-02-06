@@ -87,7 +87,9 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 	const { headers, authId } = genAuthSecurity(request);
 
-	const resp: GetFullCurrentUser = await queryClient.fetchQuery(currentFullUserQuery({ request, authId }));
+	const resp: GetFullCurrentUser = await queryClient.fetchQuery(
+		currentFullUserQuery({ request, authId, headers }),
+	);
 
 	const user = resp?.user ?? null;
 	const current_user_error = resp?.error ?? null;

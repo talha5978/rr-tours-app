@@ -12,6 +12,7 @@ import { UseClassMiddleware } from "@workspace/shared/decorators/useClassMiddlew
 import { Service } from "@workspace/shared/services/service.base";
 import { GenerateLinkParams, type Session, type User, type UserResponse } from "@supabase/auth-js";
 import { ApiError } from "@workspace/shared/utils/ApiError";
+import { SignupFormData } from "@workspace/shared/schemas/signup.schema";
 
 @UseClassMiddleware(loggerMiddleware)
 export class AuthService extends Service {
@@ -285,22 +286,42 @@ export class AuthService extends Service {
 		}
 	}
 
-	async loginWithPassword({ email, password }: { email: string; password: string }): Promise<Login> {
+	async loginWithPassword({ email, password }: { email: string; password: string }): Promise<{
+		error: ApiError | null;
+		session: Session | null;
+		headers: Headers;
+	}> {
 		try {
-			const { error: fetchError } = await this.supabase.auth.signInWithPassword({
+			const { data, error: fetchError } = await this.supabase.auth.signInWithPassword({
 				email,
-				password: password,
+				password,
 			});
 
-			let error: null | ApiError = null;
 			if (fetchError) {
-				error = new ApiError(fetchError.message, 500, []);
+				return {
+					error: new ApiError(fetchError.message, 401, []),
+					session: null,
+					headers: this.headers,
+				};
 			}
 
-			return { error, headers: this.headers };
+			if (!data.session) {
+				return {
+					error: new ApiError("No session returned after login", 500, []),
+					session: null,
+					headers: this.headers,
+				};
+			}
+
+			return {
+				error: null,
+				session: data.session,
+				headers: this.headers,
+			};
 		} catch (err: any) {
 			return {
 				error: err instanceof ApiError ? err : new ApiError("Unknown error", 500, [err]),
+				session: null,
 				headers: this.headers,
 			};
 		}
@@ -371,13 +392,6 @@ export class AuthService extends Service {
 		};
 	}
 
-	async updatePassword(newPassword: string) {
-		const { error } = await this.supabase.auth.updateUser({ password: newPassword });
-		return {
-			error: error ? new ApiError(error.message, Number(error.code ?? 500), [error.stack]) : null,
-		};
-	}
-
 	async generateLink(params: GenerateLinkParams) {
 		const { data, error } = await this.supabase.auth.admin.generateLink(params);
 
@@ -385,5 +399,86 @@ export class AuthService extends Service {
 			data,
 			error: error ? new ApiError(error.message, Number(error.code ?? 500), [error.stack]) : null,
 		};
+	}
+
+	async signUpWithPasswordAndProfile(data: Omit<SignupFormData, "confirmPassword">): Promise<{
+		success: boolean;
+		user?: any;
+		session?: any;
+		error?: string;
+	}> {
+		try {
+			const { data: authData, error: authError } = await this.supabase.auth.signUp({
+				email: data.email,
+				password: data.password,
+				options: {
+					data: {
+						first_name: data.firstName,
+						last_name: data.lastName,
+						...(data.phone ? { phone_number: data.phone } : {}),
+					},
+				},
+			});
+
+			if (authError) {
+				return {
+					success: false,
+					error: authError.message || "Failed to create account",
+				};
+			}
+
+			if (!authData.user) {
+				return {
+					success: false,
+					error: "No user returned after signup",
+				};
+			}
+
+			const { data: roleData, error: roleError } = await this.supabase
+				.from(this.USER_ROLES_TABLE)
+				.select("id")
+				.eq("role_name", "consumer")
+				.limit(1)
+				.maybeSingle();
+
+			if (!roleData || roleError) {
+				console.error("Role fetch failed:", roleError);
+				return {
+					success: false,
+					error: "Failed to create account. Please contact support.",
+				};
+			}
+
+			const { error: profileError } = await this.supabase.from(this.USERS_TABLE).insert({
+				user_id: authData.user.id,
+				first_name: data.firstName,
+				last_name: data.lastName,
+				phone_number: data.phone || null,
+				role: roleData.id,
+				status: true,
+			});
+
+			if (profileError) {
+				console.error("Profile insert failed:", profileError);
+				await this.supabase.auth.admin.deleteUser(authData.user.id);
+				return {
+					success: false,
+					error: "Account creation failed.",
+				};
+			}
+
+			// Success
+			return {
+				success: true,
+				user: authData.user,
+				session: authData.session,
+			};
+		} catch (err: any) {
+			console.error("Signup error:", err);
+			return {
+				success: false,
+				error: err.message || "An unexpected error occurred during signup",
+			};
+		}
 	}
 }

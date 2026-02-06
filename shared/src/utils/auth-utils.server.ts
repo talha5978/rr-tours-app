@@ -23,7 +23,10 @@ export function extractAuthId(request: Request): string | null {
 	if (cookies.session) return `session:${cookies.session}`;
 
 	const candidates = [
-		`sb-${process.env.VITE_PROJECT_ID}-auth-token.1`,
+		`sb-${process.env.VITE_PROJECT_ID}-access-token`,
+		`sb-${process.env.VITE_PROJECT_ID}-refresh-token`,
+		`sb-${process.env.VITE_PROJECT_ID}-access-token.0`,
+		`sb-${process.env.VITE_PROJECT_ID}-refresh-token.0`,
 		`sb-${process.env.VITE_PROJECT_ID}-access-token.1`,
 		`sb-${process.env.VITE_PROJECT_ID}-refresh-token.1`,
 	];

@@ -13,6 +13,7 @@ export default [
 		route("/login", "./routes/Auth/login.tsx"),
 		route("/forgot-password", "./routes/Auth/forgot-password.tsx"),
 		route("/update-password", "./routes/Auth/update-password.tsx"),
+		route("/signup", "./routes/Auth/signup.tsx"),
 
 		...prefix("tours", [
 			index("./routes/Tour/tours.tsx"),

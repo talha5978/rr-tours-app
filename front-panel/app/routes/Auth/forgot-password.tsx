@@ -121,6 +121,8 @@ export default function ForgotPassword() {
 														<Input
 															className="pl-10"
 															placeholder="Enter Email"
+															required
+															type="email"
 															{...field}
 														/>
 													</div>

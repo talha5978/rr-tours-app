@@ -10,6 +10,7 @@ import SoftBookingEmail from "@workspace/shared/emails/templates/SoftBookingCrea
 import BookingConfirmationEmail from "@workspace/shared/emails/templates/BookingConfirmationEmail";
 import PasswordResetEmail from "@workspace/shared/emails/templates/PasswordResetEmail";
 import AdminLoginOtpEmail from "@workspace/shared/emails/templates/LoginOtpEmail";
+import WelcomeEmail from "@workspace/shared/emails/templates/WelcomeEmail";
 
 class EmailService {
 	private static instance: EmailService | null = null;
@@ -163,6 +164,17 @@ class EmailService {
 			subject: `Login Verification Code - Top Attractions Dubai`,
 			text: `Your login verification code is: ${code}`,
 			react: AdminLoginOtpEmail({ code, email }),
+		});
+	}
+
+	/** Send welcome email on signup */
+	public async sendWelcomeEmail(firstName: string, email: string) {
+		return this.sendEmail({
+			from: `Top Attractions Dubai <no-reply@topattractionsdubai.com>`,
+			to: email,
+			subject: `👋 Welcome to Top Attractions Dubai, ${firstName}!`,
+			text: `Welcome to Top Attractions Dubai, ${firstName}! We're excited to have you on board.`,
+			react: WelcomeEmail({ firstName, email }),
 		});
 	}
 }

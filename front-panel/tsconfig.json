@@ -7,8 +7,7 @@
 		"**/.client/**/*",
 		".react-router/types/**/*",
 		"app",
-		"../shared/src",
-		"../admin/app/components/ui/field.tsx"
+		"../shared/src"
 	],
 	"exclude": ["node_modules", "build", "dist", "../shared/dist", ".react-router"],
 	"compilerOptions": {
