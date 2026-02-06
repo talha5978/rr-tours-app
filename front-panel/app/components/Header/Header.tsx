@@ -1,5 +1,5 @@
 import { Form, Link, NavLink, useActionData, useNavigation, useRouteLoaderData } from "react-router";
-import { Menu, Heart, User, LogIn, LogOutIcon, Loader2, Info, Star, Calendar } from "lucide-react";
+import { Menu, Heart, LogIn, LogOutIcon, Loader2, Info, Star, Calendar } from "lucide-react";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTrigger } from "~/components/ui/sheet";
 import { Button } from "~/components/ui/button";
 import { useFavourites } from "~/utils/favourites.utils";
@@ -17,6 +17,7 @@ import {
 } from "~/components/ui/dropdown-menu";
 import { useEffect } from "react";
 import { toast } from "sonner";
+import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 
 const NAV_LINKS = [
 	{ label: "Home", to: "/" },
@@ -221,9 +222,13 @@ function UserAccountButton() {
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild tabIndex={0} className="cursor-pointer">
-				<Button variant={"outline"} size={"icon"}>
-					<User className="w-6 h-6" />
-				</Button>
+				<Avatar className="h-9 w-9 border-2 border-background ring-1 ring-muted/40">
+					<AvatarImage src={rootLoaderData?.user?.avatar_url ?? undefined} />
+					<AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
+						{rootLoaderData?.user?.first_name?.charAt(0) ?? "U"}
+						{rootLoaderData?.user?.last_name?.charAt(0) ?? null}
+					</AvatarFallback>
+				</Avatar>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent
 				className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"

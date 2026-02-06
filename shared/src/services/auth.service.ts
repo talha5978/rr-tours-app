@@ -260,19 +260,25 @@ export class AuthService extends Service {
 				return { user: null, error };
 			}
 
-			const frontPanelUser: FullCurrentUser = {
+			let frontPanelUser: FullCurrentUser = {
 				id: authUser.id ?? userDetails.user_id,
 				email: authUser.email ?? "",
 				is_email_verified: authUser.user_metadata.email_verified ?? true,
 				first_name: userDetails.first_name ?? null,
 				last_name: userDetails.last_name ?? null,
 				phone_number: userDetails.phone_number ?? null,
+				avatar_url: null,
 				role: {
 					role_id: userDetails.user_roles.id,
 					role_name: userDetails.user_roles.role_name,
 				},
 				created_at: userDetails.created_at ?? "N/A",
 			};
+
+			if (userDetails != null) {
+				const { data: authUserResp } = await this.getAuthSchemaUser(frontPanelUser.id);
+				frontPanelUser.avatar_url = authUserResp.user?.user_metadata?.avatar_url ?? null;
+			}
 
 			return { user: frontPanelUser, error };
 		} catch (err: any) {
