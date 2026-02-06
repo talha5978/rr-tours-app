@@ -29,7 +29,6 @@ export async function action({ request }: ActionFunctionArgs) {
 	// console.log("Auth id while logging out: ", authId);
 
 	await queryClient.invalidateQueries({ queryKey: ["current_user", authId] });
-	queryClient.clear();
 
 	return redirect("/login", { headers });
 }

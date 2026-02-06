@@ -21,7 +21,7 @@ import { type onlyEmailLoginFormData, onlyEmailLoginSchema } from "@workspace/sh
 import { type OtpFormData, OtpSchema } from "@workspace/shared/schemas/otp.schema";
 import { ApiError } from "@workspace/shared/utils/ApiError";
 import type { ActionResponse } from "@workspace/shared/types/action-data";
-import { extractAuthId } from "@workspace/shared/utils/auth-utils.server";
+import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
 import { queryClient } from "@workspace/shared/utils/query-client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
@@ -32,9 +32,18 @@ import { Badge } from "~/components/ui/badge";
 import { currentUserQuery } from "@workspace/shared/queries/auth.q";
 import { GoogleReCaptcha, verifyRecaptcha } from "~/components/ReCaptcha/GoogleReCaptcha";
 import { emailService } from "@workspace/shared/services/emails.service";
+import { MetaDetails } from "~/components/SEO/MetaDetails";
 
 export async function action({ request }: ActionFunctionArgs) {
 	const formData = await request.formData();
+
+	async function clearUserCache() {
+		const { authId } = genAuthSecurity(request);
+		if (authId) {
+			await queryClient.invalidateQueries({ queryKey: ["current_user", authId] });
+		}
+	}
+
 	try {
 		const intent = formData.get("intent") as string;
 
@@ -63,11 +72,7 @@ export async function action({ request }: ActionFunctionArgs) {
 				};
 			}
 
-			// const { user, error: userErr } = await authSvc.getCurrentUser();
-
-			// if (userErr || !user) {
-			// 	return { success: false, intent: "verify", error: "Failed to fetch user session" };
-			// }
+			await clearUserCache();
 
 			return new Response(JSON.stringify({ success: true, intent: "verify" }), {
 				status: 200,
@@ -120,6 +125,8 @@ export async function action({ request }: ActionFunctionArgs) {
 
 			await emailService.sendAdminLoginOtpEmail(otp, email);
 
+			await clearUserCache();
+
 			return new Response(JSON.stringify({ success: true, intent: "send", email }), {
 				status: 200,
 				headers: {
@@ -139,10 +146,10 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
-	const authId = extractAuthId(request);
+	const { authId, headers } = genAuthSecurity(request);
 
 	if (authId) {
-		const resp = await queryClient.fetchQuery(currentUserQuery({ request, authId }));
+		const resp = await queryClient.fetchQuery(currentUserQuery({ request, authId, headers }));
 		if (resp?.user?.id) return redirect("/");
 	}
 
@@ -239,141 +246,152 @@ function Login() {
 	};
 
 	return (
-		<section className="flex w-full h-svh items-center py-4 px-4">
-			<div className="flex flex-col gap-6 max-w-md mx-auto">
-				<Card className="w-full max-w-md pb-8 relative">
-					<div className="absolute top-4 right-4">
-						<Badge>Admin Panel</Badge>
-					</div>
-					<Tabs
-						value={tabValue}
-						onValueChange={setTabValue}
-						className="*:data-[slot=tabs-content]:mt-4"
-					>
-						<CardHeader>
-							<div>
-								<h2 className="text-2xl font-bold mx-auto w-fit mt-2 mb-4">Login</h2>
-							</div>
-							<TabsList className="w-full">
-								<TabsTrigger value="login">Login</TabsTrigger>
-								<TabsTrigger value="otp" disabled={email.length === 0}>
-									Verify
-								</TabsTrigger>
-							</TabsList>
-						</CardHeader>
-						<TabsContent value="login">
-							<CardContent>
-								<Form {...emailForm}>
-									<form
-										method="POST"
-										className="space-y-4"
-										onSubmit={emailForm.handleSubmit(handleGetOtpForm)}
-									>
-										<FormField
-											control={emailForm.control}
-											name="email"
-											render={({ field }) => (
-												<FormItem>
-													<FormLabel>Enter Email</FormLabel>
-													<FormControl>
-														<Input
-															placeholder="admin@gmail.com"
-															type="email"
-															{...field}
-														/>
-													</FormControl>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-
-										<GoogleReCaptcha
-											siteKey={process.env.VITE_RECAPTCHA_SITE_KEY as string}
-											onChange={(token) => setRecaptchaToken(token)}
-										/>
-
-										<Button
-											type="submit"
-											className="w-full"
-											disabled={isSending || !recaptchaToken}
+		<>
+			<MetaDetails
+				metaTitle="Login | Admin Panel"
+				metaDescription="Login in to admin panel of Top Attractions Dubai"
+			/>
+			<section className="flex w-full h-svh items-center py-4 px-4">
+				<div className="flex flex-col gap-6 max-w-md mx-auto">
+					<Card className="w-full max-w-md pb-8 relative">
+						<div className="absolute top-4 right-4">
+							<Badge>Admin Panel</Badge>
+						</div>
+						<Tabs
+							value={tabValue}
+							onValueChange={setTabValue}
+							className="*:data-[slot=tabs-content]:mt-4"
+						>
+							<CardHeader>
+								<div>
+									<h2 className="text-2xl font-bold mx-auto w-fit mt-2 mb-4">Login</h2>
+								</div>
+								<TabsList className="w-full">
+									<TabsTrigger value="login">Login</TabsTrigger>
+									<TabsTrigger value="otp" disabled={email.length === 0}>
+										Verify
+									</TabsTrigger>
+								</TabsList>
+							</CardHeader>
+							<TabsContent value="login">
+								<CardContent>
+									<Form {...emailForm}>
+										<form
+											method="POST"
+											className="space-y-4"
+											onSubmit={emailForm.handleSubmit(handleGetOtpForm)}
 										>
-											{isSending && <Loader2 className="animate-spin mr-1" />}
-											<span>Get OTP</span>
-										</Button>
-									</form>
-								</Form>
-							</CardContent>
-						</TabsContent>
-						<TabsContent value="otp">
-							<CardContent>
-								<Form {...otpForm}>
-									<form className="space-y-4" onSubmit={otpForm.handleSubmit(onOtpSubmit)}>
-										<input type="hidden" name="email" value={email} />
-										<FormField
-											control={otpForm.control}
-											name="token"
-											render={({ field }) => (
-												<FormItem>
-													<FormLabel>Enter OTP</FormLabel>
-													<FormControl>
-														<InputOTP maxLength={8} {...field}>
-															<InputOTPGroup className="w-full *:w-full">
-																<InputOTPSlot index={0} />
-																<InputOTPSlot index={1} />
-																<InputOTPSlot index={2} />
-																<InputOTPSlot index={3} />
-																{/* </InputOTPGroup>
+											<FormField
+												control={emailForm.control}
+												name="email"
+												render={({ field }) => (
+													<FormItem>
+														<FormLabel>Enter Email</FormLabel>
+														<FormControl>
+															<Input
+																placeholder="admin@gmail.com"
+																type="email"
+																{...field}
+															/>
+														</FormControl>
+														<FormMessage />
+													</FormItem>
+												)}
+											/>
+
+											<GoogleReCaptcha
+												siteKey={process.env.VITE_RECAPTCHA_SITE_KEY as string}
+												onChange={(token) => setRecaptchaToken(token)}
+											/>
+
+											<Button
+												type="submit"
+												className="w-full"
+												disabled={isSending || !recaptchaToken}
+											>
+												{isSending && <Loader2 className="animate-spin mr-1" />}
+												<span>Get OTP</span>
+											</Button>
+										</form>
+									</Form>
+								</CardContent>
+							</TabsContent>
+							<TabsContent value="otp">
+								<CardContent>
+									<Form {...otpForm}>
+										<form
+											className="space-y-4"
+											onSubmit={otpForm.handleSubmit(onOtpSubmit)}
+										>
+											<input type="hidden" name="email" value={email} />
+											<FormField
+												control={otpForm.control}
+												name="token"
+												render={({ field }) => (
+													<FormItem>
+														<FormLabel>Enter OTP</FormLabel>
+														<FormControl>
+															<InputOTP maxLength={8} {...field}>
+																<InputOTPGroup className="w-full *:w-full">
+																	<InputOTPSlot index={0} />
+																	<InputOTPSlot index={1} />
+																	<InputOTPSlot index={2} />
+																	<InputOTPSlot index={3} />
+																	{/* </InputOTPGroup>
 															<InputOTPSeparator />
 															<InputOTPGroup className="w-full *:w-full"> */}
-																<InputOTPSlot index={4} />
-																<InputOTPSlot index={5} />
-																<InputOTPSlot index={6} />
-																<InputOTPSlot index={7} />
-															</InputOTPGroup>
-														</InputOTP>
-													</FormControl>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-										<Button
-											type="submit"
-											className="w-full"
-											disabled={isVerifying || email.length == 0}
-										>
-											{isVerifying && <Loader2 className="animate-spin mr-1" />}
-											<span>Verify OTP</span>
+																	<InputOTPSlot index={4} />
+																	<InputOTPSlot index={5} />
+																	<InputOTPSlot index={6} />
+																	<InputOTPSlot index={7} />
+																</InputOTPGroup>
+															</InputOTP>
+														</FormControl>
+														<FormMessage />
+													</FormItem>
+												)}
+											/>
+											<Button
+												type="submit"
+												className="w-full"
+												disabled={isVerifying || email.length == 0}
+											>
+												{isVerifying && <Loader2 className="animate-spin mr-1" />}
+												<span>Verify OTP</span>
+											</Button>
+										</form>
+									</Form>
+									<Alert variant="default" className="mt-4">
+										<Mail className="h-4 w-4" />
+										<AlertTitle>Note</AlertTitle>
+										<AlertDescription>
+											Please enter the code sent to {email}
+										</AlertDescription>
+									</Alert>
+									<div className="text-center text-sm text-muted-foreground my-2 flex items-center">
+										<p>Didn’t receive a code?</p>
+										<Button variant="link" onClick={() => setTabValue("login")}>
+											Resend
 										</Button>
-									</form>
-								</Form>
-								<Alert variant="default" className="mt-4">
-									<Mail className="h-4 w-4" />
-									<AlertTitle>Note</AlertTitle>
-									<AlertDescription>Please enter the code sent to {email}</AlertDescription>
-								</Alert>
-								<div className="text-center text-sm text-muted-foreground my-2 flex items-center">
-									<p>Didn’t receive a code?</p>
-									<Button variant="link" onClick={() => setTabValue("login")}>
-										Resend
-									</Button>
-								</div>
-							</CardContent>
-						</TabsContent>
-					</Tabs>
-				</Card>
-				<div className="text-center text-sm text-muted-foreground">
-					By clicking “{tabValue == "login" ? "Get" : "Verify"} OTP,” you agree to our
-					<Link to="#" className="underline ml-1">
-						Terms of Service
-					</Link>{" "}
-					and
-					<Link to="#" className="underline ml-1">
-						Privacy Policy
-					</Link>
-					.
+									</div>
+								</CardContent>
+							</TabsContent>
+						</Tabs>
+					</Card>
+					<div className="text-center text-sm text-muted-foreground">
+						By clicking “{tabValue == "login" ? "Get" : "Verify"} OTP,” you agree to our
+						<Link to="#" className="underline ml-1">
+							Terms of Service
+						</Link>{" "}
+						and
+						<Link to="#" className="underline ml-1">
+							Privacy Policy
+						</Link>
+						.
+					</div>
 				</div>
-			</div>
-		</section>
+			</section>
+		</>
 	);
 }
 

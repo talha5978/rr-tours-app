@@ -85,11 +85,9 @@ export async function loader({ request }: Route.LoaderArgs) {
 	}
 
 	const { genAuthSecurity } = await import("@workspace/shared/utils/auth-utils.server");
-	// const { authId, headers } = genAuthSecurity(request);
-	const authId = extractAuthId(request);
-	// console.log("Auth id in root: ", authId);
+	const { authId, headers } = genAuthSecurity(request);
+	console.log("Auth id in root: ", authId);
 
-	const headers = genAuthSecurity(request).headers;
 	const resp: GetCurrentUser = await queryClient.fetchQuery(currentUserQuery({ request, authId }));
 
 	const user = resp?.user ?? null;
