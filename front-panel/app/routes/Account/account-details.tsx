@@ -1,8 +1,7 @@
-// routes/account.details.tsx
 import { useRouteLoaderData } from "react-router";
-import { loader as rootLoader } from "~/root"; // adjust path if needed
+import { loader as rootLoader } from "~/root";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
-import { Avatar, AvatarFallback } from "~/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
 
 export default function AccountDetailsPage() {
@@ -25,10 +24,14 @@ export default function AccountDetailsPage() {
 				<Card>
 					<CardHeader>
 						<div className="flex items-center gap-4">
-							<Avatar className="h-20 w-20">
-								<AvatarFallback className="text-2xl">
-									{user?.first_name}
-									{user?.last_name}
+							<Avatar className="h-11 w-11 border-2 border-background ring-1 ring-muted/40 select-none">
+								<AvatarImage
+									src={user.avatar_url ?? undefined}
+									alt={user.first_name ?? "User"}
+								/>
+								<AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
+									{user.first_name?.charAt(0) ?? "U"}
+									{user.last_name?.charAt(0) ?? ""}
 								</AvatarFallback>
 							</Avatar>
 							<div>

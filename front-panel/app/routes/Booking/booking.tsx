@@ -35,6 +35,7 @@ import { BookingService } from "@workspace/shared/services/booking.service";
 import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
 import { GoogleReCaptcha, verifyRecaptcha } from "~/components/ReCaptcha/GoogleReCaptcha";
 import { emailService } from "@workspace/shared/services/emails.service";
+import { type loader as rootLoader } from "~/root";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
 	try {
@@ -92,7 +93,7 @@ export default function BookingPage() {
 	const navigation = useNavigation();
 	const submit = useSubmit();
 	const [bookingRef, setBookingRef] = useState("");
-	const rootLoaderData = useRouteLoaderData("root");
+	const rootLoaderData = useRouteLoaderData<typeof rootLoader>("root");
 
 	// @ts-ignore
 	const actionData: ActionResponse & { booking_ref: string | null } = useActionData();
@@ -195,7 +196,7 @@ export default function BookingPage() {
 			return;
 		}
 
-		let payload: CreateBookingInput & { recaptchaToken: string } = {
+		let payload: CreateBookingInput & { recaptchaToken: string; added_by: string | null } = {
 			customer_name: data.customer_name.trim(),
 			customer_email: data.customer_email.trim(),
 			customer_phone: data.customer_phone.trim(),
@@ -224,6 +225,7 @@ export default function BookingPage() {
 			taxes,
 			total,
 			recaptchaToken: recaptchaToken ?? "",
+			added_by: rootLoaderData?.user?.id ?? null,
 		};
 
 		submit(payload, {
@@ -279,6 +281,29 @@ export default function BookingPage() {
 			/>
 			<div className="space-y-8">
 				<h1 className="text-2xl md:text-3xl font-bold">Complete Your Booking!</h1>
+
+				{!rootLoaderData?.user && (
+					<Card className="border-warning bg-warning/30">
+						<CardContent className="flex flex-col sm:flex-row items-center justify-between gap-4">
+							<div>
+								<p className="font-medium">Not signed in yet?</p>
+								<p className="text-sm text-muted-foreground">
+									Sign in to view this booking in your account and track it easily later.
+								</p>
+							</div>
+							<div className="flex gap-3 shrink-0">
+								<Link to="/login" state={{ from: location.pathname }} viewTransition>
+									<Button variant="outline" size="sm">
+										Sign in
+									</Button>
+								</Link>
+								<Link to="/signup" state={{ from: location.pathname }} viewTransition>
+									<Button size="sm">Sign up</Button>
+								</Link>
+							</div>
+						</CardContent>
+					</Card>
+				)}
 
 				<div className="w-full md:*:w-full *:h-fit flex md:flex-row flex-col gap-4">
 					<Card>

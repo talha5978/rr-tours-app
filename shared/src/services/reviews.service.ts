@@ -6,6 +6,8 @@ import type {
 	GetTourReviewsResp,
 	HomePageReviewsResp,
 	HomePageTourReview,
+	MyReviewsBooking,
+	MyReviewsBookings,
 	TourReview,
 } from "@workspace/shared/types/tour-reviews";
 import { AuthService } from "@workspace/shared/services/auth.service";
@@ -13,7 +15,7 @@ import { ApiError } from "@workspace/shared/utils/ApiError";
 
 @UseClassMiddleware(loggerMiddleware)
 export class ReviewsService extends Service {
-	private readonly MAX_ALLOWED_REVIEWS = 3; // PER USER
+	private readonly MAX_ALLOWED_REVIEWS = 5; // PER USER
 
 	/** Check if the user has the added the review or not on the tour */
 	async isAddingReviewAvailable(tour_id: string): Promise<boolean> {
@@ -240,5 +242,131 @@ export class ReviewsService extends Service {
 			reviews: reviewsData ?? [],
 			error: null,
 		};
+	}
+
+	/** Get user's bookings with their associated reviews for the My Reviews page. */
+	async getMyReviewBookings(
+		userId: string,
+		pageIndex = 0,
+		pageSize = 10,
+		searchQuery = "",
+	): Promise<MyReviewsBookings> {
+		const from = pageIndex * pageSize;
+		const to = from + pageSize - 1;
+
+		try {
+			let query = this.supabase
+				.from(this.BOOKINGS_TABLE)
+				.select(
+					`
+						id,
+						booking_ref,
+						booking_status,
+						payment_status,
+						tour_id,
+						tour_name,
+						tour_option_name,
+						preferred_date,
+						preferred_timeslot,
+						confirmed_date,
+						confirmed_timeslot,
+						created_at,
+						confirmed_at,
+						customer_name,
+						reviews:${this.REVIEWS_TABLE}(
+							id,
+							rating,
+							comment,
+							created_at
+						)
+					`,
+					{ count: "exact" },
+				)
+				.eq("booking_status", "CONFIRMED")
+				.eq("added_by", userId)
+				.order("created_at", { ascending: false })
+				.range(from, to);
+
+			if (searchQuery.trim().length > 0) {
+				query = query.or(`booking_ref.ilike.%${searchQuery}%,tour_name.ilike.%${searchQuery}%`);
+			}
+
+			const { data, error, count } = await query;
+
+			if (error) {
+				throw new ApiError("Failed to fetch your bookings and reviews", 500, [error.message]);
+			}
+
+			const bookings: MyReviewsBooking[] = (data ?? []).map((b) => ({
+				id: b.id,
+				booking_ref: b.booking_ref,
+				booking_status: b.booking_status,
+				payment_status: b.payment_status,
+				tour_id: b.tour_id,
+				tour_name: b.tour_name,
+				tour_option_name: b.tour_option_name,
+				preffered_date: b.preferred_date,
+				preffered_timeslot: b.preferred_timeslot,
+				confirmed_date: b.confirmed_date,
+				confirmed_timeslot: b.confirmed_timeslot,
+				created_at: b.created_at,
+				confirmed_at: b.confirmed_at,
+				customer_name: b.customer_name ?? undefined,
+				reviews: Array.isArray(b.reviews)
+					? b.reviews
+							.sort(
+								(r1, r2) =>
+									new Date(r2.created_at).getTime() - new Date(r1.created_at).getTime(),
+							)
+							.map((r) => ({
+								id: r.id,
+								rating: r.rating,
+								comment: r.comment,
+								created_at: r.created_at,
+							}))
+					: [],
+			}));
+
+			return {
+				bookings,
+				total: Number(count ?? 0),
+				error: null,
+			};
+		} catch (err) {
+			const apiErr =
+				err instanceof ApiError
+					? err
+					: new ApiError("Unexpected error fetching bookings and reviews", 500);
+			return {
+				bookings: [],
+				total: 0,
+				error: apiErr,
+			};
+		}
+	}
+
+	async addReview(
+		tour_id: string,
+		booking_id: string,
+		rating: number,
+		comment: string,
+		user_id: string,
+	): Promise<void> {
+		if (!user_id) {
+			throw new ApiError("Unauthorized", 401);
+		}
+
+		const { error } = await this.supabase.from(this.REVIEWS_TABLE).insert({
+			tour_id,
+			booking_id,
+			user_id,
+			rating,
+			comment,
+			is_verified: true,
+		});
+
+		if (error) {
+			throw new ApiError("Failed to add review", 500, [error.message]);
+		}
 	}
 }

@@ -30,5 +30,9 @@ export function GoogleReCaptcha({ siteKey, onChange, ref }: GoogleReCaptchaProps
 	if (!mounted) return null;
 	if (typeof window == "undefined") return null;
 
-	return <ReCAPTCHA ref={ref} sitekey={siteKey} onChange={onChange} suppressHydrationWarning={true} />;
+	return (
+		<div className="w-full min-w-full overflow-x-hidden">
+			<ReCAPTCHA ref={ref} sitekey={siteKey} onChange={onChange} suppressHydrationWarning={true} />
+		</div>
+	);
 }

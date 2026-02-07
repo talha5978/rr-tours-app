@@ -91,3 +91,27 @@ export type GetBookingDetailsForConfirm = {
 	} | null;
 	error: ApiError | null;
 };
+
+export type FrontPanelBooking = {
+	id: string;
+	booking_ref: string;
+	booking_status: Database["public"]["Enums"]["booking_status_enum"];
+	payment_status: Database["public"]["Enums"]["payment_status_enum"];
+	tour_id: string | null;
+	tour_name: string | null;
+	tour_option_name: string | null;
+	preffered_date: string | null;
+	preffered_timeslot: string | null;
+	confirmed_date: string | null;
+	confirmed_timeslot: string | null;
+	total: number;
+	created_at: string;
+	confirmed_at: string | null;
+	customer_name?: string | null;
+};
+
+export type FrontPanelBookings = {
+	bookings: FrontPanelBooking[];
+	total: number;
+	error: ApiError | null;
+};

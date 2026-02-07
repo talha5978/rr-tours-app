@@ -36,8 +36,14 @@ export default [
 		route("email-preview", "./routes/email-preview.tsx"),
 
 		layout("./routes/Account/account-layout.tsx", [
-			route("account-details", "./routes/Account/account-details.tsx"),
+			...prefix("account", [
+				route("details", "./routes/Account/account-details.tsx"),
+				route("bookings", "./routes/Account/my-bookings.tsx"),
+				route("reviews", "./routes/Account/my-reviews.tsx"),
+			]),
 		]),
+
+		route("add-review", "./routes/_actions/add-review.tsx"),
 	]),
 
 	route("*", "./routes/Error/404.tsx"),

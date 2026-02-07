@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { BookingService } from "@workspace/shared/services/booking.service";
-import type { FPBookingByRefDetail } from "@workspace/shared/types/booking";
+import type { FPBookingByRefDetail, FrontPanelBookings } from "@workspace/shared/types/booking";
 
 export const bookingByRefQuery = ({ request, ref }: { request: Request; ref: string }) => {
 	return queryOptions<FPBookingByRefDetail>({
@@ -13,5 +13,26 @@ export const bookingByRefQuery = ({ request, ref }: { request: Request; ref: str
 			return result;
 		},
 		enabled: !!ref,
+	});
+};
+
+export const myBookingsQuery = ({
+	request,
+	userId,
+	pageIndex,
+	pageSize,
+}: {
+	request: Request;
+	userId: string;
+	pageIndex: number;
+	pageSize: number;
+}) => {
+	return queryOptions<FrontPanelBookings>({
+		queryKey: ["my_bookings", pageIndex, pageSize, userId],
+		queryFn: async () => {
+			const svc = new BookingService(request);
+			const result = await svc.getMyBookings(userId, pageIndex, pageSize);
+			return result;
+		},
 	});
 };

@@ -4,6 +4,7 @@ import type {
 	GetTourReviewsOptions,
 	GetTourReviewsResp,
 	HomePageReviewsResp,
+	MyReviewsBookings,
 } from "@workspace/shared/types/tour-reviews";
 
 export const checkIfReviewAllowedQuery = ({ request, tour_id }: { request: Request; tour_id: string }) => {
@@ -42,6 +43,27 @@ export const homeTourReviewsQuery = ({ request }: { request: Request }) => {
 		queryFn: async () => {
 			const svc = new ReviewsService(request);
 			const result = await svc.getHomeTourReviews();
+			return result;
+		},
+	});
+};
+
+export const myReviewsQuery = ({
+	request,
+	userId,
+	pageIndex,
+	pageSize,
+}: {
+	request: Request;
+	userId: string;
+	pageIndex: number;
+	pageSize: number;
+}) => {
+	return queryOptions<MyReviewsBookings>({
+		queryKey: ["my_reviews", userId, pageIndex, pageSize],
+		queryFn: async () => {
+			const svc = new ReviewsService(request);
+			const result = await svc.getMyReviewBookings(userId, pageIndex, pageSize);
 			return result;
 		},
 	});

@@ -210,6 +210,7 @@ export type Database = {
 			};
 			bookings: {
 				Row: {
+					added_by: string | null;
 					admin_note: string | null;
 					booking_ref: string;
 					booking_status: Database["public"]["Enums"]["booking_status_enum"];
@@ -239,6 +240,7 @@ export type Database = {
 					updated_at: string;
 				};
 				Insert: {
+					added_by?: string | null;
 					admin_note?: string | null;
 					booking_ref: string;
 					booking_status?: Database["public"]["Enums"]["booking_status_enum"];
@@ -268,6 +270,7 @@ export type Database = {
 					updated_at?: string;
 				};
 				Update: {
+					added_by?: string | null;
 					admin_note?: string | null;
 					booking_ref?: string;
 					booking_status?: Database["public"]["Enums"]["booking_status_enum"];

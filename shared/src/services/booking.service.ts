@@ -7,6 +7,8 @@ import { Database } from "@workspace/shared/types/supabase";
 import type {
 	BookingDetailById,
 	FPBookingByRefDetail,
+	FrontPanelBooking,
+	FrontPanelBookings,
 	GetBookingDetailByID,
 	GetBookingDetailsForConfirm,
 	GetHighLevelBookings,
@@ -48,7 +50,7 @@ export class BookingService extends Service {
 	}
 
 	/** create a booking */
-	async createBooking(input: CreateBookingInput): Promise<string> {
+	async createBooking(input: CreateBookingInput & { added_by: string | null }): Promise<string> {
 		const {
 			customer_email,
 			customer_name,
@@ -65,6 +67,7 @@ export class BookingService extends Service {
 			discount,
 			taxes,
 			total,
+			added_by,
 		} = input;
 
 		try {
@@ -155,6 +158,7 @@ export class BookingService extends Service {
 				taxes,
 				total,
 				price_overriden: false,
+				added_by: added_by ?? null,
 			};
 
 			bookingData.preferred_date = date;
@@ -594,5 +598,83 @@ export class BookingService extends Service {
 			booking: payload ?? null,
 			error: null,
 		};
+	}
+
+	/**
+	 * Get minimal booking list for the current authenticated user
+	 */
+	async getMyBookings(userId: string, pageIndex = 0, pageSize = 10): Promise<FrontPanelBookings> {
+		const from = pageIndex * pageSize;
+		const to = from + pageSize - 1;
+
+		try {
+			if (userId === null || userId === "") {
+				throw new ApiError("Failed to fetch your bookings", 500, []);
+			}
+
+			let query = this.supabase
+				.from(this.BOOKINGS_TABLE)
+				.select(
+					`
+						id,
+						booking_ref,
+						booking_status,
+						payment_status,
+						tour_id,
+						tour_name,
+						tour_option_name,
+						preferred_date,
+						preferred_timeslot,
+						confirmed_date,
+						confirmed_timeslot,
+						total,
+						created_at,
+						confirmed_at,
+						customer_name
+					`,
+					{ count: "exact" },
+				)
+				.eq("added_by", userId)
+				.order("created_at", { ascending: false })
+				.range(from, to);
+
+			const { data, error, count } = await query;
+
+			if (error) {
+				throw new ApiError("Failed to fetch your bookings", 500, [error.message]);
+			}
+
+			const bookings: FrontPanelBooking[] = (data ?? []).map((b) => ({
+				id: b.id,
+				booking_ref: b.booking_ref,
+				booking_status: b.booking_status,
+				payment_status: b.payment_status,
+				tour_id: b.tour_id,
+				tour_name: b.tour_name,
+				tour_option_name: b.tour_option_name,
+				preffered_date: b.preferred_date,
+				preffered_timeslot: b.preferred_timeslot,
+				confirmed_date: b.confirmed_date,
+				confirmed_timeslot: b.confirmed_timeslot,
+				total: b.total,
+				created_at: b.created_at,
+				confirmed_at: b.confirmed_at,
+				customer_name: b.customer_name ?? undefined,
+			}));
+
+			return {
+				bookings,
+				total: Number(count ?? 0),
+				error: null,
+			};
+		} catch (err) {
+			const apiErr =
+				err instanceof ApiError ? err : new ApiError("Unexpected error fetching bookings", 500);
+			return {
+				bookings: [],
+				total: 0,
+				error: apiErr,
+			};
+		}
 	}
 }

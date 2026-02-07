@@ -58,3 +58,34 @@ export interface HomePageReviewsResp {
 	reviews: HomePageReview[];
 	error: null | ApiError;
 }
+
+export type MyReview = {
+	id: string;
+	rating: number;
+	comment: string | null;
+	created_at: string;
+};
+
+export type MyReviewsBooking = {
+	id: string;
+	booking_ref: string;
+	booking_status: Database["public"]["Enums"]["booking_status_enum"];
+	payment_status: Database["public"]["Enums"]["payment_status_enum"];
+	tour_id: string | null;
+	tour_name: string | null;
+	tour_option_name: string | null;
+	preffered_date: string | null;
+	preffered_timeslot: string | null;
+	confirmed_date: string | null;
+	confirmed_timeslot: string | null;
+	created_at: string;
+	confirmed_at: string | null;
+	customer_name?: string | null;
+	reviews: MyReview[];
+};
+
+export type MyReviewsBookings = {
+	bookings: MyReviewsBooking[];
+	total: number;
+	error: ApiError | null;
+};

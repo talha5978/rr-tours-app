@@ -54,7 +54,7 @@ import {
 } from "@workspace/shared/utils/tourDetails";
 import { useIsMobile } from "~/hooks/use-mobile";
 import { Skeleton } from "~/components/ui/skeleton";
-import { checkIfReviewAllowedQuery, tourReviewsQuery } from "~/queries/reviews.q";
+import { tourReviewsQuery } from "~/queries/reviews.q";
 import TourReviews, { TourReviewsSkeleton } from "~/components/Tour/TourReviews";
 
 const participantSchema = z.object({
@@ -103,8 +103,6 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 		availability = await queryClient.fetchQuery(availabilityQuery(request, optionId, dateStr));
 	}
 
-	let isReviewAllowed = queryClient.fetchQuery(checkIfReviewAllowedQuery({ request, tour_id: params.id }));
-
 	const review_page = Number(url.searchParams.get("reviews_page") ?? "1");
 	const min_rating = url.searchParams.get("min_rating")
 		? Number(url.searchParams.get("min_rating"))
@@ -134,7 +132,6 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 		availability,
 		optionId,
 		dateStr,
-		isReviewAllowed,
 		reviewsData,
 		currentReviewPage: review_page,
 	};
@@ -482,8 +479,9 @@ export default function TourDetailsPage() {
 																						setSelectedOption(
 																							option,
 																						);
-																						setSelectedDate(date);
-																						setStep("time");
+																						handleDateSelect(
+																							date,
+																						);
 																					}}
 																				>
 																					<Calendar className="w-4 h-4 text-muted-foreground" />

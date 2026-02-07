@@ -205,6 +205,7 @@ function UserAccountButton() {
 	const rootLoaderData = useRouteLoaderData<typeof loader>("root");
 	const navigation = useNavigation();
 	const actionData = useActionData();
+	const user = rootLoaderData?.user;
 
 	const isLoggingOut =
 		navigation.state === "submitting" &&
@@ -214,78 +215,81 @@ function UserAccountButton() {
 	useEffect(() => {
 		if (actionData?.error) {
 			toast.error(actionData.error);
-		} else if (actionData == undefined && navigation.formAction === "/logout") {
-			toast.success("Logged out successfully");
 		}
-	}, [actionData]);
+	}, [actionData, navigation.formAction]);
+
+	if (!user) {
+		return (
+			<Link to="/login" prefetch="intent" viewTransition>
+				<Button size="sm">
+					<LogIn className="mr-2 h-4 w-4" />
+					Login
+				</Button>
+			</Link>
+		);
+	}
 
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild tabIndex={0} className="cursor-pointer">
-				<Avatar className="h-9 w-9 border-2 border-background ring-1 ring-muted/40">
-					<AvatarImage src={rootLoaderData?.user?.avatar_url ?? undefined} />
+				<Avatar className="h-9 w-9 border-2 border-background ring-1 ring-muted/40 select-none">
+					<AvatarImage src={user.avatar_url ?? undefined} alt={user.first_name ?? "User"} />
 					<AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
-						{rootLoaderData?.user?.first_name?.charAt(0) ?? "U"}
-						{rootLoaderData?.user?.last_name?.charAt(0) ?? null}
+						{user.first_name?.charAt(0) ?? "U"}
+						{user.last_name?.charAt(0) ?? ""}
 					</AvatarFallback>
 				</Avatar>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent
 				className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-				side={"bottom"}
+				side="bottom"
 				align="end"
 				sideOffset={4}
 			>
-				{rootLoaderData?.user && (
-					<>
-						<DropdownMenuLabel className="p-0 font-normal">
-							<div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-								<div className="grid flex-1 text-left text-sm gap-1">
-									<span className="truncate font-medium">
-										👋 Welcome
-										{rootLoaderData?.user ? ", " + rootLoaderData.user.last_name : ""}
-									</span>
-								</div>
-							</div>
-						</DropdownMenuLabel>
-						<DropdownMenuSeparator />
-					</>
-				)}
+				<DropdownMenuLabel className="p-0 font-normal">
+					<div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+						<div className="grid flex-1 text-left text-sm gap-1">
+							<span className="truncate font-medium">
+								👋 Welcome{user ? ", " + user.last_name : ""}
+							</span>
+						</div>
+					</div>
+				</DropdownMenuLabel>
+
+				<DropdownMenuSeparator />
+
 				<DropdownMenuGroup>
-					<Link to={"account-details"} prefetch="intent" viewTransition>
+					<Link to="/account/details" prefetch="intent" viewTransition>
 						<DropdownMenuItem>
 							<Info />
 							Account Details
 						</DropdownMenuItem>
 					</Link>
-					<DropdownMenuItem>
-						<Calendar />
-						My Bookings
-					</DropdownMenuItem>
-					<DropdownMenuItem>
-						<Star />
-						Reviews
-					</DropdownMenuItem>
-					{!rootLoaderData?.user ? (
-						<Link to={"/login"}>
-							<DropdownMenuItem>
-								<LogIn />
-								Login
+
+					<Link to="/account/bookings" prefetch="intent" viewTransition>
+						<DropdownMenuItem>
+							<Calendar />
+							My Bookings
+						</DropdownMenuItem>
+					</Link>
+
+					<Link to="/account/reviews" prefetch="intent" viewTransition>
+						<DropdownMenuItem>
+							<Star />
+							Reviews
+						</DropdownMenuItem>
+					</Link>
+
+					<DropdownMenuSeparator />
+
+					<Form action="/logout" method="POST">
+						<button disabled={isLoggingOut} type="submit" className="w-full rounded-sm">
+							<DropdownMenuItem variant="destructive" disabled={isLoggingOut}>
+								{isLoggingOut ? <Loader2 className="animate-spin" /> : <LogOutIcon />}
+								Logout
 							</DropdownMenuItem>
-						</Link>
-					) : (
-						<>
-							<DropdownMenuSeparator />
-							<Form action="/logout" method="POST">
-								<button disabled={isLoggingOut} type="submit" className="w-full rounded-sm">
-									<DropdownMenuItem variant="destructive" disabled={isLoggingOut}>
-										{isLoggingOut ? <Loader2 className="animate-spin" /> : <LogOutIcon />}
-										Logout
-									</DropdownMenuItem>
-								</button>
-							</Form>
-						</>
-					)}
+						</button>
+					</Form>
 				</DropdownMenuGroup>
 			</DropdownMenuContent>
 		</DropdownMenu>
