@@ -1129,34 +1129,6 @@ export class ToursService extends Service {
 				}
 			}
 
-			function formatLocalDate(date: Date) {
-				const yyyy = date.getFullYear();
-				const mm = String(date.getMonth() + 1).padStart(2, "0");
-				const dd = String(date.getDate()).padStart(2, "0");
-				return `${yyyy}-${mm}-${dd}`;
-			}
-
-			// Available date filter
-			if (filters.availableDate) {
-				const dateStr = formatLocalDate(filters.availableDate);
-				console.log("Filtering for date:", dateStr);
-
-				const { data: matchingTourIds, error: idError } = await this.supabase
-					.rpc("get_tours_with_active_availability_on_date", { p_date: dateStr })
-					.select("tour_id");
-
-				if (idError) {
-					throw new ApiError(`Failed to fetch tours for date: ${idError.message}`, 500);
-				}
-
-				if (matchingTourIds && matchingTourIds.length > 0) {
-					const tourIds = matchingTourIds.map((row: any) => row.tour_id);
-					query = query.in("id", tourIds);
-				} else {
-					return { tours: [], total: 0 };
-				}
-			}
-
 			query = query.order("created_at", { ascending: false });
 
 			const { data, error, count } = await query;

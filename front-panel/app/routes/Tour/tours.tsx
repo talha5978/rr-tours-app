@@ -26,7 +26,6 @@ import { Checkbox } from "~/components/ui/checkbox";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Slider } from "~/components/ui/slider";
-import DatePicker from "~/components/Inputs/date-picker";
 import { TourCard } from "~/components/Tour/TourCard";
 import { useEffect } from "react";
 import { Separator } from "~/components/ui/separator";
@@ -37,7 +36,6 @@ import {
 	fpDefaultTourSortByFilter,
 	fpDefaultTourSortTypeFilter,
 } from "@workspace/shared/constants/constants";
-import { startOfToday } from "date-fns";
 
 const PAGE_SIZE = 12;
 const MAX_PRICE = 10000;
@@ -50,9 +48,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 	const cities = url.searchParams.getAll("cities");
 	const providers = url.searchParams.getAll("providers");
 	const tags = url.searchParams.getAll("tags");
-	const availableDate = url.searchParams.get("availableDate")
-		? parseLocalDate(url.searchParams.get("availableDate")!)
-		: undefined;
 
 	const sortBy = (url.searchParams.get("sortBy") as FPTourFilters["sortBy"]) || fpDefaultTourSortByFilter;
 	const sortType =
@@ -68,7 +63,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 		cities,
 		providers,
 		tags,
-		availableDate,
 		price,
 		sortBy: sortBy != "recommended" ? sortBy : undefined,
 		sortType: sortBy != "recommended" ? sortType : undefined,
@@ -91,11 +85,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 	return { toursResp, citiesResp, categoriesResp, providersResp, tagsResp };
 };
-
-function parseLocalDate(dateStr: string): Date {
-	const [year, month, day] = dateStr.split("-").map(Number);
-	return new Date(year, month - 1, day);
-}
 
 export default function ToursPage() {
 	const { toursResp } = useLoaderData<typeof loader>();
@@ -226,9 +215,6 @@ const FiltersForm = () => {
 			cities: searchParams.getAll("cities"),
 			providers: searchParams.getAll("providers"),
 			tags: searchParams.getAll("tags"),
-			availableDate: searchParams.get("availableDate")
-				? parseLocalDate(searchParams.get("availableDate")!)
-				: undefined,
 			price:
 				maxPriceParam && minPriceParam
 					? [minPriceParam, maxPriceParam].map((val) => Number(val))
@@ -246,14 +232,6 @@ const FiltersForm = () => {
 		data.cities?.forEach((city) => params.append("cities", city));
 		data.providers?.forEach((prov) => params.append("providers", prov));
 		data.tags?.forEach((tag) => params.append("tags", tag));
-		if (data.availableDate) {
-			const d = data.availableDate;
-			const yyyy = d.getFullYear();
-			const mm = String(d.getMonth() + 1).padStart(2, "0");
-			const dd = String(d.getDate()).padStart(2, "0");
-
-			params.set("availableDate", `${yyyy}-${mm}-${dd}`);
-		}
 		if (data.price && data.price.length === 2) {
 			params.set("min_price", String(data.price[0]));
 			params.set("max_price", String(data.price[1]));
@@ -271,9 +249,6 @@ const FiltersForm = () => {
 			cities: searchParams.getAll("cities"),
 			providers: searchParams.getAll("providers"),
 			tags: searchParams.getAll("tags"),
-			availableDate: searchParams.get("availableDate")
-				? parseLocalDate(searchParams.get("availableDate")!)
-				: undefined,
 			price:
 				maxPriceParam && minPriceParam
 					? [Number(minPriceParam), Number(maxPriceParam)]
@@ -413,39 +388,6 @@ const FiltersForm = () => {
 									<label htmlFor={`tag-${tag.id}`}>{tag.name}</label>
 								</div>
 							))}
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
-
-				{/* Available Date */}
-				<FormField
-					control={form.control}
-					name="availableDate"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Available Date</FormLabel>
-							<FormControl>
-								<DatePicker
-									value={field.value ? field.value : null}
-									defaultMonth={field.value || new Date()}
-									onDateChange={(date) => {
-										if (!date) {
-											field.onChange(undefined);
-											return;
-										}
-
-										const normalizedDate = new Date(
-											date.getFullYear(),
-											date.getMonth(),
-											date.getDate(),
-										);
-
-										field.onChange(normalizedDate);
-									}}
-									date_disabled={{ before: startOfToday() }}
-								/>
-							</FormControl>
 							<FormMessage />
 						</FormItem>
 					)}

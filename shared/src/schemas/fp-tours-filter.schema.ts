@@ -10,7 +10,6 @@ export const FPTourFilterFormSchema = z.object({
 	cities: z.array(z.string()).optional(),
 	providers: z.array(z.string()).optional(),
 	tags: z.array(z.string()).optional(),
-	availableDate: z.date().optional(),
 	price: z.array(z.number(), z.number()).optional(),
 	sortBy: z.enum(fpTourSortByEnums).optional(),
 	sortType: z.enum(sortTypeEnums).optional(),
@@ -24,7 +23,6 @@ export interface FPTourFilters {
 	cities?: string[];
 	providers?: string[];
 	tags?: string[];
-	availableDate?: Date;
 	price?: number[];
 	sortBy?: FPTourFilterFormData["sortBy"];
 	sortType?: FPTourFilterFormData["sortType"];
