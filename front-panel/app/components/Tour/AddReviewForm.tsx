@@ -72,7 +72,7 @@ export default function AddReviewForm({ tour_id, booking_id, setAddReviewDialog 
 		if (data.rating && data.comment && data.tour_id && data.booking_id) {
 			const formData = new FormData();
 			formData.set("rating", data.rating.toString());
-			formData.set("comment", data.comment);
+			formData.set("comment", data.comment.trim());
 			formData.set("tour_id", data.tour_id);
 			formData.set("booking_id", data.booking_id);
 			fetcher.submit(formData, { method: "post", action: "/add-review", preventScrollReset: true });

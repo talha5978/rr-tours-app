@@ -345,6 +345,7 @@ export class ReviewsService extends Service {
 		}
 	}
 
+	/** Add a new review from reviews section in the front panel */
 	async addReview(
 		tour_id: string,
 		booking_id: string,
@@ -367,6 +368,15 @@ export class ReviewsService extends Service {
 
 		if (error) {
 			throw new ApiError("Failed to add review", 500, [error.message]);
+		}
+	}
+
+	/** Delete a review from reviews section in the front panel */
+	async deleteReview(review_id: number): Promise<void> {
+		try {
+			await this.supabase.from(this.REVIEWS_TABLE).delete().eq("id", review_id);
+		} catch (error) {
+			throw error instanceof ApiError ? error : new ApiError("Failed to delete review", 500, []);
 		}
 	}
 }

@@ -1,10 +1,17 @@
-import { Link, useLoaderData, useSearchParams, redirect, type LoaderFunctionArgs } from "react-router";
+import {
+	Link,
+	useLoaderData,
+	useSearchParams,
+	redirect,
+	type LoaderFunctionArgs,
+	useFetcher,
+} from "react-router";
 import { format } from "date-fns";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "~/components/ui/dialog";
-import { ArrowRight, Check, ChevronLeft, ChevronRight, Clock, Plus, Star } from "lucide-react";
+import { ArrowRight, Check, ChevronLeft, ChevronRight, Clock, Loader2, Plus, Star } from "lucide-react";
 import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
 import { currentFullUserQuery } from "~/queries/auth.q";
 import { queryClient } from "@workspace/shared/utils/query-client";
@@ -13,7 +20,8 @@ import { myReviewsQuery } from "~/queries/reviews.q";
 import AddReviewForm from "~/components/Tour/AddReviewForm";
 import { Separator } from "~/components/ui/separator";
 import { Fragment } from "react/jsx-runtime";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 const PAGE_SIZE = 10;
 
@@ -73,6 +81,9 @@ export default function MyReviewsPage() {
 	const { bookings, total } = reviewsData;
 	const totalPages = Math.ceil(total / PAGE_SIZE);
 	const [addReviewDialog, setAddReviewDialog] = useState(false);
+	const [deletingReviewId, setDeletingReviewId] = useState<string | null>(null);
+	const fetcher = useFetcher();
+	const isDeletingReview = fetcher.state === "submitting" && fetcher.formAction === "/delete-review";
 
 	const [_, setSearchParams] = useSearchParams();
 
@@ -86,6 +97,29 @@ export default function MyReviewsPage() {
 			{ viewTransition: true, preventScrollReset: true, replace: true },
 		);
 	};
+
+	useEffect(() => {
+		if (fetcher.data && fetcher.data?.action === "DELETE_REVIEW") {
+			if (fetcher.data.success) {
+				toast.success("Review deleted successfully");
+				setDeletingReviewId(null);
+			} else if (fetcher.data.error) {
+				toast.error(fetcher.data.error);
+			}
+		}
+	}, [fetcher.data]);
+
+	function handleDeleteClick(tour_id: string, review_id: string) {
+		if (tour_id == null || review_id == null) {
+			toast.error("Something went wrong!");
+			return;
+		}
+
+		const formData = new FormData();
+		formData.set("tour_id", tour_id);
+		formData.set("review_id", review_id);
+		fetcher.submit(formData, { method: "post", action: "/delete-review", preventScrollReset: true });
+	}
 
 	if (errorMessage) {
 		return (
@@ -146,7 +180,9 @@ export default function MyReviewsPage() {
 			<div className="min-w-full">
 				<div className="mb-8">
 					<h1 className="text-3xl font-bold tracking-tight">My Reviews</h1>
-					<p className="text-muted-foreground mt-1">View and manage your tour reviews</p>
+					<p className="text-muted-foreground mt-1">
+						View and manage your tour reviews on confirmed bookings
+					</p>
 				</div>
 
 				<div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -243,14 +279,74 @@ export default function MyReviewsPage() {
 										{booking.reviews.map((review, index) => (
 											<Fragment key={review.id}>
 												<div className="space-y-2">
-													<div className="flex items-center gap-2">
-														<StarRating rating={review.rating} />
-														<span className="text-xs text-muted-foreground">
-															{format(
-																new Date(review.created_at),
-																"MMM dd, yyyy",
-															)}
-														</span>
+													<div className="flex justify-between items-center">
+														<div className="flex items-center gap-2">
+															<StarRating rating={review.rating} />
+															<span className="text-xs text-muted-foreground">
+																{format(
+																	new Date(review.created_at),
+																	"MMM dd, yyyy",
+																)}
+															</span>
+														</div>
+														<Dialog
+															open={deletingReviewId === review.id}
+															onOpenChange={(open) => {
+																if (!open) setDeletingReviewId(null);
+															}}
+														>
+															<DialogTrigger>
+																<Button
+																	variant={"link"}
+																	size={"sm"}
+																	className="p-0 m-0 text-destructive"
+																	onClick={() =>
+																		setDeletingReviewId(review.id)
+																	}
+																>
+																	Delete
+																</Button>
+															</DialogTrigger>
+															<DialogContent>
+																<div className="mt-1">
+																	<h2 className="font-bold text-xl">
+																		Delete Review
+																	</h2>
+																	<p>
+																		Are you sure you want to delete this
+																		review?
+																	</p>
+																	<div className="mt-4 w-fit ml-auto flex gap-2 flex-row">
+																		<Button
+																			size="sm"
+																			variant={"outline"}
+																			onClick={() =>
+																				setDeletingReviewId(null)
+																			}
+																			disabled={isDeletingReview}
+																		>
+																			Cancel
+																		</Button>
+																		<Button
+																			size="sm"
+																			className="text-destructive-foreground bg-destructive hover:bg-destructive"
+																			onClick={() =>
+																				handleDeleteClick(
+																					booking.tour_id!,
+																					review.id,
+																				)
+																			}
+																			disabled={isDeletingReview}
+																		>
+																			{isDeletingReview && (
+																				<Loader2 className="animate-spin" />
+																			)}
+																			Delete
+																		</Button>
+																	</div>
+																</div>
+															</DialogContent>
+														</Dialog>
 													</div>
 													{review.comment && (
 														<p className="text-sm text-muted-foreground line-clamp-3">
