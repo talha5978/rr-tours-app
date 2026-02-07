@@ -80,7 +80,7 @@ export default function MyReviewsPage() {
 
 	const { bookings, total } = reviewsData;
 	const totalPages = Math.ceil(total / PAGE_SIZE);
-	const [addReviewDialog, setAddReviewDialog] = useState(false);
+	const [addReviewBookingId, setAddReviewBookingId] = useState<string | null>(null);
 	const [deletingReviewId, setDeletingReviewId] = useState<string | null>(null);
 	const fetcher = useFetcher();
 	const isDeletingReview = fetcher.state === "submitting" && fetcher.formAction === "/delete-review";
@@ -245,10 +245,12 @@ export default function MyReviewsPage() {
 									</h4>
 									{booking.reviews.length < 5 && (
 										<Dialog
-											open={addReviewDialog}
-											onOpenChange={() => setAddReviewDialog(!addReviewDialog)}
+											open={addReviewBookingId === booking.id}
+											onOpenChange={(open) => {
+												if (!open) setAddReviewBookingId(null);
+											}}
 										>
-											<DialogTrigger onClick={() => setAddReviewDialog(true)}>
+											<DialogTrigger onClick={() => setAddReviewBookingId(booking.id)}>
 												<Button variant="ghost" size="icon">
 													<Plus className="h-4 w-4" />
 												</Button>
@@ -263,7 +265,7 @@ export default function MyReviewsPage() {
 												<AddReviewForm
 													booking_id={booking.id}
 													tour_id={booking.tour_id!}
-													setAddReviewDialog={() => setAddReviewDialog(false)}
+													setAddReviewDialog={() => setAddReviewBookingId(null)}
 												/>
 											</DialogContent>
 										</Dialog>
