@@ -497,80 +497,6 @@ export type Database = {
 					},
 				];
 			};
-			tour_availabilities: {
-				Row: {
-					created_at: string | null;
-					date: string;
-					id: number;
-					isActive: boolean;
-					tour_option_id: number;
-					updated_at: string | null;
-				};
-				Insert: {
-					created_at?: string | null;
-					date: string;
-					id?: number;
-					isActive?: boolean;
-					tour_option_id: number;
-					updated_at?: string | null;
-				};
-				Update: {
-					created_at?: string | null;
-					date?: string;
-					id?: number;
-					isActive?: boolean;
-					tour_option_id?: number;
-					updated_at?: string | null;
-				};
-				Relationships: [
-					{
-						foreignKeyName: "tour_availabilities_tour_option_id_fkey";
-						columns: ["tour_option_id"];
-						isOneToOne: false;
-						referencedRelation: "tour_options";
-						referencedColumns: ["id"];
-					},
-				];
-			};
-			tour_availability_slots: {
-				Row: {
-					availability_id: number;
-					available_seats: number | null;
-					id: number;
-					seat_type: Database["public"]["Enums"]["timeslot_seat_type"];
-					time_slot_id: number;
-				};
-				Insert: {
-					availability_id: number;
-					available_seats?: number | null;
-					id?: number;
-					seat_type: Database["public"]["Enums"]["timeslot_seat_type"];
-					time_slot_id: number;
-				};
-				Update: {
-					availability_id?: number;
-					available_seats?: number | null;
-					id?: number;
-					seat_type?: Database["public"]["Enums"]["timeslot_seat_type"];
-					time_slot_id?: number;
-				};
-				Relationships: [
-					{
-						foreignKeyName: "tour_availability_slots_availability_id_fkey";
-						columns: ["availability_id"];
-						isOneToOne: false;
-						referencedRelation: "tour_availabilities";
-						referencedColumns: ["id"];
-					},
-					{
-						foreignKeyName: "tour_availability_slots_time_slot_id_fkey";
-						columns: ["time_slot_id"];
-						isOneToOne: false;
-						referencedRelation: "tour_time_slots";
-						referencedColumns: ["id"];
-					},
-				];
-			};
 			tour_option_prices: {
 				Row: {
 					created_at: string | null;
@@ -692,7 +618,7 @@ export type Database = {
 					{
 						foreignKeyName: "tour_reviews_booking_id_fkey";
 						columns: ["booking_id"];
-						isOneToOne: true;
+						isOneToOne: false;
 						referencedRelation: "bookings";
 						referencedColumns: ["id"];
 					},
@@ -727,30 +653,6 @@ export type Database = {
 					id?: number;
 					image?: string;
 					name?: string;
-				};
-				Relationships: [];
-			};
-			tour_time_slots: {
-				Row: {
-					created_at: string | null;
-					id: number;
-					label: string | null;
-					sort_order: number;
-					time: string;
-				};
-				Insert: {
-					created_at?: string | null;
-					id?: number;
-					label?: string | null;
-					sort_order?: number;
-					time: string;
-				};
-				Update: {
-					created_at?: string | null;
-					id?: number;
-					label?: string | null;
-					sort_order?: number;
-					time?: string;
 				};
 				Relationships: [];
 			};
@@ -972,20 +874,13 @@ export type Database = {
 			[_ in never]: never;
 		};
 		Functions: {
-			cleanup_old_tour_availabilities: { Args: never; Returns: undefined };
-			get_tours_with_active_availability_on_date: {
-				Args: { p_date: string };
-				Returns: {
-					tour_id: string;
-				}[];
-			};
+			[_ in never]: never;
 		};
 		Enums: {
 			availability_override_type: "CLOSE" | "CAPACITY_CHANGE";
 			booking_status_enum: "PENDING" | "CONFIRMED" | "CANCELLED";
 			cache_invalidation_target: "front" | "admin" | "both";
 			payment_status_enum: "UNPAID" | "PENDING" | "PARTIAL" | "PAID" | "REFUNDED";
-			timeslot_seat_type: "UNLIMITED" | "LIMITED";
 		};
 		CompositeTypes: {
 			[_ in never]: never;
@@ -1118,7 +1013,6 @@ export const Constants = {
 			booking_status_enum: ["PENDING", "CONFIRMED", "CANCELLED"],
 			cache_invalidation_target: ["front", "admin", "both"],
 			payment_status_enum: ["UNPAID", "PENDING", "PARTIAL", "PAID", "REFUNDED"],
-			timeslot_seat_type: ["UNLIMITED", "LIMITED"],
 		},
 	},
 } as const;

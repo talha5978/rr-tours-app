@@ -56,8 +56,6 @@ export const PAYMENT_REF_DIMENSIONS = {
 
 export const MAX_META_KEYWORDS = 25;
 
-export const TIMESLOT_SEAT_TYPE = Constants.public.Enums.timeslot_seat_type;
-
 export const sortTypeEnums = ["asc", "desc"] as const;
 
 export const defaultTourSortByFilter = "created_at" as const;

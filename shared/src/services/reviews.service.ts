@@ -319,7 +319,7 @@ export class ReviewsService extends Service {
 									new Date(r2.created_at).getTime() - new Date(r1.created_at).getTime(),
 							)
 							.map((r) => ({
-								id: r.id,
+								id: r.id.toString(),
 								rating: r.rating,
 								comment: r.comment,
 								created_at: r.created_at,

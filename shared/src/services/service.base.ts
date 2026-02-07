@@ -46,11 +46,6 @@ export class Service implements ServiceBase {
 	protected readonly TOUR_OPTION_PRICES_TABLE = "tour_option_prices";
 	protected readonly PARTICIPANT_TYPES_TABLE = "participant_types";
 
-	protected readonly TOUR_AVAILABILITIES_TABLE = "tour_availabilities";
-	protected readonly TOUR_AVAILABILITY_SLOTS_TABLE = "tour_availability_slots";
-	protected readonly TOUR_TIME_SLOTS_TABLE = "tour_time_slots";
-
-	// AVAILABILITY V2
 	protected readonly AVAILABILITY_RULES_TABLE = "availability_rules";
 	protected readonly TIMESLOTS_TABLE = "time_slots";
 	protected readonly AVAILABILITY_OVERRIDES_TABLE = "availability_overrides";
