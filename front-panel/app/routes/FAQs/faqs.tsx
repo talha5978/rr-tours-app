@@ -249,7 +249,7 @@ export default function FaqsPage() {
 			<section className="space-y-8 mx-auto max-w-2xl pb-10">
 				<h1 className="text-3xl sm:text-4xl">FAQs</h1>
 
-				<div className="space-y-4">
+				<div className="space-y-7">
 					{faqs.map((faq, idx) => {
 						return (
 							<div key={idx} className="space-y-2">

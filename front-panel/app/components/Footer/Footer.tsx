@@ -63,7 +63,12 @@ export default function Footer({ categories }: { categories: FPHighLevelCategory
 								</Link>
 							</li>
 							<li>
-								<Link to="/faqs" className="hover:text-foreground">
+								<Link
+									to="/faqs"
+									className="hover:text-foreground"
+									prefetch="intent"
+									viewTransition
+								>
 									FAQs
 								</Link>
 							</li>

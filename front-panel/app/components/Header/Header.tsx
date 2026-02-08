@@ -24,6 +24,7 @@ const NAV_LINKS = [
 	{ label: "All Tours", to: "/tours" },
 	{ label: "About", to: "/about" },
 	{ label: "Contact Us", to: "/contact-us" },
+	{ label: "FAQs", to: "/faqs" },
 	{ label: "Track Booking", to: "/track-booking" },
 ];
 
@@ -123,8 +124,8 @@ export default function Header({ categories }: { categories: FPHighLevelCategory
 
 				{/* Logo */}
 				<Link to="/" viewTransition prefetch="intent">
-					<div className="w-36 h-fit ">
-						<img src="/logo.png" className="w-36 h-32" alt="Top Attractions Dubai" />
+					<div className="sm:w-36 w-32 h-fit">
+						<img src="/logo.png" className="sm:w-36 w-32 h-32" alt="Top Attractions Dubai" />
 					</div>
 				</Link>
 
