@@ -128,12 +128,12 @@ export default function AccountDetailsPage() {
 			data.first_name === user.first_name &&
 			data.last_name === user.last_name &&
 			data.phone_number == user.phone_number &&
-			data.country == user.country
+			(data.country === "" ? null : data.country) == user.country
 		) {
 			toast.error("No changes detected");
 			return;
 		}
-		return;
+
 		const formData = new FormData();
 		formData.append("first_name", data.first_name);
 		formData.append("last_name", data.last_name);
