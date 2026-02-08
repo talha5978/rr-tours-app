@@ -195,6 +195,9 @@ export class ReviewsService extends Service {
 				tour:${this.TOURS_TABLE}(
 					id, name,
 					${this.META_DETAILS_TABLE}(url_key)
+				),
+				user:${this.USERS_TABLE}(
+					first_name, last_name
 				)
 			`,
 			)
@@ -232,7 +235,10 @@ export class ReviewsService extends Service {
 
 				reviewsData[i].user = {
 					id: reviewsResp[i].user_id,
-					full_name: email_resp.user?.user_metadata?.full_name ?? "",
+					full_name:
+						(reviewsResp[i].user?.first_name || "") +
+						" " +
+						(reviewsResp[i].user?.last_name || ""),
 					avatar: email_resp.user?.user_metadata?.avatar_url ?? "",
 				};
 			}

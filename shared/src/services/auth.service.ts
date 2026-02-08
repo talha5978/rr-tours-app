@@ -13,6 +13,7 @@ import { Service } from "@workspace/shared/services/service.base";
 import { GenerateLinkParams, type Session, type User, type UserResponse } from "@supabase/auth-js";
 import { ApiError } from "@workspace/shared/utils/ApiError";
 import { SignupFormData } from "@workspace/shared/schemas/signup.schema";
+import { ProfileUpdateForm } from "@workspace/shared/schemas/profile-update.schema";
 
 @UseClassMiddleware(loggerMiddleware)
 export class AuthService extends Service {
@@ -246,6 +247,7 @@ export class AuthService extends Service {
 					first_name,
 					last_name,
 					phone_number,
+					country,
 					role,
 					created_at,
 					${this.USER_ROLES_TABLE}(id, role_name)
@@ -273,6 +275,7 @@ export class AuthService extends Service {
 					role_name: userDetails.user_roles.role_name,
 				},
 				created_at: userDetails.created_at ?? "N/A",
+				country: userDetails.country ?? null,
 			};
 
 			if (userDetails != null) {
@@ -486,5 +489,24 @@ export class AuthService extends Service {
 				error: err.message || "An unexpected error occurred during signup",
 			};
 		}
+	}
+
+	async updateUserProfile(data: ProfileUpdateForm & { user_id: string }) {
+		const { data: profileData, error: profileError } = await this.supabase
+			.from(this.USERS_TABLE)
+			.update({
+				first_name: data.first_name,
+				last_name: data.last_name,
+				phone_number: data.phone_number,
+				country: data.country,
+			})
+			.eq("user_id", data.user_id);
+
+		return {
+			data: profileData,
+			error: profileError
+				? new ApiError(profileError.message, Number(profileError.code ?? 500), [profileError.stack])
+				: null,
+		};
 	}
 }

@@ -50,6 +50,7 @@ export type Database = {
 			};
 			app_users: {
 				Row: {
+					country: string | null;
 					created_at: string | null;
 					first_name: string;
 					last_name: string;
@@ -59,6 +60,7 @@ export type Database = {
 					user_id: string;
 				};
 				Insert: {
+					country?: string | null;
 					created_at?: string | null;
 					first_name: string;
 					last_name: string;
@@ -68,6 +70,7 @@ export type Database = {
 					user_id: string;
 				};
 				Update: {
+					country?: string | null;
 					created_at?: string | null;
 					first_name?: string;
 					last_name?: string;

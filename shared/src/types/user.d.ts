@@ -26,6 +26,7 @@ export type FullCurrentUser = {
 	last_name: string | null;
 	avatar_url?: string | null;
 	phone_number: string | null;
+	country: string | null;
 	role: {
 		role_id: number;
 		role_name: string;
