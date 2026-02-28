@@ -6,31 +6,6 @@ export type Database = {
 	__InternalSupabase: {
 		PostgrestVersion: "14.1";
 	};
-	graphql_public: {
-		Tables: {
-			[_ in never]: never;
-		};
-		Views: {
-			[_ in never]: never;
-		};
-		Functions: {
-			graphql: {
-				Args: {
-					extensions?: Json;
-					operationName?: string;
-					query?: string;
-					variables?: Json;
-				};
-				Returns: Json;
-			};
-		};
-		Enums: {
-			[_ in never]: never;
-		};
-		CompositeTypes: {
-			[_ in never]: never;
-		};
-	};
 	public: {
 		Tables: {
 			activity_providers: {
@@ -258,7 +233,7 @@ export type Database = {
 					discount?: number;
 					id?: string;
 					payment_ref?: string | null;
-					payment_status?: Database["public"]["Enums"]["payment_status_enum"];
+					payment_status: Database["public"]["Enums"]["payment_status_enum"];
 					preferred_date?: string | null;
 					preferred_timeslot?: string | null;
 					price_overriden?: boolean;
@@ -303,6 +278,13 @@ export type Database = {
 					updated_at?: string;
 				};
 				Relationships: [
+					{
+						foreignKeyName: "bookings_added_by_fkey";
+						columns: ["added_by"];
+						isOneToOne: false;
+						referencedRelation: "app_users";
+						referencedColumns: ["user_id"];
+					},
 					{
 						foreignKeyName: "bookings_tour_id_fkey";
 						columns: ["tour_id"];
@@ -883,7 +865,7 @@ export type Database = {
 			availability_override_type: "CLOSE" | "CAPACITY_CHANGE";
 			booking_status_enum: "PENDING" | "CONFIRMED" | "CANCELLED";
 			cache_invalidation_target: "front" | "admin" | "both";
-			payment_status_enum: "UNPAID" | "PENDING" | "PARTIAL" | "PAID" | "REFUNDED";
+			payment_status_enum: "PENDING" | "PARTIAL" | "PAID" | "REFUNDED" | "FAILED";
 		};
 		CompositeTypes: {
 			[_ in never]: never;
@@ -1007,15 +989,12 @@ export type CompositeTypes<
 		: never;
 
 export const Constants = {
-	graphql_public: {
-		Enums: {},
-	},
 	public: {
 		Enums: {
 			availability_override_type: ["CLOSE", "CAPACITY_CHANGE"],
 			booking_status_enum: ["PENDING", "CONFIRMED", "CANCELLED"],
 			cache_invalidation_target: ["front", "admin", "both"],
-			payment_status_enum: ["UNPAID", "PENDING", "PARTIAL", "PAID", "REFUNDED"],
+			payment_status_enum: ["PENDING", "PARTIAL", "PAID", "REFUNDED", "FAILED"],
 		},
 	},
 } as const;

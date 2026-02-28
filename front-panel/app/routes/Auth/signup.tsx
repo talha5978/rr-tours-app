@@ -146,7 +146,12 @@ export default function SignupPage() {
 	const handleGoogleSignup = () => {
 		const formData = new FormData();
 		formData.append("redirectToOrigin", window.location.origin);
-		submit(formData, { method: "POST", action: "/login/google", replace: true });
+		submit(formData, {
+			method: "POST",
+			action: "/login/google?intent=signup",
+			replace: true,
+			navigate: false,
+		});
 	};
 
 	useEffect(() => {

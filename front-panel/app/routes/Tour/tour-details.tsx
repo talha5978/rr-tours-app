@@ -473,14 +473,11 @@ export default function TourDetailsPage() {
 																					key={formatted}
 																					className="cursor-pointer hover:bg-primary/10 transition-colors py-4 px-5 flex flex-col gap-1 items-center justify-center bg-muted rounded-lg"
 																					onClick={() => {
-																						setStepsDialogOpen(
-																							true,
-																						);
-																						setSelectedOption(
-																							option,
-																						);
 																						handleDateSelect(
 																							date,
+																						);
+																						handleButtonClick(
+																							option,
 																						);
 																					}}
 																				>

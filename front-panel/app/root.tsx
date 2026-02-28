@@ -139,9 +139,3 @@ export default function App() {
 export function ErrorBoundary() {
 	return <ErrorPage />;
 }
-
-// Add authentication dialog (signup/login through email + google)
-// If logged in -> faster checkout (auto filled booking form)
-// Otherwise guest
-// show past bookings, reviews in the account section
-// Show reviews in the tour details page + in the home page + in the admin panel + in the structured data of the tour details page

@@ -247,7 +247,6 @@ export class AuthService extends Service {
 					first_name,
 					last_name,
 					phone_number,
-					country,
 					role,
 					created_at,
 					${this.USER_ROLES_TABLE}(id, role_name)
@@ -275,7 +274,7 @@ export class AuthService extends Service {
 					role_name: userDetails.user_roles.role_name,
 				},
 				created_at: userDetails.created_at ?? "N/A",
-				country: userDetails.country ?? null,
+				country: null,
 			};
 
 			if (userDetails != null) {
@@ -284,6 +283,57 @@ export class AuthService extends Service {
 			}
 
 			return { user: frontPanelUser, error };
+		} catch (err: any) {
+			if (err instanceof ApiError) {
+				return { user: null, error: err };
+			}
+			return {
+				user: null,
+				error: new ApiError("Unknown error", 500, [err]),
+			};
+		}
+	}
+
+	async getUserById(user_id: string): Promise<{
+		error: ApiError | null;
+		user: {
+			user_id: string;
+			role: number;
+			created_at: string | null;
+		} | null;
+	}> {
+		try {
+			let error: null | ApiError = null;
+
+			const { data: userDetails, error: userDetailsErr } = await this.supabase
+				.from(this.USERS_TABLE)
+				.select(
+					`
+					user_id,
+					role,
+					created_at
+				`,
+				)
+				.eq("user_id", user_id)
+				.eq("status", true)
+				.limit(1)
+				.maybeSingle();
+
+			if (userDetailsErr || userDetails == null) {
+				error = new ApiError(userDetailsErr?.message || "User not found", 401, []);
+				return { user: null, error };
+			}
+
+			return {
+				user: userDetails
+					? {
+							user_id: userDetails.user_id,
+							role: userDetails.role,
+							created_at: userDetails.created_at,
+						}
+					: null,
+				error,
+			};
 		} catch (err: any) {
 			if (err instanceof ApiError) {
 				return { user: null, error: err };
@@ -342,10 +392,7 @@ export class AuthService extends Service {
 		redirectToOrigin: string;
 	}): Promise<Login & { url: string | null }> {
 		try {
-			const redirectTo =
-				process.env.NODE_ENV === "production"
-					? process.env.VITE_MAIN_APP_URL + "/auth/callback"
-					: redirectToOrigin + "/auth/callback";
+			const redirectTo = redirectToOrigin;
 
 			const { error: fetchError, data } = await this.supabase.auth.signInWithOAuth({
 				provider: "google",
@@ -410,6 +457,77 @@ export class AuthService extends Service {
 		};
 	}
 
+	async insertConsumerUser(data: {
+		user_id: string;
+		firstName: string;
+		lastName: string;
+		phone: string | null;
+	}): Promise<
+		| {
+				success: boolean;
+				error: string | null;
+		  }
+		| undefined
+	> {
+		const { data: roleData, error: roleError } = await this.supabase
+			.from(this.USER_ROLES_TABLE)
+			.select("id")
+			.eq("role_name", "consumer")
+			.limit(1)
+			.maybeSingle();
+
+		if (!roleData || roleError) {
+			console.error("Role fetch failed:", roleError);
+			return {
+				success: false,
+				error: "Failed to create account. Please contact support.",
+			};
+		}
+
+		const {
+			error: profileError,
+			count,
+			data: insertedCustomer,
+			status,
+			statusText,
+		} = await this.supabase.from(this.USERS_TABLE).insert({
+			user_id: data.user_id,
+			first_name: data.firstName,
+			last_name: data.lastName,
+			phone_number: data.phone || null,
+			role: roleData.id,
+			status: true,
+		});
+
+		console.log("[PROD PROFILE DEBUG] Insert raw response:", {
+			insertedData: insertedCustomer,
+			profileError: profileError
+				? {
+						code: profileError.code,
+						message: profileError.message,
+						details: profileError.details,
+						hint: profileError.hint,
+					}
+				: null,
+			status,
+			statusText,
+			count,
+		});
+
+		if (profileError) {
+			console.error("Profile insert failed:", profileError);
+			this.deleteAuthUser(data.user_id);
+			return {
+				success: false,
+				error: "Account creation failed.",
+			};
+		}
+	}
+
+	async deleteAuthUser(user_id: string) {
+		await this.supabase.auth.admin.deleteUser(user_id);
+	}
+
 	async signUpWithPasswordAndProfile(data: Omit<SignupFormData, "confirmPassword">): Promise<{
 		success: boolean;
 		user?: any;
@@ -443,38 +561,12 @@ export class AuthService extends Service {
 				};
 			}
 
-			const { data: roleData, error: roleError } = await this.supabase
-				.from(this.USER_ROLES_TABLE)
-				.select("id")
-				.eq("role_name", "consumer")
-				.limit(1)
-				.maybeSingle();
-
-			if (!roleData || roleError) {
-				console.error("Role fetch failed:", roleError);
-				return {
-					success: false,
-					error: "Failed to create account. Please contact support.",
-				};
-			}
-
-			const { error: profileError } = await this.supabase.from(this.USERS_TABLE).insert({
+			await this.insertConsumerUser({
 				user_id: authData.user.id,
-				first_name: data.firstName,
-				last_name: data.lastName,
-				phone_number: data.phone || null,
-				role: roleData.id,
-				status: true,
+				firstName: data.firstName,
+				lastName: data.lastName,
+				phone: data.phone ?? null,
 			});
-
-			if (profileError) {
-				console.error("Profile insert failed:", profileError);
-				await this.supabase.auth.admin.deleteUser(authData.user.id);
-				return {
-					success: false,
-					error: "Account creation failed.",
-				};
-			}
 
 			// Success
 			return {

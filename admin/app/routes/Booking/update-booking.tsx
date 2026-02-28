@@ -449,9 +449,7 @@ export default function UpdateBooking() {
 																		<SelectValue placeholder="Select status" />
 																	</SelectTrigger>
 																	<SelectContent>
-																		{PAYMENT_STATUS.filter(
-																			(status) => status !== "PENDING",
-																		).map((status) => (
+																		{PAYMENT_STATUS.map((status) => (
 																			<SelectItem
 																				key={status}
 																				value={status}

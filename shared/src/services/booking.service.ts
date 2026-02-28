@@ -49,6 +49,11 @@ export class BookingService extends Service {
 		return day === 0 ? 7 : day;
 	}
 
+	async deleteBookingByRef(ref: string): Promise<ApiError | null> {
+		const { error } = await this.supabase.from(this.BOOKINGS_TABLE).delete().eq("booking_ref", ref);
+		return error ? new ApiError("Failed to delete booking", 500, []) : null;
+	}
+
 	/** create a booking */
 	async createBooking(input: CreateBookingInput & { added_by: string | null }): Promise<string> {
 		const {
@@ -152,7 +157,7 @@ export class BookingService extends Service {
 				customer_name,
 				customer_email,
 				customer_phone,
-				payment_status: "UNPAID",
+				payment_status: "PENDING",
 				subtotal_amount: subtotal,
 				discount,
 				taxes,

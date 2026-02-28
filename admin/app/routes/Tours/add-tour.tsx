@@ -183,7 +183,7 @@ export default function AddTourPage() {
 					prices: [
 						{
 							price: "",
-							participant: participants[0].id.toString(),
+							participant: participants.length > 0 ? participants[0].id.toString() : undefined,
 						},
 					],
 					rules: [],

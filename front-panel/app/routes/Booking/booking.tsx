@@ -31,13 +31,14 @@ import {
 	customerBookingSchema,
 	CustomerInput,
 } from "@workspace/shared/schemas/booking.schema";
-import { BookingService } from "@workspace/shared/services/booking.service";
 import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
 import { GoogleReCaptcha, verifyRecaptcha } from "~/components/ReCaptcha/GoogleReCaptcha";
-import { emailService } from "@workspace/shared/services/emails.service";
 import { type loader as rootLoader } from "~/root";
+import { CheckoutService } from "@workspace/shared/services/checkout.service";
+// import { emailService } from "@workspace/shared/services/emails.service";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
+	let clientSecret: string | null = null;
 	try {
 		if (request.method !== "POST") {
 			throw new ApiError("Invalid request method", 405, []);
@@ -63,9 +64,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 			};
 		}
 
-		const svc = new BookingService(request);
-		const booking_ref = await svc.createBooking(rawBody);
-		await emailService.sendSoftBookingCreationEmail({ ...rawBody, booking_ref });
+		const checkoutSvc = new CheckoutService(request);
+		const { bookingRef, clientSecret, error, success } = await checkoutSvc.confirmCheckout(rawBody);
+
+		if (!success || error) {
+			return {
+				success: false,
+				booking_ref: null,
+				clientSecret,
+				error:
+					error instanceof ApiError ? error.message : error.message || "Failed to create booking",
+			};
+		}
 
 		const cacheSvc = new CacheInvalidationService(request);
 		await cacheSvc.pushCacheInvalidationEvent({
@@ -73,11 +83,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 			keys: [`high_level_bookings`, "dashboard_main_stats"],
 		});
 
-		return { success: true, booking_ref };
+		// await emailService.sendSoftBookingCreationEmail({ ...rawBody, booking_ref });
+
+		return { success, booking_ref: bookingRef, clientSecret };
 	} catch (error: any) {
 		return {
 			success: false,
 			booking_ref: null,
+			clientSecret,
 			error: error instanceof ApiError ? error.message : error.message || "Failed to create booking",
 		};
 	}
@@ -92,11 +105,13 @@ export default function BookingPage() {
 	const navigate = useNavigate();
 	const navigation = useNavigation();
 	const submit = useSubmit();
-	const [bookingRef, setBookingRef] = useState("");
 	const rootLoaderData = useRouteLoaderData<typeof rootLoader>("root");
 
 	// @ts-ignore
-	const actionData: ActionResponse & { booking_ref: string | null } = useActionData();
+	const actionData: ActionResponse & {
+		booking_ref: string | null;
+		clientSecret?: string | null;
+	} = useActionData();
 
 	const {
 		tour,
@@ -153,9 +168,17 @@ export default function BookingPage() {
 					description: "You can track your booking using the provided reference ID.",
 				});
 
-				if (actionData.booking_ref) {
-					setBookingRef(actionData.booking_ref);
-				}
+				navigate(
+					`/payment?success=${actionData.success}&booking_ref=${actionData.booking_ref}&client_secret=${actionData.clientSecret}`,
+					{
+						replace: true,
+						viewTransition: true,
+						state: {
+							booking_ref: actionData.booking_ref,
+							client_secret: actionData.clientSecret,
+						},
+					},
+				);
 
 				setRecaptchaToken(null);
 				reset();
@@ -237,34 +260,34 @@ export default function BookingPage() {
 		});
 	};
 
-	if (bookingRef) {
-		return (
-			<>
-				<MetaDetails
-					metaTitle={`Booking Pending | ${tour.name} | Top Attractions Dubai`}
-					metaDescription={`Your booking has been created and is pending confirmation. Admins will contact you shortly. You can track your booking using the provided reference ID.`}
-					ogImage={SUPABASE_IMAGE_BUCKET_PATH + "/" + tour.cover_image}
-					ogType="article"
-				/>
-				<section className="space-y-4 flex flex-col items-center justify-center py-20 ">
-					<div className="bg-card w-fit flex flex-col items-center justify-center p-6 gap-4 border shadow-xs hover:shadow-lg transition duration-200 ease-in-out rounded-lg max-w-lg">
-						<h1 className="section-heading text-center">Booking Confirmation</h1>
-						<p className="text-center">
-							Your booking has been created and is pending confirmation. Admins will contact you
-							shortly.
-						</p>
-						<div className="bg-accent p-4 w-full rounded-lg">
-							<p className="font-semibold">Booking Reference ID: {bookingRef}</p>
-							<p>Use this ID to track your booking.</p>
-						</div>
-						<Link to="/track-booking" viewTransition>
-							<Button type="button">Track Booking</Button>
-						</Link>
-					</div>
-				</section>
-			</>
-		);
-	}
+	// if (bookingRef) {
+	// 	return (
+	// 		<>
+	// 			<MetaDetails
+	// 				metaTitle={`Booking Pending | ${tour.name} | Top Attractions Dubai`}
+	// 				metaDescription={`Your booking has been created and is pending confirmation. Admins will contact you shortly. You can track your booking using the provided reference ID.`}
+	// 				ogImage={SUPABASE_IMAGE_BUCKET_PATH + "/" + tour.cover_image}
+	// 				ogType="article"
+	// 			/>
+	// 			<section className="space-y-4 flex flex-col items-center justify-center py-20 ">
+	// 				<div className="bg-card w-fit flex flex-col items-center justify-center p-6 gap-4 border shadow-xs hover:shadow-lg transition duration-200 ease-in-out rounded-lg max-w-lg">
+	// 					<h1 className="section-heading text-center">Booking Confirmation</h1>
+	// 					<p className="text-center">
+	// 						Your booking has been created and is pending confirmation. Admins will contact you
+	// 						shortly.
+	// 					</p>
+	// 					<div className="bg-accent p-4 w-full rounded-lg">
+	// 						<p className="font-semibold">Booking Reference ID: {bookingRef}</p>
+	// 						<p>Use this ID to track your booking.</p>
+	// 					</div>
+	// 					<Link to="/track-booking" viewTransition>
+	// 						<Button type="button">Track Booking</Button>
+	// 					</Link>
+	// 				</div>
+	// 			</section>
+	// 		</>
+	// 	);
+	// }
 
 	return (
 		<>

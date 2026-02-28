@@ -126,7 +126,7 @@ export default function BookingsPage() {
 								variant={
 									payment_status === "PAID"
 										? "default"
-										: payment_status === "UNPAID"
+										: payment_status === "FAILED"
 											? "destructive"
 											: "outline"
 								}

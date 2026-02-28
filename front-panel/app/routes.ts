@@ -23,6 +23,7 @@ export default [
 		route("city/:id/:url_key", "./routes/City/city.tsx"),
 
 		route("booking", "./routes/Booking/booking.tsx"),
+		route("payment", "./routes/Payment/Payment.tsx"),
 		route("track-booking", "./routes/Booking/track-booking.tsx"),
 
 		route("my-favourites", "./routes/Favourites/my-favourites.tsx"),

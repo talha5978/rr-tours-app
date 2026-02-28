@@ -30,6 +30,15 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
 	const success_msg = decodeURIComponent(
 		new URLSearchParams(request.url.split("?")[1]).get("success") || "",
 	);
+	const payment_intent = decodeURIComponent(
+		new URLSearchParams(request.url.split("?")[1]).get("payment_intent") || "",
+	);
+	const payment_intent_client_secret = decodeURIComponent(
+		new URLSearchParams(request.url.split("?")[1]).get("payment_intent_client_secret") || "",
+	);
+	const redirect_status = decodeURIComponent(
+		new URLSearchParams(request.url.split("?")[1]).get("redirect_status") || "",
+	);
 
 	return {
 		featuredToursResp,
@@ -39,6 +48,9 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
 		reviewsResp,
 		errors,
 		success_msg,
+		payment_intent,
+		payment_intent_client_secret,
+		redirect_status,
 	};
 };
 
@@ -60,6 +72,21 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 			toast.success(loaderData.success_msg);
 			const searchParams = new URLSearchParams(window.location.search);
 			searchParams.delete("success");
+			const newRelativePathQuery =
+				window.location.pathname + (searchParams.toString() ? `?${searchParams.toString()}` : "");
+			window.history.replaceState(null, "", newRelativePathQuery);
+		}
+
+		if (
+			loaderData.redirect_status === "succeeded" &&
+			loaderData.payment_intent != null &&
+			loaderData.payment_intent_client_secret != null
+		) {
+			toast.success("Payment Successful! Booking placed successfully.");
+			const searchParams = new URLSearchParams(window.location.search);
+			searchParams.delete("redirect_status");
+			searchParams.delete("payment_intent");
+			searchParams.delete("payment_intent_client_secret");
 			const newRelativePathQuery =
 				window.location.pathname + (searchParams.toString() ? `?${searchParams.toString()}` : "");
 			window.history.replaceState(null, "", newRelativePathQuery);

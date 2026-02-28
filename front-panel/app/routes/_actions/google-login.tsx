@@ -5,11 +5,16 @@ import { type ActionFunctionArgs, redirect } from "react-router";
 export const action = async ({ request }: ActionFunctionArgs) => {
 	try {
 		const formData = await request.formData();
-		const redirectToOrigin = formData.get("redirectToOrigin") as string | null;
+		const req_url = new URL(request.url);
+		const intent = req_url.searchParams.get("intent");
+
+		let redirectToOrigin = formData.get("redirectToOrigin") as string | null;
 
 		if (!redirectToOrigin) {
 			return redirect(`/login?error=${encodeURIComponent("No redirect origin")}`);
 		}
+
+		redirectToOrigin += `/auth/callback?intent=${intent}`;
 
 		const authSvc = new AuthService(request);
 		const { error, headers, url } = await authSvc.loginWithGoogle({ redirectToOrigin });
