@@ -75,6 +75,36 @@ export class StripeServerService extends StripeService {
 			};
 		}
 	}
+
+	/** Refund PaymentIntent */
+	async refundPaymentIntent({
+		paymentIntentId,
+		amount,
+		reason = "requested_by_customer",
+		note,
+	}: {
+		paymentIntentId: string;
+		amount: number;
+		reason: Stripe.RefundCreateParams.Reason;
+		note: string
+	}): Promise<{ refundId: string | null; error: ApiError | null }> {
+		try {
+			const refund = await this.stripe.refunds.create({
+				payment_intent: paymentIntentId,
+				amount: Math.round(amount * 100),
+				reason,
+				metadata: {
+					note
+				}
+			});
+			return { refundId: refund.id, error: null };
+		} catch (err: any) {
+			return {
+				refundId: null,
+				error: err instanceof ApiError ? err : new ApiError("Refund failed", 500, [err.message]),
+			};
+		}
+	}
 }
 
 export class StripeClientService extends StripeService {

@@ -15,6 +15,7 @@ import {
 	useSearchParams,
 } from "react-router";
 import { toast } from "sonner";
+import { RefundForm } from "~/components/Booking/RefundForm";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
 import {
 	DataTable,
@@ -236,8 +237,8 @@ export default function BookingsPage() {
 
 				const paymentLink = getPaymentLink(rowData.booking_ref);
 
-				// Add this state per row (or use row.id as key)
 				const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+				const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
 
 				return (
 					<>
@@ -300,10 +301,21 @@ export default function BookingsPage() {
 								>
 									<DropdownMenuItem>Update</DropdownMenuItem>
 								</Link>
+
+								{rowData.payment_status === "PAID" && (
+									<DropdownMenuItem
+										variant="destructive"
+										onSelect={(e) => {
+											e.preventDefault();
+											setIsRefundDialogOpen(true);
+										}}
+									>
+										Refund
+									</DropdownMenuItem>
+								)}
 							</DropdownMenuContent>
 						</DropdownMenu>
 
-						{/* Dialog now outside DropdownMenu, controlled by state */}
 						<Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
 							<DialogContent className="sm:max-w-md">
 								<DialogHeader>
@@ -351,9 +363,11 @@ export default function BookingsPage() {
 												const subject = `Complete Your Payment - Booking #${rowData.booking_ref} for ${rowData.tour_name}`;
 												const body = `Dear Customer!\n\nPlease complete your payment for booking #${rowData.booking_ref} for ${rowData.tour_name} - ${rowData.tour_option_name}\n\nLink: ${paymentLink}\n\nThank you!\nTop Attractions Dubai`;
 												window.open(
-													`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}&to=${rowData.customer_email ? encodeURIComponent(
-														rowData.customer_email,
-													) : ""}`,
+													`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}&to=${
+														rowData.customer_email
+															? encodeURIComponent(rowData.customer_email)
+															: ""
+													}`,
 												);
 											}}
 										>
@@ -361,6 +375,24 @@ export default function BookingsPage() {
 										</Button>
 									</div>
 								</div>
+							</DialogContent>
+						</Dialog>
+
+						<Dialog open={isRefundDialogOpen} onOpenChange={setIsRefundDialogOpen}>
+							<DialogContent className="sm:max-w-md">
+								<DialogHeader>
+									<DialogTitle>Refund Booking #{rowData.booking_ref}</DialogTitle>
+								</DialogHeader>
+
+								<RefundForm
+									bookingId={rowData.id}
+									paidAmount={rowData.total}
+									onSuccess={() => {
+										setIsRefundDialogOpen(false);
+										toast.success("Refund processed successfully");
+									}}
+									onCancel={() => setIsRefundDialogOpen(false)}
+								/>
 							</DialogContent>
 						</Dialog>
 					</>

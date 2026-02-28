@@ -37,6 +37,7 @@ export default [
 			route("send-confirmation-email/:booking_id", "./routes/Booking/send-confirmation-email.tsx"),
 		]),
 		route("bookings/:id/:ref/update", "./routes/Booking/update-booking.tsx"),
+		route("bookings/:booking_id/refund", "./routes/_actions/refund-payment.tsx"),
 
 		route("hero-sections", "./routes/HeroSections/hero-sections.tsx", [
 			route("add", "./routes/HeroSections/add-hero-section.tsx"),

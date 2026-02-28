@@ -84,6 +84,7 @@ export class CheckoutService extends Service {
 		}
 	}
 
+	/** Function to be used in the resume checkout action function for forgotten payments or failed payments */
 	async resumePaymentForBooking(bookingRef: string) {
 		const { data: booking, error } = await this.supabase
 			.from(this.BOOKINGS_TABLE)
@@ -98,7 +99,7 @@ export class CheckoutService extends Service {
 
 		const stripeService = new StripeServerService();
 
-		if(!paymentIntentId || paymentIntentId === "") {
+		if (!paymentIntentId || paymentIntentId === "") {
 			throw new ApiError("Payment intent id not found", 500, []);
 		}
 
@@ -107,13 +108,16 @@ export class CheckoutService extends Service {
 
 		if (statusError || paymentIntent == null) throw statusError;
 
-		const paymentIntentStatuscheckers: Stripe.PaymentIntent.Status[] = ["requires_payment_method", "requires_confirmation"];
+		const paymentIntentStatuscheckers: Stripe.PaymentIntent.Status[] = [
+			"requires_payment_method",
+			"requires_confirmation",
+		];
 
 		if (paymentIntentStatuscheckers.includes(paymentIntent.status)) {
 			clientSecret = paymentIntent.client_secret;
-		} else if (paymentIntent.status === 'succeeded') {
+		} else if (paymentIntent.status === "succeeded") {
 			throw new ApiError("Payment already completed", 400, []);
-		} else if (paymentIntent.status === 'requires_capture') {
+		} else if (paymentIntent.status === "requires_capture") {
 			throw new ApiError("Payment requires capture – contact support", 500, []);
 		}
 
@@ -125,7 +129,13 @@ export class CheckoutService extends Service {
 			} = await stripeService.createPaymentIntent({
 				amount: booking.total,
 				bookingRef: booking.booking_ref,
-				description: "Resuming Payment for booking #" + booking.booking_ref + " for tour: " + booking.tour_name + " for " + booking.tour_option_name,
+				description:
+					"Resuming Payment for booking #" +
+					booking.booking_ref +
+					" for tour: " +
+					booking.tour_name +
+					" for " +
+					booking.tour_option_name,
 			});
 
 			if (newPiError) throw newPiError;
@@ -140,5 +150,104 @@ export class CheckoutService extends Service {
 		}
 
 		return { clientSecret, paymentIntentId };
+	}
+
+	/** Function to refund the payment  */
+	async refundPayment({
+		booking_id,
+		amount,
+		reason,
+		note,
+	}: {
+		booking_id: string;
+		amount: number;
+		reason: string;
+		note: string;
+	}) {
+		try {
+			// 1. Fetch booking
+			const { data: booking, error: fetchErr } = await this.supabase
+				.from(this.BOOKINGS_TABLE)
+				.select("payment_ref, total, payment_status")
+				.eq("id", booking_id)
+				.single();
+
+			if (fetchErr || !booking) {
+				return {
+					success: false,
+					error: "Booking not found",
+					status: 404,
+				};
+			}
+
+			if (booking.payment_status !== "PAID") {
+				return {
+					success: false,
+					error: "Only paid bookings can be refunded",
+					status: 400,
+				};
+			}
+
+			if (!booking.payment_ref) {
+				return {
+					success: false,
+					error: "Payment intent not found",
+					status: 400,
+				};
+			}
+
+			if (amount > booking.total) {
+				return {
+					success: false,
+					error: `Refund amount cannot exceed paid amount (${booking.total.toFixed(2)} AED)`,
+					status: 400,
+				};
+			}
+
+			const stripeSvc = new StripeServerService();
+			const { refundId, error: refundErr } = await stripeSvc.refundPaymentIntent({
+				paymentIntentId: booking.payment_ref!,
+				amount,
+				reason: reason as Stripe.RefundCreateParams.Reason,
+				note,
+			});
+
+			if (refundErr || !refundId) {
+				return {
+					success: false,
+					error: refundErr?.message || "Refund failed in Stripe",
+					status: 500,
+				};
+			}
+
+			const { error: updateErr } = await this.supabase
+				.from(this.BOOKINGS_TABLE)
+				.update({
+					payment_status: "REFUNDED",
+					booking_status: "CANCELLED",
+					cancelled_at: new Date().toISOString(),
+				})
+				.eq("id", booking_id);
+
+			if (updateErr) {
+				console.error("Failed to update booking after refund:", updateErr);
+				return {
+					success: false,
+					error: "Failed to update booking after refund. Please update booking manually.",
+					status: 500,
+				}
+			}
+
+			return {
+				success: true,
+				refundId,
+			};
+		} catch (error: any) {
+			return {
+				success: false,
+				error: error instanceof ApiError ? error.message : "Failed to process refund",
+				status: 500,
+			};
+		}
 	}
 }
