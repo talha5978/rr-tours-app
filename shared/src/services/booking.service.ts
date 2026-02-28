@@ -273,7 +273,7 @@ export class BookingService extends Service {
 				.from(this.BOOKINGS_TABLE)
 				.select(
 					`
-					id, booking_ref, booking_status, payment_status, created_at, tour_id, tour_name, tour_option_id, tour_option_name, preferred_date, preferred_timeslot, confirmed_date, confirmed_timeslot, total, customer_name, customer_phone
+					id, booking_ref, booking_status, payment_status, created_at, tour_id, tour_name, tour_option_id, tour_option_name, preferred_date, preferred_timeslot, confirmed_date, confirmed_timeslot, total, customer_name, customer_phone, customer_email
 				`,
 					{ count: "exact" },
 				)
@@ -307,6 +307,7 @@ export class BookingService extends Service {
 				total: b.total,
 				customer_name: b.customer_name,
 				customer_phone: b.customer_phone,
+				customer_email: b.customer_email
 			}));
 
 			return { bookings: payload, total: Number(count) };

@@ -57,6 +57,24 @@ export class StripeServerService extends StripeService {
 			};
 		}
 	}
+
+	/** Retrieve PaymentIntent */
+	async retrievePaymentIntent(
+		paymentIntentId: string,
+	): Promise<{ paymentIntent: Stripe.PaymentIntent | null; error: ApiError | null }> {
+		try {
+			const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
+			return { paymentIntent, error: null };
+		} catch (err: any) {
+			return {
+				paymentIntent: null,
+				error:
+					err instanceof ApiError
+						? err
+						: new ApiError("Failed to retrieve PaymentIntent", 500, [err.message]),
+			};
+		}
+	}
 }
 
 export class StripeClientService extends StripeService {

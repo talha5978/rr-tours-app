@@ -48,6 +48,7 @@ export type HighLevelBooking = {
 	payment_status: Database["public"]["Enums"]["payment_status_enum"];
 	customer_name: string | null;
 	customer_phone: string | null;
+	customer_email: string | null;
 	created_at: string;
 	tour_id: string | null;
 	tour_name: string | null;

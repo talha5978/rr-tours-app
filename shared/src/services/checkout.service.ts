@@ -5,6 +5,7 @@ import { ApiError } from "@workspace/shared/utils/ApiError";
 import { type CreateBookingInput } from "@workspace/shared/schemas/booking.schema";
 import { BookingService } from "@workspace/shared/services/booking.service";
 import { StripeServerService } from "@workspace/shared/services/stripe.service";
+import Stripe from "stripe";
 
 @UseClassMiddleware(loggerMiddleware)
 export class CheckoutService extends Service {
@@ -81,5 +82,63 @@ export class CheckoutService extends Service {
 					error instanceof ApiError ? error.message : error.message || "Failed to create booking",
 			};
 		}
+	}
+
+	async resumePaymentForBooking(bookingRef: string) {
+		const { data: booking, error } = await this.supabase
+			.from(this.BOOKINGS_TABLE)
+			.select("booking_ref, payment_ref, total, tour_name, tour_option_name")
+			.eq("booking_ref", bookingRef)
+			.maybeSingle();
+
+		if (error || !booking) throw new ApiError("Booking not found", 500, [error || null]);
+
+		let clientSecret: string | null = null;
+		let paymentIntentId: string | null = booking.payment_ref;
+
+		const stripeService = new StripeServerService();
+
+		if(!paymentIntentId || paymentIntentId === "") {
+			throw new ApiError("Payment intent id not found", 500, []);
+		}
+
+		const { paymentIntent, error: statusError } =
+			await stripeService.retrievePaymentIntent(paymentIntentId);
+
+		if (statusError || paymentIntent == null) throw statusError;
+
+		const paymentIntentStatuscheckers: Stripe.PaymentIntent.Status[] = ["requires_payment_method", "requires_confirmation"];
+
+		if (paymentIntentStatuscheckers.includes(paymentIntent.status)) {
+			clientSecret = paymentIntent.client_secret;
+		} else if (paymentIntent.status === 'succeeded') {
+			throw new ApiError("Payment already completed", 400, []);
+		} else if (paymentIntent.status === 'requires_capture') {
+			throw new ApiError("Payment requires capture – contact support", 500, []);
+		}
+
+		if (!clientSecret || clientSecret === "") {
+			const {
+				clientSecret: newClientSecret,
+				paymentIntentId: newPaymentIntentId,
+				error: newPiError,
+			} = await stripeService.createPaymentIntent({
+				amount: booking.total,
+				bookingRef: booking.booking_ref,
+				description: "Resuming Payment for booking #" + booking.booking_ref + " for tour: " + booking.tour_name + " for " + booking.tour_option_name,
+			});
+
+			if (newPiError) throw newPiError;
+
+			clientSecret = newClientSecret;
+			paymentIntentId = newPaymentIntentId;
+
+			await this.supabase
+				.from(this.BOOKINGS_TABLE)
+				.update({ payment_ref: newPaymentIntentId })
+				.eq("booking_ref", bookingRef);
+		}
+
+		return { clientSecret, paymentIntentId };
 	}
 }

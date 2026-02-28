@@ -3,7 +3,7 @@ import { HighLevelBooking } from "@workspace/shared/types/booking";
 import { queryClient } from "@workspace/shared/utils/query-client";
 import { format } from "date-fns";
 import { Loader2, MoreHorizontal, Search } from "lucide-react";
-
+import { useState } from "react";
 import {
 	Form,
 	Link,
@@ -14,6 +14,7 @@ import {
 	useNavigation,
 	useSearchParams,
 } from "react-router";
+import { toast } from "sonner";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
 import {
 	DataTable,
@@ -24,6 +25,7 @@ import {
 import TableCopyField from "~/components/Table/TableId";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -56,6 +58,10 @@ export default function BookingsPage() {
 	const pageCount = Math.ceil(data.total / pageSize);
 	const isFetchingThisRoute =
 		navigation.state === "loading" && navigation.location?.pathname === location.pathname;
+
+	const getPaymentLink = (bookingRef: string) => {
+		return `${process.env.VITE_MAIN_APP_URL}/payment?booking_ref=${encodeURIComponent(bookingRef)}`;
+	};
 
 	const tableColumns: ColumnDef<HighLevelBooking, unknown>[] = [
 		{
@@ -226,7 +232,12 @@ export default function BookingsPage() {
 				const rowData: HighLevelBooking = row.original;
 				const isGoingToEmailDialog =
 					navigation.state === "loading" &&
-					navigation.location.pathname === "/bookings/send-confirmation-email/" + rowData.id;
+					navigation.location?.pathname === "/bookings/send-confirmation-email/" + rowData.id;
+
+				const paymentLink = getPaymentLink(rowData.booking_ref);
+
+				// Add this state per row (or use row.id as key)
+				const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
 
 				return (
 					<>
@@ -242,7 +253,9 @@ export default function BookingsPage() {
 										<>
 											<Link to={`send-confirmation-email/${rowData.id}`} viewTransition>
 												<DropdownMenuItem>
-													{isGoingToEmailDialog && <Loader2 />}
+													{isGoingToEmailDialog && (
+														<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+													)}
 													Send Email
 												</DropdownMenuItem>
 											</Link>
@@ -269,15 +282,87 @@ export default function BookingsPage() {
 									</>
 								)}
 
+								{/* Payment Link - controlled open */}
+								<DropdownMenuItem
+									onSelect={(e) => {
+										e.preventDefault(); // ← important: prevent dropdown auto-close
+										setIsPaymentDialogOpen(true);
+									}}
+									className="cursor-pointer"
+								>
+									Payment Link
+								</DropdownMenuItem>
+
 								<Link
 									to={`${rowData.id}/${rowData.booking_ref}/update`}
 									viewTransition
 									prefetch="intent"
 								>
-									<DropdownMenuItem>View Details & Update</DropdownMenuItem>
+									<DropdownMenuItem>Update</DropdownMenuItem>
 								</Link>
 							</DropdownMenuContent>
 						</DropdownMenu>
+
+						{/* Dialog now outside DropdownMenu, controlled by state */}
+						<Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+							<DialogContent className="sm:max-w-md">
+								<DialogHeader>
+									<DialogTitle>Payment Link for #{rowData.booking_ref}</DialogTitle>
+									<DialogDescription>{rowData.tour_name}</DialogDescription>
+								</DialogHeader>
+
+								<div className="space-y-6 py-4">
+									{/* The link itself */}
+									<div
+										className="cursor-pointer hover:underline hover:underline-offset-4"
+										onClick={() => {
+											navigator.clipboard.writeText(paymentLink);
+											toast.success("Payment link copied to clipboard!");
+										}}
+									>
+										<p className="text-sm font-medium text-muted-foreground break-all">
+											{paymentLink}
+										</p>
+									</div>
+
+									{/* Share buttons */}
+									<div className="grid sm:grid-cols-2 grid-cols-1 gap-4">
+										{/* WhatsApp */}
+										<Button
+											variant="outline"
+											className="w-full"
+											onClick={() => {
+												const waText = `Hi! Please complete your payment for booking #${rowData.booking_ref} for ${rowData.tour_name} - ${rowData.tour_option_name}\n\nLink:\n\n${paymentLink}\n\nThank you!\nTop Attractions Dubai`;
+												window.open(
+													`https://wa.me/?text=${encodeURIComponent(waText)}`,
+													"_blank",
+													"noopener,noreferrer",
+												);
+											}}
+										>
+											Share on WhatsApp
+										</Button>
+
+										{/* Email */}
+										<Button
+											variant="outline"
+											className="w-full"
+											onClick={() => {
+												const subject = `Complete Your Payment - Booking #${rowData.booking_ref} for ${rowData.tour_name}`;
+												const body = `Dear Customer!\n\nPlease complete your payment for booking #${rowData.booking_ref} for ${rowData.tour_name} - ${rowData.tour_option_name}\n\nLink: ${paymentLink}\n\nThank you!\nTop Attractions Dubai`;
+												window.open(
+													`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}&to=${rowData.customer_email ? encodeURIComponent(
+														rowData.customer_email,
+													) : ""}`,
+												);
+											}}
+										>
+											Share via Email
+										</Button>
+									</div>
+								</div>
+							</DialogContent>
+						</Dialog>
 					</>
 				);
 			},
