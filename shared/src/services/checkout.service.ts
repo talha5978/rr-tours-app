@@ -6,6 +6,7 @@ import { type CreateBookingInput } from "@workspace/shared/schemas/booking.schem
 import { BookingService } from "@workspace/shared/services/booking.service";
 import { StripeServerService } from "@workspace/shared/services/stripe.service";
 import Stripe from "stripe";
+import { type TablesUpdate } from "@workspace/shared/types/supabase";
 
 @UseClassMiddleware(loggerMiddleware)
 export class CheckoutService extends Service {
@@ -220,13 +221,15 @@ export class CheckoutService extends Service {
 				};
 			}
 
+			let bookingPayload: TablesUpdate<"bookings"> = {
+				payment_status: "REFUNDED",
+				...(amount === booking.total && { booking_status: "CANCELLED" }),
+				...(amount == booking.total && { cancelled_at: new Date().toISOString() }),
+			};
+
 			const { error: updateErr } = await this.supabase
 				.from(this.BOOKINGS_TABLE)
-				.update({
-					payment_status: "REFUNDED",
-					booking_status: "CANCELLED",
-					cancelled_at: new Date().toISOString(),
-				})
+				.update(bookingPayload)
 				.eq("id", booking_id);
 
 			if (updateErr) {
