@@ -176,7 +176,7 @@ export default function TrackBookingPage() {
 									<Badge
 										variant="outline"
 										className={
-											booking.payment_status === "UNPAID"
+											booking.payment_status === "FAILED"
 												? "bg-red-100 text-destructive"
 												: booking.payment_status === "REFUNDED"
 													? ""
