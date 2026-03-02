@@ -43,29 +43,29 @@ export function RefundForm({ bookingId, paidAmount, onSuccess, onCancel }: Refun
 		defaultValues: {
 			amount: paidAmount,
 			refund_details: "",
-            reason: "requested_by_customer"
+			reason: "requested_by_customer",
 		},
 	});
 
 	const onSubmit = async (values: RefundFormValues) => {
 		try {
-            if(values.amount > paidAmount) {
-                toast.error("Amount cannot exceed paid amount");
-                return;
-            }
+			if (values.amount > paidAmount) {
+				toast.error("Amount cannot exceed paid amount");
+				return;
+			}
 
 			const response = await fetch(`/bookings/${bookingId}/refund`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
-                    amount: values.amount,
-                    reason: values.reason,
-                    refund_details: values.refund_details.trim(),
-                }),
+					amount: values.amount,
+					reason: values.reason,
+					refund_details: values.refund_details.trim(),
+				}),
 			});
 
-            const data = await response.json();
-            
+			const data = await response.json();
+
 			if (!data.success) {
 				toast.error(data.error || "Refund failed");
 				return;
@@ -113,7 +113,7 @@ export function RefundForm({ bookingId, paidAmount, onSuccess, onCancel }: Refun
 							>
 								<FormControl>
 									<SelectTrigger className="w-full">
-										<SelectValue  placeholder="Select reason" />
+										<SelectValue placeholder="Select reason" />
 									</SelectTrigger>
 								</FormControl>
 								<SelectContent>

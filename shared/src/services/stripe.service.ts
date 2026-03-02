@@ -86,7 +86,7 @@ export class StripeServerService extends StripeService {
 		paymentIntentId: string;
 		amount: number;
 		reason: Stripe.RefundCreateParams.Reason;
-		note: string
+		note: string;
 	}): Promise<{ refundId: string | null; error: ApiError | null }> {
 		try {
 			const refund = await this.stripe.refunds.create({
@@ -94,8 +94,8 @@ export class StripeServerService extends StripeService {
 				amount: Math.round(amount * 100),
 				reason,
 				metadata: {
-					note
-				}
+					note,
+				},
 			});
 			return { refundId: refund.id, error: null };
 		} catch (err: any) {

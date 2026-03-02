@@ -5,7 +5,7 @@ import { CheckoutService } from "@workspace/shared/services/checkout.service";
 export const action = async ({ request, params }: ActionFunctionArgs) => {
 	const booking_id = params.booking_id as string;
 	if (!booking_id || booking_id === "") {
-		return { success: false, error: "Booking ID is required" }
+		return { success: false, error: "Booking ID is required" };
 	}
 
 	let values;
@@ -24,7 +24,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 		typeof refund_details !== "string" ||
 		refund_details.trim().length < 10
 	) {
-		return { success: false, error: "Invalid refund data" }
+		return { success: false, error: "Invalid refund data" };
 	}
 
 	try {

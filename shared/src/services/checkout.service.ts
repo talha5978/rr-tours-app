@@ -238,7 +238,7 @@ export class CheckoutService extends Service {
 					success: false,
 					error: "Failed to update booking after refund. Please update booking manually.",
 					status: 500,
-				}
+				};
 			}
 
 			return {

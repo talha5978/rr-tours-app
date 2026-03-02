@@ -307,7 +307,7 @@ export class BookingService extends Service {
 				total: b.total,
 				customer_name: b.customer_name,
 				customer_phone: b.customer_phone,
-				customer_email: b.customer_email
+				customer_email: b.customer_email,
 			}));
 
 			return { bookings: payload, total: Number(count) };

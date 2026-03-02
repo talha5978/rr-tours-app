@@ -1,6 +1,12 @@
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
-import { isRouteErrorResponse, Link, useLoaderData, useRouteError, type LoaderFunctionArgs } from "react-router";
+import {
+	isRouteErrorResponse,
+	Link,
+	useLoaderData,
+	useRouteError,
+	type LoaderFunctionArgs,
+} from "react-router";
 import { Button } from "~/components/ui/button";
 import { toast } from "sonner";
 import { memo, Suspense, useEffect, useState } from "react";
@@ -172,11 +178,7 @@ function PaymentPage() {
 						</Suspense>
 					</div>
 
-					<Button
-						type="submit"
-						className="w-full"
-						disabled={!stripe || !elements || isSubmitting}
-					>
+					<Button type="submit" className="w-full" disabled={!stripe || !elements || isSubmitting}>
 						{isSubmitting ? (
 							<>
 								<Loader2 className="h-5 w-5 animate-spin mr-2" />
@@ -221,9 +223,7 @@ export default function PaymentPageWrapper() {
 						</p>
 					</div>
 					<Link to={"/"} viewTransition prefetch="intent">
-						<Button className="mt-6">
-							Back to Home
-						</Button>
+						<Button className="mt-6">Back to Home</Button>
 					</Link>
 				</div>
 			</div>

@@ -6,6 +6,31 @@ export type Database = {
 	__InternalSupabase: {
 		PostgrestVersion: "14.1";
 	};
+	graphql_public: {
+		Tables: {
+			[_ in never]: never;
+		};
+		Views: {
+			[_ in never]: never;
+		};
+		Functions: {
+			graphql: {
+				Args: {
+					extensions?: Json;
+					operationName?: string;
+					query?: string;
+					variables?: Json;
+				};
+				Returns: Json;
+			};
+		};
+		Enums: {
+			[_ in never]: never;
+		};
+		CompositeTypes: {
+			[_ in never]: never;
+		};
+	};
 	public: {
 		Tables: {
 			activity_providers: {
@@ -374,6 +399,96 @@ export type Database = {
 						referencedColumns: ["id"];
 					},
 				];
+			};
+			collection_cities: {
+				Row: {
+					city_id: number;
+					collection_id: number;
+					id: number;
+				};
+				Insert: {
+					city_id: number;
+					collection_id: number;
+					id?: number;
+				};
+				Update: {
+					city_id?: number;
+					collection_id?: number;
+					id?: number;
+				};
+				Relationships: [
+					{
+						foreignKeyName: "collection_cities_city_id_fkey";
+						columns: ["city_id"];
+						isOneToOne: false;
+						referencedRelation: "cities";
+						referencedColumns: ["id"];
+					},
+					{
+						foreignKeyName: "collection_cities_collection_id_fkey";
+						columns: ["collection_id"];
+						isOneToOne: false;
+						referencedRelation: "collections";
+						referencedColumns: ["id"];
+					},
+				];
+			};
+			collection_tours: {
+				Row: {
+					collection_id: number;
+					id: number;
+					tour_id: string;
+				};
+				Insert: {
+					collection_id: number;
+					id?: number;
+					tour_id: string;
+				};
+				Update: {
+					collection_id?: number;
+					id?: number;
+					tour_id?: string;
+				};
+				Relationships: [
+					{
+						foreignKeyName: "collection_tours_collection_id_fkey";
+						columns: ["collection_id"];
+						isOneToOne: false;
+						referencedRelation: "collections";
+						referencedColumns: ["id"];
+					},
+					{
+						foreignKeyName: "collection_tours_tour_id_fkey";
+						columns: ["tour_id"];
+						isOneToOne: false;
+						referencedRelation: "tours";
+						referencedColumns: ["id"];
+					},
+				];
+			};
+			collections: {
+				Row: {
+					created_at: string;
+					description: string | null;
+					id: number;
+					isFeatured: boolean;
+					name: string;
+				};
+				Insert: {
+					created_at?: string;
+					description?: string | null;
+					id?: number;
+					isFeatured?: boolean;
+					name: string;
+				};
+				Update: {
+					created_at?: string;
+					description?: string | null;
+					id?: number;
+					isFeatured?: boolean;
+					name?: string;
+				};
+				Relationships: [];
 			};
 			hero_sections: {
 				Row: {
@@ -989,6 +1104,9 @@ export type CompositeTypes<
 		: never;
 
 export const Constants = {
+	graphql_public: {
+		Enums: {},
+	},
 	public: {
 		Enums: {
 			availability_override_type: ["CLOSE", "CAPACITY_CHANGE"],
