@@ -45,6 +45,12 @@ export default [
 			route(":id/delete", "./routes/_actions/delete-hero-section.tsx"),
 		]),
 
+		...prefix("collections", [
+			index("./routes/Collections/collections.tsx"),
+			route("add", "./routes/Collections/add-collection.tsx"),
+			route(":id/delete", "./routes/_actions/delete-collection.tsx"),
+		]),
+
 		route("*", "./routes/Error/404.tsx"),
 	]),
 ] satisfies RouteConfig;

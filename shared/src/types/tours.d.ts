@@ -1,4 +1,5 @@
 import type { Database, Tables } from "@workspace/shared/types/supabase";
+import { ApiError } from "@workspace/shared/utils/ApiError";
 
 export type SeatType = Database["public"]["Enums"]["timeslot_seat_type"];
 
@@ -79,3 +80,12 @@ export type GetTourDetailsForUpdate = Tables<"tours"> & {
 export type TourUpdationPayload = Database["public"]["Tables"]["tours"]["Update"];
 
 export type AvailabilityOverrideType = Database["public"]["Enums"]["availability_override_type"];
+
+export type ToursListResp = {
+	tours: {
+		id: string;
+		name: string;
+	}[];
+	total: number;
+	error: ApiError | null;
+};

@@ -14,6 +14,7 @@ import type {
 	GetTourDetails,
 	GetTourDetailsForUpdate,
 	HighLevelTour,
+	ToursListResp,
 } from "@workspace/shared/types/tours";
 import { type TourFilters } from "@workspace/shared/schemas/tours-filter.schema";
 import { type FPTourFilters } from "@workspace/shared/schemas/fp-tours-filter.schema";
@@ -1285,6 +1286,40 @@ export class ToursService extends Service {
 		const date = new Date(dateStr);
 		const day = date.getDay();
 		return day === 0 ? 7 : day;
+	}
+
+	/** Get tours list */
+	@UseMiddleware(asServiceMiddleware<CityService>(verifyUser))
+	async getToursList(q = "", pageIndex = 0, pageSize = 10): Promise<ToursListResp> {
+		const from = pageIndex * pageSize;
+		const to = from + pageSize - 1;
+
+		let query = this.supabase
+			.from(this.TOURS_TABLE)
+			.select("id, name", { count: "exact" })
+			.eq("isActive", true)
+			.range(from, to)
+			.order("created_at", { ascending: true });
+
+		if (q.trim().length > 0) {
+			query = query.ilike("name", `%${q}%`);
+		}
+
+		const { data, error: dbError, count } = await query;
+
+		if (dbError) {
+			return {
+				error: new ApiError(dbError.message, 500, [dbError.details || ""]),
+				total: count ?? 0,
+				tours: [],
+			};
+		}
+
+		return {
+			error: null,
+			total: count ?? 0,
+			tours: data ?? [],
+		};
 	}
 
 	/**

@@ -974,7 +974,7 @@ export type Database = {
 			[_ in never]: never;
 		};
 		Functions: {
-			[_ in never]: never;
+			delete_collection: { Args: { p_collection_id: number }; Returns: Json };
 		};
 		Enums: {
 			availability_override_type: "CLOSE" | "CAPACITY_CHANGE";

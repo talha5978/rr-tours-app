@@ -4,6 +4,7 @@ import type {
 	GetHighLevelToursResponse,
 	GetTourDetails,
 	GetTourDetailsForUpdate,
+	ToursListResp,
 } from "@workspace/shared/types/tours";
 import type { TourFilters } from "@workspace/shared/schemas/tours-filter.schema";
 
@@ -51,6 +52,29 @@ export const highLevelToursQuery = ({
 		queryFn: async () => {
 			const svc = new ToursService(request);
 			const result = await svc.getHighLevelTours(q, pageIndex, pageSize, filters);
+			return result;
+		},
+		staleTime: 10 * 60 * 1000,
+		gcTime: 20 * 60 * 1000,
+	});
+};
+
+export const toursListQuery = ({
+	request,
+	q,
+	pageIndex,
+	pageSize,
+}: {
+	request: Request;
+	q?: string;
+	pageIndex?: number;
+	pageSize?: number;
+}) => {
+	return queryOptions<ToursListResp>({
+		queryKey: ["tours_list", q, pageIndex, pageSize],
+		queryFn: async () => {
+			const svc = new ToursService(request);
+			const result = await svc.getToursList(q, pageIndex, pageSize);
 			return result;
 		},
 		staleTime: 10 * 60 * 1000,

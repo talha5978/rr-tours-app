@@ -3,6 +3,7 @@ import {
 	// Archive,
 	Blocks,
 	CalendarCheck2,
+	Component,
 	// CalendarCheck2,
 	FerrisWheel,
 	// Gift,
@@ -72,6 +73,11 @@ export const mainNavItems: NavItem[] = [
 		title: "Content",
 		items: [
 			{
+				title: "Collections",
+				url: "/collections",
+				icon: <Component />,
+			},
+			{
 				title: "Hero Sections",
 				url: "/hero-sections",
 				icon: <RectangleHorizontal />,
@@ -90,21 +96,6 @@ export const mainNavItems: NavItem[] = [
 	// 			title: "Announcements",
 	// 			url: "/announcements",
 	// 			icon: <Megaphone />,
-	// 		},
-	// 	],
-	// },
-	// {
-	// 	title: "Content",
-	// 	items: [
-	// 		{
-	// 			title: "Hero Sections",
-	// 			url: "/hero-sections",
-	// 			icon: <RectangleHorizontal />,
-	// 		},
-	// 		{
-	// 			title: "Cancellation Policies",
-	// 			url: "/cancellation-policies",
-	// 			icon: <Siren />,
 	// 		},
 	// 	],
 	// },
