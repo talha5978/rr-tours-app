@@ -16,6 +16,8 @@ import { homeTourReviewsQuery } from "~/queries/reviews.q";
 import ReviewsSection from "~/components/Home/ReviewsSection";
 import { useEffect } from "react";
 import { toast } from "sonner";
+import { collectionsQuery } from "~/queries/collections.q";
+import CollectionsSection from "~/components/Collections/CollectionsSection";
 
 export const loader = async ({ request }: Route.LoaderArgs) => {
 	const featuredToursResp = await queryClient.fetchQuery(
@@ -25,6 +27,9 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
 	const categoriesResp = await queryClient.fetchQuery(FPhighLevelCategoriesQuery({ request }));
 	const heroSectionsResp = await queryClient.fetchQuery(allHeroSectionsQuery({ request }));
 	const reviewsResp = await queryClient.fetchQuery(homeTourReviewsQuery({ request }));
+	const featuredCollectionsResp = await queryClient.fetchQuery(
+		collectionsQuery({ request, isFeatured: true, cityId: null, pageIndex: 0, pageSize: 10 }),
+	);
 
 	const errors = decodeURIComponent(new URLSearchParams(request.url.split("?")[1]).get("error") || "");
 	const success_msg = decodeURIComponent(
@@ -46,6 +51,7 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
 		categoriesResp,
 		heroSectionsResp,
 		reviewsResp,
+		featuredCollectionsResp,
 		errors,
 		success_msg,
 		payment_intent,
@@ -109,9 +115,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 				<CitiesSection cities={loaderData.citiesResp.data ?? []} />
 				<ReviewsSection reviews={loaderData.reviewsResp.reviews} />
 				<WhyUsSection />
+				<CollectionsSection title="Curated Collections" collections={loaderData.featuredCollectionsResp.collections ?? []} />
 				<CategoriesSection categories={loaderData.categoriesResp.data ?? []} />
 				<InquiryBanner />
-			</section>
+			</section>	
 		</>
 	);
 }

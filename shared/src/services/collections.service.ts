@@ -5,7 +5,14 @@ import { loggerMiddleware } from "@workspace/shared/middlewares/logger.middlewar
 import { verifyUser } from "@workspace/shared/middlewares/auth.middleware";
 import { asServiceMiddleware } from "@workspace/shared/middlewares/utils";
 import { UseMiddleware } from "@workspace/shared/decorators/useMiddleware";
-import type { HighLevelCollection, HighLevelCollectionsResp } from "@workspace/shared/types/collections";
+import type {
+	CollectionDetailsResp,
+	FPCollection,
+	GetFpCollectionsResponse,
+	HighLevelCollection,
+	HighLevelCollectionsResp,
+} from "@workspace/shared/types/collections";
+import { FP_HighLevelTour } from "@workspace/shared/types/fp-tours";
 
 @UseClassMiddleware(loggerMiddleware)
 export class CollectionsService extends Service {
@@ -184,16 +191,16 @@ export class CollectionsService extends Service {
 
 			type DeleteCollectionResult =
 				| {
-					success: true;
-					message: string;
-					deleted_collection_id: number;
-					}
+						success: true;
+						message: string;
+						deleted_collection_id: number;
+				  }
 				| {
-					success: false;
-					message: string;
-					code?: string;
-					detail?: string;
-					};
+						success: false;
+						message: string;
+						code?: string;
+						detail?: string;
+				  };
 
 			if (error) {
 				console.error("RPC error:", error);
@@ -221,6 +228,229 @@ export class CollectionsService extends Service {
 			console.error("Unexpected error during delete:", err);
 			return {
 				error: new ApiError(err.message || "Unexpected error while deleting collection", 500),
+			};
+		}
+	}
+
+	/** FETCH collection details */
+	@UseMiddleware(asServiceMiddleware<CollectionsService>(verifyUser))
+	async getCollectionDetails(collectionId: number): Promise<CollectionDetailsResp> {
+		if (!collectionId) {
+			return {
+				data: null,
+				error: new ApiError("Collection ID is required", 400),
+			};
+		}
+
+		const { data, error } = await this.supabase
+			.from(this.COLLECTIONS_TABLE)
+			.select(
+				`
+				id, created_at, isFeatured, name, description,
+				${this.COLLECTION_CITIES_TABLE}(
+					city:${this.CITIES_TABLE}(
+						id, name
+					)
+				),
+				${this.COLLECTION_TOURS_TABLE}(
+					tour:${this.TOURS_TABLE}(
+						id, name
+					)
+				)
+			`,
+			)
+			.eq("id", collectionId)
+			.single();
+
+		if (error) {
+			return {
+				data: null,
+				error: new ApiError(error.message, 500),
+			};
+		}
+
+		return {
+			data: {
+				id: data.id,
+				name: data.name,
+				description: data.description,
+				isFeatured: data.isFeatured,
+				created_at: data.created_at,
+				cities: data.collection_cities.map((c) => c.city),
+				tours: data.collection_tours.map((t) => t.tour),
+			},
+			error: null,
+		};
+	}
+
+	/** Fetch paginated tours for a specific collection */
+	async getCollectionTours(
+		collectionId: number,
+		pageIndex = 0,
+		pageSize = 10,
+	): Promise<{ tours: FP_HighLevelTour[]; total: number; error: ApiError | null }> {
+		const from = pageIndex * pageSize;
+		const to = from + pageSize - 1;
+
+		try {
+			const { data, error, count } = await this.supabase
+				.from(this.COLLECTION_TOURS_TABLE)
+				.select(
+					`
+					tour_id,
+					${this.TOURS_TABLE}(
+						id, name, cover_image, updated_at,
+						${this.META_DETAILS_TABLE}(url_key),
+						${this.CITIES_TABLE}(id, name, ${this.META_DETAILS_TABLE}(url_key)),
+						${this.CATEGORIES_TABLE}(id, name, ${this.META_DETAILS_TABLE}(url_key)),
+						${this.TOUR_OPTIONS_TABLE}(
+						*,
+						${this.TOUR_OPTION_PRICES_TABLE}(
+							price,
+							${this.PARTICIPANT_TYPES_TABLE}(age_min, age_max)
+						)
+						)
+					)
+					`,
+					{ count: "exact" },
+				)
+				.eq("collection_id", collectionId)
+				.eq(`${this.TOURS_TABLE}.isActive`, true)
+				.range(from, to)
+				.order("id", { ascending: true });
+
+			if (error) {
+				throw new ApiError(error.message, 500, [error.details || ""]);
+			}
+
+			const getTourMinPrice = (tour: any): { minPrice: number; hasGroupPrice: boolean } => {
+				let min = Infinity;
+				let hasGroup = false;
+				for (const option of tour.tour_options || []) {
+					for (const price of option.tour_option_prices || []) {
+						if (price.price < min) min = price.price;
+						if (price.participant_types.age_max === 0 && price.participant_types.age_min === 0) {
+							hasGroup = true;
+						}
+					}
+				}
+				return { minPrice: min === Infinity ? 0 : min, hasGroupPrice: hasGroup };
+			};
+
+			const tours: FP_HighLevelTour[] = (data || []).map((ct: any) => {
+				const tour = ct.tours;
+				const { minPrice, hasGroupPrice } = getTourMinPrice(tour);
+
+				return {
+					id: tour.id,
+					name: tour.name,
+					cover_image: tour.cover_image,
+					url_key: tour.meta_details.url_key,
+					updated_at: tour.updated_at,
+					price: minPrice,
+					city: {
+						id: tour.cities.id,
+						name: tour.cities.name,
+						url_key: tour.cities.meta_details.url_key,
+					},
+					category: {
+						id: tour.tours_categories.id,
+						name: tour.tours_categories.name,
+						url_key: tour.tours_categories.meta_details.url_key,
+					},
+					hasGroupPrice,
+				};
+			});
+
+			return {
+				tours,
+				total: count ?? 0,
+				error: null,
+			};
+		} catch (error) {
+			console.error(error);
+			
+			return {
+				tours: [],
+				total: 0,
+				error:
+					error instanceof ApiError
+						? error
+						: new ApiError("Failed to get collection tours", 500, []),
+			};
+		}
+	}
+
+	/** Fetch collection with home page and city page filters (now without tours) */
+	async getFpCollections(
+		isFeatured: boolean = true,
+		cityId: number | null = null,
+		pageIndex = 0,
+		pageSize = 10,
+	): Promise<GetFpCollectionsResponse> {
+		const from = pageIndex * pageSize;
+		const to = from + pageSize - 1;
+
+		try {
+			let query = this.supabase
+				.from(this.COLLECTIONS_TABLE)
+				.select(
+					`
+						id,
+						name,
+						description,
+						isFeatured,
+						${this.COLLECTION_CITIES_TABLE}(id, city_id)
+					`,
+					{ count: "exact" },
+				)
+				.range(from, to)
+				.order("id", { ascending: true });
+
+			if (isFeatured) {
+				query = query.eq("isFeatured", true);
+			} else if (cityId != null) {
+				query = query.in(`${this.COLLECTION_CITIES_TABLE}.city_id`, [cityId]);
+			} else {
+				throw new ApiError("Either isFeatured must be true or cityId must be provided", 400);
+			}
+
+			const { data: dbData, error, count } = await query;
+
+			// console.log("Data in the service function : \n", JSON.stringify(dbData, null, 2));
+
+			if (error) {
+				console.error(error);
+				throw new ApiError(error.message, 500, [error.details || ""]);
+			}
+
+			let data = dbData.filter((collection) => {
+				if(collection.collection_cities.length === 0 && cityId != null) {
+					return false;
+				}
+				return true;
+			});
+
+			const collPromises = (data || []).map(async (coll) => {
+				const { tours, error: terr } = await this.getCollectionTours(coll.id, 0, 12);
+				if (terr) {
+					console.error(terr);
+					return { ...coll, tours: [] };
+				}
+				return { ...coll, tours };
+			});
+
+			const collections: FPCollection[] = await Promise.all(collPromises);
+
+			return { collections, total: count ?? 0, error: null };
+		} catch (error) {
+			return {
+				collections: [],
+				total: 0,
+				error:
+					error instanceof ApiError
+						? error
+						: new ApiError("Failed to get collections", 500, []),
 			};
 		}
 	}

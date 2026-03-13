@@ -330,7 +330,7 @@ export default function SendConfirmationEmail() {
 										<FormControl>
 											<Textarea
 												placeholder="Important Notes"
-												className="h-28"
+												className="h-28 resize-none"
 												{...field}
 												value={field.value ?? ""}
 											/>

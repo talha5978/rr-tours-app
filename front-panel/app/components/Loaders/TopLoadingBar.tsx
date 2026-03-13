@@ -35,5 +35,5 @@ export const TopLoadingBar = () => {
 
 	if (!mounted) return null;
 
-	return <LoadingBar color="var(--color-primary)" ref={loadingBarRef} />;
+	return <LoadingBar color="var(--color-foreground)" height={4} ref={loadingBarRef} />;
 };

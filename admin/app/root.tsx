@@ -8,7 +8,6 @@ import { Toaster } from "~/components/ui/sonner";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@workspace/shared/utils/query-client";
 import { GetCurrentUser } from "@workspace/shared/types/auth";
-import { extractAuthId } from "@workspace/shared/utils/auth-utils.server";
 import { currentUserQuery } from "@workspace/shared/queries/auth.q";
 import { getCacheInvalidationEvents } from "@workspace/shared/queries/cache-events.q";
 import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";

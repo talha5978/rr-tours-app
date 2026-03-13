@@ -46,6 +46,8 @@ export default [
 
 		route("add-review", "./routes/_actions/add-review.tsx"),
 		route("delete-review", "./routes/_actions/delete-review.tsx"),
+
+		route("collection/:id", "./routes/Collections/collection-tours.tsx"),
 	]),
 
 	route("*", "./routes/Error/404.tsx"),

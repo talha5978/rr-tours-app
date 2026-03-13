@@ -48,6 +48,7 @@ export default [
 		...prefix("collections", [
 			index("./routes/Collections/collections.tsx"),
 			route("add", "./routes/Collections/add-collection.tsx"),
+			route(":id/update", "./routes/Collections/update-collection.tsx"),
 			route(":id/delete", "./routes/_actions/delete-collection.tsx"),
 		]),
 

@@ -51,7 +51,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 	return { data, query: q, pageIndex, pageSize };
 };
 
-export default function CategoriesPage() {
+export default function CollectionsPage() {
 	const loaderData = useLoaderData<typeof loader>();
 	const { data, query, pageIndex, pageSize } = loaderData;
 	const navigation = useNavigation();

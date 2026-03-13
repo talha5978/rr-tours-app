@@ -133,6 +133,8 @@ export default function Header({ categories }: { categories: FPHighLevelCategory
 				<nav className="ml-12 hidden items-center gap-6 lg:flex">
 					{NAV_LINKS.map((link) => (
 						<NavLink
+							viewTransition
+							prefetch="viewport"
 							key={link.to}
 							to={link.to}
 							className={({ isActive }) =>

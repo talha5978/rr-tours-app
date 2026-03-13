@@ -27,6 +27,8 @@ import { type FPTourFilters } from "@workspace/shared/schemas/fp-tours-filter.sc
 import { SquareArrowOutUpRight } from "lucide-react";
 import { cityTagsQuery } from "~/queries/tags.q";
 import { InquiryBanner } from "~/components/Contact/InquirySection";
+import { collectionsQuery } from "~/queries/collections.q";
+import CollectionsSection from "~/components/Collections/CollectionsSection";
 
 const pageSize = 20;
 
@@ -57,9 +59,13 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 		}),
 	);
 
+	const collectionsResp = await queryClient.fetchQuery(
+		collectionsQuery({ request, isFeatured: false, cityId: Number(id), pageIndex: 0, pageSize: 10 }),
+	);
+
 	const cityTags = await queryClient.fetchQuery(cityTagsQuery({ request, cityId: Number(id) }));
 
-	return { toursData, cityData, cityTags };
+	return { toursData, cityData, cityTags, collectionsResp };
 };
 
 export default function CityPage() {
@@ -156,7 +162,12 @@ export default function CityPage() {
 						<h2 className="section-heading mx-auto w-fit">More Activities</h2>
 						<div className=" flex gap-4 flex-wrap justify-center">
 							{cityTags.map((tag) => (
-								<Link key={tag.id} to={`/tours?cities=${cityData?.data?.id}&tags=${tag.id}`}>
+								<Link
+									key={tag.id}
+									prefetch="viewport"
+									viewTransition
+									to={`/tours?cities=${cityData?.data?.id}&tags=${tag.id}`}
+								>
 									<div className="w-42.5 h-full px-6 py-4 flex flex-col gap-3 items-center justify-center bg-card rounded-lg shadow-xs border-2">
 										<img
 											src={SUPABASE_IMAGE_BUCKET_PATH + "/" + tag.image}
@@ -190,7 +201,7 @@ export default function CityPage() {
 						{toursData.tours.length > 0 &&
 							toursData.tours.map((tour) => (
 								<li key={tour.id}>
-									<TourCard tour={tour} className="h-full" />
+									<TourCard linkPrefetch="viewport" tour={tour} className="h-full" />
 								</li>
 							))}
 					</ul>
@@ -204,6 +215,12 @@ export default function CityPage() {
 						</Link>
 					</div>
 				</section>
+
+				<CollectionsSection
+					collections={loaderData.collectionsResp.collections}
+					title={"Best Collections in " + cityData.data.name}
+					isCity={true}
+				/>
 
 				<section className="space-y-10 mt-16">
 					<WhyUsSection />

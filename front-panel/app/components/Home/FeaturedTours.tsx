@@ -22,7 +22,7 @@ export default function FeaturedToursSection({ tours }: { tours: FP_HighLevelTou
 							key={tour.id}
 							className="pl-4 min-[550px]:basis-1/2 md:basis-1/3 lg:basis-1/4"
 						>
-							<TourCard tour={tour} />
+							<TourCard tour={tour} linkPrefetch="viewport" />
 						</CarouselItem>
 					))}
 				</CarouselContent>
