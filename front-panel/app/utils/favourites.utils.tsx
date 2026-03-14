@@ -1,4 +1,6 @@
+import { Heart } from "lucide-react";
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 const FAV_KEY = "TAD_favourite_tours_" + process.env.VITE_ENV;
 
@@ -56,6 +58,13 @@ export function useFavourites() {
 		}
 		writeFavourites(nextFavs);
 		setFavourites(nextFavs); // immediate update in this tab
+		toast.error(isFavourite(tourId) ? "Tour removed from favourites" : "Tour saved to favourites", {
+			icon: isFavourite(tourId) ? (
+				<Heart className="h-4 w-4 text-destructive" />
+			) : (
+				<Heart className="h-4 w-4 text-destructive fill-destructive" />
+			),
+		});
 	};
 
 	function clear() {

@@ -16,8 +16,12 @@ import { Button } from "~/components/ui/button";
 import { TourCard } from "~/components/Tour/TourCard";
 import { useEffect } from "react";
 import { TourSort } from "~/components/Tour/TourSort";
-
 import { collectionDetailsQuery, collectionToursQuery } from "~/queries/collections.q";
+import { FPhighLevelCategoriesQuery } from "~/queries/categories.q";
+import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
+import { cn } from "@workspace/shared/utils/ui";
+import { Check, ChevronsUpDown, Search } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "~/components/ui/command";
 
 const PAGE_SIZE = 12;
 const MAX_PRICE = 10000;
@@ -25,6 +29,7 @@ const MAX_PRICE = 10000;
 const CollectionFilterSchema = z.object({
 	q: z.string().optional(),
 	price: z.tuple([z.number(), z.number()]).optional(),
+	categories: z.array(z.string()).optional()
 });
 
 type CollectionFilterFormData = z.infer<typeof CollectionFilterSchema>;
@@ -43,11 +48,13 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 	const sortType = (url.searchParams.get("sortType") as any) || undefined;
 	const minPrice = Number(url.searchParams.get("min_price") ?? "0");
 	const maxPrice = Number(url.searchParams.get("max_price") ?? MAX_PRICE.toString());
+	const categories = url.searchParams.getAll("categories");
 
 	const filters = {
 		price: minPrice !== 0 || maxPrice !== MAX_PRICE ? [minPrice, maxPrice] : undefined,
 		sortBy,
 		sortType,
+		categories
 	};
 
 	const collectionResp = await queryClient.fetchQuery(
@@ -56,12 +63,13 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 	const toursResp = await queryClient.fetchQuery(
 		collectionToursQuery({ request, collectionId, pageIndex: page - 1, pageSize: PAGE_SIZE, q, filters }),
 	);
+	const categoriesResp = await queryClient.fetchQuery(FPhighLevelCategoriesQuery({ request }));
 
-	return { collectionResp, toursResp };
+	return { collectionResp, toursResp, categoriesResp };
 };
 
 export default function CollectionPage() {
-	const { collectionResp: collection, toursResp } = useLoaderData<typeof loader>();
+	const { collectionResp: collection, toursResp, categoriesResp } = useLoaderData<typeof loader>();
 
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
@@ -80,6 +88,7 @@ export default function CollectionPage() {
 				minPriceParam && maxPriceParam
 					? [Number(minPriceParam), Number(maxPriceParam)]
 					: undefined,
+			categories: searchParams.getAll("categories")
 		},
 	});
 
@@ -87,9 +96,17 @@ export default function CollectionPage() {
 
 	const onSubmit = (data: CollectionFilterFormData) => {
 		const params = new URLSearchParams(searchParams);
-		if (data.q) params.set("q", data.q);
-		else params.delete("q");
+
+		if (data.q) {
+			params.set("q", data.q);
+		} else {
+			params.delete("q");
+		}
+
 		params.set("page", "1");
+		params.delete("categories");
+		data.categories?.forEach((cat) => params.append("categories", cat));
+
 		if (data.price && data.price.length === 2) {
 			params.set("min_price", String(data.price[0]));
 			params.set("max_price", String(data.price[1]));
@@ -97,6 +114,7 @@ export default function CollectionPage() {
 			params.delete("min_price");
 			params.delete("max_price");
 		}
+
 		navigate(`?${params.toString()}`);
 	};
 
@@ -107,6 +125,7 @@ export default function CollectionPage() {
 				minPriceParam && maxPriceParam
 					? [Number(minPriceParam), Number(maxPriceParam)]
 					: undefined,
+			categories: searchParams.getAll("categories"),
 		});
 	}, [searchParams, form]);
 
@@ -114,7 +133,9 @@ export default function CollectionPage() {
 		<>
 			<MetaDetails
 				metaTitle={`${collection?.name} | Tours & Attractions`}
-				metaDescription={collection?.description || "Explore curated tours and attractions in this collection."}
+				metaDescription={
+					collection?.description || "Explore curated tours and attractions in this collection."
+				}
 				metaKeywords={toursResp.tours.map((i) => i.name).join(", ")}
 				canonicalUrl={`${process.env.VITE_MAIN_APP_URL}/collection/${collection?.id}`}
 				ogUrl={`${process.env.VITE_MAIN_APP_URL}/collection/${collection?.id}`}
@@ -135,8 +156,84 @@ export default function CollectionPage() {
 									render={({ field }) => (
 										<FormItem>
 											<FormControl>
-												<Input placeholder="Search tours" {...field} />
+												<div className="relative">
+													<Input placeholder="Search tours" className="pl-9" {...field} />
+													<Search className="absolute top-1/2 left-3 w-4 h-4 text-muted-foreground -translate-y-1/2" />
+												</div>
 											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+								<FormField
+									control={form.control}
+									name="categories"
+									render={({ field }) => (
+										<FormItem className="flex flex-col">
+											<Popover>
+												<PopoverTrigger asChild>
+													<Button
+														variant="outline"
+														noEffect
+														role="combobox"
+														className={cn(
+															"w-[250px] justify-between",
+															!field.value?.length && "text-muted-foreground",
+														)}
+													>
+														{field.value?.length && field.value?.length > 0
+															? `${field.value.length} selected`
+															: "Select categories..."}
+														<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+													</Button>
+												</PopoverTrigger>
+
+												<PopoverContent className="w-[250px] p-0">
+													<Command>
+														<CommandInput placeholder="Search categories..." />
+														<CommandList>
+															<CommandEmpty>No categories found.</CommandEmpty>
+															<CommandGroup>
+																{categoriesResp?.data?.map((cat) => {
+																	const isSelected = field.value?.includes(
+																		cat.id.toString(),
+																	);
+																	return (
+																		<CommandItem
+																			key={cat.id}
+																			value={cat.name}
+																			onSelect={() => {
+																				const newValue = isSelected
+																					? (field.value?.filter(
+																							(v) =>
+																								v !==
+																								cat.id.toString(),
+																						) ?? [])
+																					: [
+																							...(field.value ??
+																								[]),
+																							cat.id.toString(),
+																						];
+																				field.onChange(newValue);
+																			}}
+																		>
+																			<Check
+																				className={cn(
+																					"mr-2 h-4 w-4",
+																					isSelected
+																						? "opacity-100"
+																						: "opacity-0",
+																				)}
+																			/>
+																			{cat.name}
+																		</CommandItem>
+																	);
+																})}
+															</CommandGroup>
+														</CommandList>
+													</Command>
+												</PopoverContent>
+											</Popover>
 											<FormMessage />
 										</FormItem>
 									)}
@@ -149,6 +246,7 @@ export default function CollectionPage() {
 											<FormControl>
 												<Input
 													type="number"
+													min={0}
 													placeholder="Min Price"
 													value={field.value?.[0] ?? ""}
 													onChange={(e) =>
@@ -162,6 +260,7 @@ export default function CollectionPage() {
 											<FormControl>
 												<Input
 													type="number"
+													min={0}
 													placeholder="Max Price"
 													value={field.value?.[1] ?? ""}
 													onChange={(e) =>
