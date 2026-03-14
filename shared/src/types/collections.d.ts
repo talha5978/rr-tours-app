@@ -1,5 +1,8 @@
 import type { FP_HighLevelTour } from "@workspace/shared/types/fp-tours";
+import { type Database } from "@workspace/shared/types/supabase";
 import type { ApiError } from "@workspace/shared/utils/ApiError";
+
+export type CollectionRow = Database["public"]["Tables"]["collections"]["Row"];
 
 export type HighLevelCollection = {
 	id: number;

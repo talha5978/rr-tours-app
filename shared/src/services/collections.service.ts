@@ -7,12 +7,14 @@ import { asServiceMiddleware } from "@workspace/shared/middlewares/utils";
 import { UseMiddleware } from "@workspace/shared/decorators/useMiddleware";
 import type {
 	CollectionDetailsResp,
+	CollectionRow,
 	FPCollection,
 	GetFpCollectionsResponse,
 	HighLevelCollection,
 	HighLevelCollectionsResp,
 } from "@workspace/shared/types/collections";
 import { FP_HighLevelTour } from "@workspace/shared/types/fp-tours";
+import type { FPTourFilters } from "@workspace/shared/schemas/fp-tours-filter.schema";
 
 @UseClassMiddleware(loggerMiddleware)
 export class CollectionsService extends Service {
@@ -232,6 +234,25 @@ export class CollectionsService extends Service {
 		}
 	}
 
+	async getCollectionById(id: number): Promise<CollectionRow | null> {
+		try {
+			const { data, error } = await this.supabase
+				.from(this.COLLECTIONS_TABLE)
+				.select(`*`)
+				.eq("id", id)
+				.single();
+
+			if (error) {
+				throw new ApiError(error.message, 500, [error.details || ""]);
+			}
+
+			return data;
+		} catch (error) {
+			console.error(error);
+			return null;
+		}
+	}
+
 	/** FETCH collection details */
 	@UseMiddleware(asServiceMiddleware<CollectionsService>(verifyUser))
 	async getCollectionDetails(collectionId: number): Promise<CollectionDetailsResp> {
@@ -288,36 +309,43 @@ export class CollectionsService extends Service {
 		collectionId: number,
 		pageIndex = 0,
 		pageSize = 10,
+		q = "",
+		filters: Partial<FPTourFilters> = {},
 	): Promise<{ tours: FP_HighLevelTour[]; total: number; error: ApiError | null }> {
 		const from = pageIndex * pageSize;
 		const to = from + pageSize - 1;
 
 		try {
-			const { data, error, count } = await this.supabase
+			let query = this.supabase
 				.from(this.COLLECTION_TOURS_TABLE)
 				.select(
 					`
-					tour_id,
-					${this.TOURS_TABLE}(
+					tour:${this.TOURS_TABLE}(
 						id, name, cover_image, updated_at,
 						${this.META_DETAILS_TABLE}(url_key),
 						${this.CITIES_TABLE}(id, name, ${this.META_DETAILS_TABLE}(url_key)),
 						${this.CATEGORIES_TABLE}(id, name, ${this.META_DETAILS_TABLE}(url_key)),
 						${this.TOUR_OPTIONS_TABLE}(
-						*,
-						${this.TOUR_OPTION_PRICES_TABLE}(
-							price,
-							${this.PARTICIPANT_TYPES_TABLE}(age_min, age_max)
-						)
+							*,
+							${this.TOUR_OPTION_PRICES_TABLE}(
+								price,
+								${this.PARTICIPANT_TYPES_TABLE}(age_min, age_max)
+							)
 						)
 					)
 					`,
 					{ count: "exact" },
 				)
 				.eq("collection_id", collectionId)
-				.eq(`${this.TOURS_TABLE}.isActive`, true)
-				.range(from, to)
-				.order("id", { ascending: true });
+				.eq(`${this.TOURS_TABLE}.isActive`, true);
+
+			if (q.trim().length > 0) {
+				query = query.ilike(`${this.TOURS_TABLE}.name`, `%${q}%`);
+			}
+
+			query = query.range(from, to).order("id", { ascending: true });
+
+			const { data, error, count } = await query;
 
 			if (error) {
 				throw new ApiError(error.message, 500, [error.details || ""]);
@@ -337,39 +365,52 @@ export class CollectionsService extends Service {
 				return { minPrice: min === Infinity ? 0 : min, hasGroupPrice: hasGroup };
 			};
 
-			const tours: FP_HighLevelTour[] = (data || []).map((ct: any) => {
-				const tour = ct.tours;
-				const { minPrice, hasGroupPrice } = getTourMinPrice(tour);
+			let tours: FP_HighLevelTour[] = (data || [])
+				.filter((ct) => ct.tour !== null)
+				.map((ct) => {
+					const tour = ct.tour;
+					const { minPrice, hasGroupPrice } = getTourMinPrice(tour);
 
-				return {
-					id: tour.id,
-					name: tour.name,
-					cover_image: tour.cover_image,
-					url_key: tour.meta_details.url_key,
-					updated_at: tour.updated_at,
-					price: minPrice,
-					city: {
-						id: tour.cities.id,
-						name: tour.cities.name,
-						url_key: tour.cities.meta_details.url_key,
-					},
-					category: {
-						id: tour.tours_categories.id,
-						name: tour.tours_categories.name,
-						url_key: tour.tours_categories.meta_details.url_key,
-					},
-					hasGroupPrice,
-				};
-			});
+					return {
+						id: tour.id,
+						name: tour.name,
+						cover_image: tour.cover_image,
+						url_key: tour.meta_details.url_key,
+						updated_at: tour.updated_at,
+						price: minPrice,
+						city: {
+							id: tour.cities.id,
+							name: tour.cities.name,
+							url_key: tour.cities.meta_details.url_key,
+						},
+						category: {
+							id: tour.tours_categories.id,
+							name: tour.tours_categories.name,
+							url_key: tour.tours_categories.meta_details.url_key,
+						},
+						hasGroupPrice,
+					};
+				});
 
-			return {
-				tours,
-				total: count ?? 0,
-				error: null,
-			};
+			// console.log("FOrmatted tours: \n", tours);
+
+			if (filters.price && filters.price.length === 2) {
+				const [minP, maxP] = filters.price.sort((a, b) => a - b);
+				tours = tours.filter((tour) => tour.price >= minP && tour.price <= maxP);
+			}
+
+			if (filters.sortBy === "price") {
+				tours.sort((a, b) => {
+					if (filters.sortType === "asc") {
+						return a.price - b.price;
+					}
+					return b.price - a.price;
+				});
+			}
+
+			return { tours, total: count ?? 0, error: null };
 		} catch (error) {
 			console.error(error);
-			
 			return {
 				tours: [],
 				total: 0,
@@ -425,14 +466,14 @@ export class CollectionsService extends Service {
 			}
 
 			let data = dbData.filter((collection) => {
-				if(collection.collection_cities.length === 0 && cityId != null) {
+				if (collection.collection_cities.length === 0 && cityId != null) {
 					return false;
 				}
 				return true;
 			});
 
 			const collPromises = (data || []).map(async (coll) => {
-				const { tours, error: terr } = await this.getCollectionTours(coll.id, 0, 12);
+				const { tours, error: terr } = await this.getCollectionTours(coll.id);
 				if (terr) {
 					console.error(terr);
 					return { ...coll, tours: [] };
@@ -447,10 +488,7 @@ export class CollectionsService extends Service {
 			return {
 				collections: [],
 				total: 0,
-				error:
-					error instanceof ApiError
-						? error
-						: new ApiError("Failed to get collections", 500, []),
+				error: error instanceof ApiError ? error : new ApiError("Failed to get collections", 500, []),
 			};
 		}
 	}
