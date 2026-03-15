@@ -39,14 +39,14 @@ export const RecentBookingsCard = ({ recentBookings }: { recentBookings: HighLev
 											variant={
 												booking.booking_status === "CONFIRMED"
 													? "default"
-													: (booking.booking_status === "CANCELLED")
+													: booking.booking_status === "CANCELLED"
 														? "outline"
 														: "secondary"
 											}
 											className={
 												booking.booking_status === "PENDING"
 													? "bg-warning/20 dark:text-warning text-yellow-700"
-													: (booking.booking_status === "CANCELLED")
+													: booking.booking_status === "CANCELLED"
 														? "border-2 border-muted-foreground/20"
 														: ""
 											}

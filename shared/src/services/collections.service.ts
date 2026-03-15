@@ -343,8 +343,11 @@ export class CollectionsService extends Service {
 				query = query.ilike(`${this.TOURS_TABLE}.name`, `%${q}%`);
 			}
 
-			if(filters.categories && filters.categories.length > 0) {
-				query = query.in(`${this.TOURS_TABLE}.tour_category_id`, filters.categories.map((c) => Number(c)));
+			if (filters.categories && filters.categories.length > 0) {
+				query = query.in(
+					`${this.TOURS_TABLE}.tour_category_id`,
+					filters.categories.map((c) => Number(c)),
+				);
 			}
 
 			query = query.range(from, to).order("id", { ascending: true });

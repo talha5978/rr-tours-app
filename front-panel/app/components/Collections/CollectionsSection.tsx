@@ -55,8 +55,10 @@ function CollectionCarousel({ collection, ...props }: { collection: FPCollection
 					<ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-all ease-in-out" />
 				</Link>
 			</div>
-			{collection.description && <p className="mb-4 text-muted-foreground max-sm:text-center">{collection.description}</p>}
-			
+			{collection.description && (
+				<p className="mb-4 text-muted-foreground max-sm:text-center">{collection.description}</p>
+			)}
+
 			<Carousel
 				className="w-full max-w-full"
 				plugins={[

@@ -17,10 +17,7 @@ export default function ErrorPage() {
 
 	return (
 		<>
-			<MetaDetails
-				metaTitle="Error"
-				metaDescription={errorText ?? "Error"}
-			/>
+			<MetaDetails metaTitle="Error" metaDescription={errorText ?? "Error"} />
 			<div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
 				<div className="flex flex-col items-center justify-center px-4 py-8 text-center">
 					<h2 className="mb-6 text-5xl font-semibold">Whoops!</h2>

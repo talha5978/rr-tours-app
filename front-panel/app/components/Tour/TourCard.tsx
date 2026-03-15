@@ -8,13 +8,26 @@ import { Button } from "~/components/ui/button";
 import { useFavourites } from "~/utils/favourites.utils";
 
 export const TourCard = memo(
-	({ tour, className, linkPrefetch = "intent", ...props }: { tour: FP_HighLevelTour; className?: string; linkPrefetch?: PrefetchBehavior }) => {
+	({
+		tour,
+		className,
+		linkPrefetch = "intent",
+		...props
+	}: {
+		tour: FP_HighLevelTour;
+		className?: string;
+		linkPrefetch?: PrefetchBehavior;
+	}) => {
 		const { isFavourite, toggle } = useFavourites();
 		const active = isFavourite(tour.id);
 
 		return (
 			<div {...props} className="relative h-full">
-				<Link to={"/tours/tour/" + tour.id + "/" + tour.url_key} prefetch={linkPrefetch} viewTransition>
+				<Link
+					to={"/tours/tour/" + tour.id + "/" + tour.url_key}
+					prefetch={linkPrefetch}
+					viewTransition
+				>
 					<div
 						className={`h-full border-2 group overflow-hidden bg-card rounded-xl cursor-pointer ${className ?? ""}`}
 					>

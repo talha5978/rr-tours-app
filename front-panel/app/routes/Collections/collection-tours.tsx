@@ -4,13 +4,7 @@ import { LoaderFunctionArgs, useLoaderData, useNavigate, useSearchParams } from 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import {
-	Form as ShadcnForm,
-	FormControl,
-	FormField,
-	FormItem,
-	FormMessage,
-} from "~/components/ui/form";
+import { Form as ShadcnForm, FormControl, FormField, FormItem, FormMessage } from "~/components/ui/form";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { TourCard } from "~/components/Tour/TourCard";
@@ -21,7 +15,14 @@ import { FPhighLevelCategoriesQuery } from "~/queries/categories.q";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 import { cn } from "@workspace/shared/utils/ui";
 import { Check, ChevronsUpDown, Search } from "lucide-react";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "~/components/ui/command";
+import {
+	Command,
+	CommandEmpty,
+	CommandGroup,
+	CommandInput,
+	CommandItem,
+	CommandList,
+} from "~/components/ui/command";
 
 const PAGE_SIZE = 12;
 const MAX_PRICE = 10000;
@@ -29,7 +30,7 @@ const MAX_PRICE = 10000;
 const CollectionFilterSchema = z.object({
 	q: z.string().optional(),
 	price: z.tuple([z.number(), z.number()]).optional(),
-	categories: z.array(z.string()).optional()
+	categories: z.array(z.string()).optional(),
 });
 
 type CollectionFilterFormData = z.infer<typeof CollectionFilterSchema>;
@@ -54,7 +55,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 		price: minPrice !== 0 || maxPrice !== MAX_PRICE ? [minPrice, maxPrice] : undefined,
 		sortBy,
 		sortType,
-		categories
+		categories,
 	};
 
 	const collectionResp = await queryClient.fetchQuery(
@@ -85,10 +86,8 @@ export default function CollectionPage() {
 		defaultValues: {
 			q: searchParams.get("q") ?? "",
 			price:
-				minPriceParam && maxPriceParam
-					? [Number(minPriceParam), Number(maxPriceParam)]
-					: undefined,
-			categories: searchParams.getAll("categories")
+				minPriceParam && maxPriceParam ? [Number(minPriceParam), Number(maxPriceParam)] : undefined,
+			categories: searchParams.getAll("categories"),
 		},
 	});
 
@@ -122,9 +121,7 @@ export default function CollectionPage() {
 		form.reset({
 			q: searchParams.get("q") ?? "",
 			price:
-				minPriceParam && maxPriceParam
-					? [Number(minPriceParam), Number(maxPriceParam)]
-					: undefined,
+				minPriceParam && maxPriceParam ? [Number(minPriceParam), Number(maxPriceParam)] : undefined,
 			categories: searchParams.getAll("categories"),
 		});
 	}, [searchParams, form]);
@@ -157,7 +154,11 @@ export default function CollectionPage() {
 										<FormItem>
 											<FormControl>
 												<div className="relative">
-													<Input placeholder="Search tours" className="pl-9" {...field} />
+													<Input
+														placeholder="Search tours"
+														className="pl-9"
+														{...field}
+													/>
 													<Search className="absolute top-1/2 left-3 w-4 h-4 text-muted-foreground -translate-y-1/2" />
 												</div>
 											</FormControl>

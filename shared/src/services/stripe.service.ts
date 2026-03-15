@@ -125,9 +125,7 @@ export class StripeServerService extends StripeService {
 	}
 
 	/** Retrieve Checkout Session */
-	async retreiveCheckoutSession(
-		sessionId: string,
-	): Promise<{ session: Stripe.Checkout.Session | null }> {
+	async retreiveCheckoutSession(sessionId: string): Promise<{ session: Stripe.Checkout.Session | null }> {
 		const session = await this.stripe.checkout.sessions.retrieve(sessionId);
 		return { session };
 	}

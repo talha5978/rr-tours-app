@@ -91,10 +91,7 @@ export default function ForgotPassword() {
 
 	return (
 		<>
-			<MetaDetails
-				metaTitle="Forgot Password | WanderNest"
-				metaDescription="Reset your password"
-			/>
+			<MetaDetails metaTitle="Forgot Password | WanderNest" metaDescription="Reset your password" />
 
 			<section className="flex w-full items-center py-4 sm:px-4">
 				<div className="flex flex-col gap-6 max-w-md w-full mx-auto">

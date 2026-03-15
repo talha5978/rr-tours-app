@@ -136,7 +136,7 @@ export default function BookingsPage() {
 								className={
 									payment_status === "PENDING" || payment_status === "PARTIAL"
 										? "bg-warning/20 dark:text-warning text-yellow-700"
-										: (payment_status === "REFUNDED" || payment_status === "CANCELLED")
+										: payment_status === "REFUNDED" || payment_status === "CANCELLED"
 											? "border-2 border-muted-foreground/20"
 											: ""
 								}
@@ -234,7 +234,6 @@ export default function BookingsPage() {
 				const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
 				const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
 
-				
 				const [paymentLink, setPaymentLink] = useState<{
 					isFetching?: boolean;
 					link: string | null;
@@ -243,16 +242,16 @@ export default function BookingsPage() {
 
 				const getPaymentLink = async (bookingRef: string) => {
 					console.log("Getting payment link....");
-			
+
 					setPaymentLink({ isFetching: true, link: null, error: null });
-			
+
 					try {
 						const resp = await fetch("/retry-stripe-checkout", {
 							method: "POST",
 							headers: { "Content-Type": "application/json" },
 							body: JSON.stringify({ bookingRef }),
 						});
-			
+
 						if (!resp.ok) {
 							const text = await resp.text();
 							setPaymentLink((prev) => ({
@@ -263,10 +262,10 @@ export default function BookingsPage() {
 							}));
 							return;
 						}
-			
+
 						const data = await resp.json();
 						console.log("Response data:", data);
-			
+
 						setPaymentLink((prev) => ({
 							...prev,
 							isFetching: false,

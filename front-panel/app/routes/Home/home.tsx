@@ -115,10 +115,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 				<CitiesSection cities={loaderData.citiesResp.data ?? []} />
 				<ReviewsSection reviews={loaderData.reviewsResp.reviews} />
 				<WhyUsSection />
-				<CollectionsSection title="Curated Collections" collections={loaderData.featuredCollectionsResp.collections ?? []} />
+				<CollectionsSection
+					title="Curated Collections"
+					collections={loaderData.featuredCollectionsResp.collections ?? []}
+				/>
 				<CategoriesSection categories={loaderData.categoriesResp.data ?? []} />
 				<InquiryBanner />
-			</section>	
+			</section>
 		</>
 	);
 }

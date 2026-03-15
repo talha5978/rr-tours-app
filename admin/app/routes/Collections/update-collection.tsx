@@ -3,7 +3,10 @@ import {
 	type UpdateCategoryActionData,
 	UpdateCategoryActionSchema,
 } from "@workspace/shared/schemas/category.schema";
-import { type UpdateCollectionSchema, updateCollectionSchema } from "@workspace/shared/schemas/collection.schema";
+import {
+	type UpdateCollectionSchema,
+	updateCollectionSchema,
+} from "@workspace/shared/schemas/collection.schema";
 import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
 import { CategoryService } from "@workspace/shared/services/categories.service";
 import { ActionResponse } from "@workspace/shared/types/action-data";
@@ -96,13 +99,15 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 	}
 };
 
-export const loader = async ({ request, params } : LoaderFunctionArgs) => {
+export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 	const collection_id = params.id as string;
 	if (!collection_id) {
 		throw new ApiError("Collection id is required", 404);
 	}
 
-	const collection = await queryClient.fetchQuery(collectionDetailsQuery({ request, id: Number(collection_id) }));
+	const collection = await queryClient.fetchQuery(
+		collectionDetailsQuery({ request, id: Number(collection_id) }),
+	);
 	const cities = await queryClient.fetchQuery(citiesListQuery({ request }));
 	const { q, pageIndex, pageSize } = getPaginationQueryPayload({ request });
 	const tours = await queryClient.fetchQuery(toursListQuery({ request, q, pageIndex, pageSize }));
@@ -111,7 +116,7 @@ export const loader = async ({ request, params } : LoaderFunctionArgs) => {
 };
 
 export default function UpdateCollectionPage() {
-	const { cities,collection } = useLoaderData<typeof loader>();
+	const { cities, collection } = useLoaderData<typeof loader>();
 	const submit = useSubmit();
 	const navigation = useNavigation();
 	const navigate = useNavigate();
@@ -153,9 +158,7 @@ export default function UpdateCollectionPage() {
 		}
 	}, [actionData, navigate, setError]);
 
-	async function onFormSubmit(values: UpdateCollectionSchema) {
-		
-	}
+	async function onFormSubmit(values: UpdateCollectionSchema) {}
 
 	return (
 		<>

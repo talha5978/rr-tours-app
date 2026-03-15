@@ -27,12 +27,12 @@ export type CollectionDetails = {
 	cities: { id: number; name: string }[];
 	tours: { id: string; name: string }[];
 	created_at: string | null;
-}
+};
 
 export type CollectionDetailsResp = {
 	data: CollectionDetails | null;
 	error: ApiError | null;
-}
+};
 
 export type FPCollection = {
 	id: number;

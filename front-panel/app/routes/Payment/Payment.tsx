@@ -250,10 +250,7 @@ const ThankYouDialog = memo(({ open, setOpen }: { open: boolean; setOpen: (open:
 					<p>We appreciate your business and look forward to serving you again in the future.</p>
 					<p>
 						If you have any questions, please contact us at{" "}
-						<a
-							href="mailto:wandernest@gmail.com"
-							className="text-primary hover:underline"
-						>
+						<a href="mailto:wandernest@gmail.com" className="text-primary hover:underline">
 							wandernest@gmail.com
 						</a>
 						.

@@ -210,10 +210,7 @@ export default function UpdatePassword() {
 
 	return (
 		<>
-			<MetaDetails
-				metaTitle="Update Password | WanderNest"
-				metaDescription="Update your password"
-			/>
+			<MetaDetails metaTitle="Update Password | WanderNest" metaDescription="Update your password" />
 			<section className="flex w-full items-center py-4 sm:px-4">
 				<div className="flex flex-col gap-6 max-w-md w-full mx-auto">
 					<Card>
