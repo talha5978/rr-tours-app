@@ -85,7 +85,7 @@ class EmailService {
 		const { full_name, email, subject, message } = payload;
 
 		return this.sendEmail({
-			from: `Top Attractions Dubai <inquiries@topattractionsdubai.com>`,
+			from: `WanderNest <inquiries@wandernest.com>`,
 			to: EMAIL_ADDRESS_1,
 			subject: `New Inquiry: ${subject}`,
 			text: [
@@ -105,7 +105,7 @@ class EmailService {
 		const { booking_ref, customer_email, customer_name, total, customer_phone, tour_name } = payload;
 
 		return this.sendEmail({
-			from: `Top Attractions Dubai <bookings@topattractionsdubai.com>`,
+			from: `WanderNest <bookings@wandernest.com>`,
 			to: EMAIL_ADDRESS_1,
 			subject: `New Booking: #${booking_ref} - ${tour_name}`,
 			text: `A new booking has been placed!\n\nBooking Reference: ${booking_ref}\nCustomer: ${customer_name} (${customer_email}, ${customer_phone})\nTotal: $${total.toFixed(2)}`,
@@ -125,7 +125,7 @@ class EmailService {
 			})) ?? [];
 
 		return this.sendEmail({
-			from: `Top Attractions Dubai <bookings@topattractionsdubai.com>`,
+			from: `WanderNest <bookings@wandernest.com>`,
 			to: payload.customer_email,
 			cc: EMAIL_ADDRESS_1,
 			subject: `Booking Confirmed – ${tour_name} #${booking_ref}`,
@@ -138,7 +138,7 @@ class EmailService {
 				`Total: AED ${payload.total_amount.toFixed(2)}`,
 				``,
 				`Tickets attached.`,
-				`Thank you for choosing Top Attractions Dubai!`,
+				`Thank you for choosing WanderNest!`,
 			].join("\n"),
 			react: BookingConfirmationEmail(payload),
 			attachments: resendAttachments.length > 0 ? resendAttachments : undefined,
@@ -148,9 +148,9 @@ class EmailService {
 	/** Send password reset link email */
 	public async sendPasswordResetLink(recoveryLink: string, email: string) {
 		return this.sendEmail({
-			from: `Top Attractions Dubai <no-reply@topattractionsdubai.com>`,
+			from: `WanderNest <no-reply@wandernest.com>`,
 			to: email,
-			subject: `Password Reset Request - Top Attractions Dubai`,
+			subject: `Password Reset Request - WanderNest`,
 			text: `Password reset link`,
 			react: PasswordResetEmail({ recoveryLink, email }),
 		});
@@ -159,9 +159,9 @@ class EmailService {
 	/** Send otp for admin login */
 	public async sendAdminLoginOtpEmail(code: string, email: string) {
 		return this.sendEmail({
-			from: `Top Attractions Dubai <no-reply@topattractionsdubai.com>`,
+			from: `WanderNest <no-reply@wandernest.com>`,
 			to: email,
-			subject: `Login Verification Code - Top Attractions Dubai`,
+			subject: `Login Verification Code - WanderNest`,
 			text: `Your login verification code is: ${code}`,
 			react: AdminLoginOtpEmail({ code, email }),
 		});
@@ -170,10 +170,10 @@ class EmailService {
 	/** Send welcome email on signup */
 	public async sendWelcomeEmail(firstName: string, email: string) {
 		return this.sendEmail({
-			from: `Top Attractions Dubai <no-reply@topattractionsdubai.com>`,
+			from: `WanderNest <no-reply@wandernest.com>`,
 			to: email,
-			subject: `👋 Welcome to Top Attractions Dubai, ${firstName}!`,
-			text: `Welcome to Top Attractions Dubai, ${firstName}! We're excited to have you on board.`,
+			subject: `👋 Welcome to WanderNest, ${firstName}!`,
+			text: `Welcome to WanderNest, ${firstName}! We're excited to have you on board.`,
 			react: WelcomeEmail({ firstName, email }),
 		});
 	}

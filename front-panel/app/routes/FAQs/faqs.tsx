@@ -238,9 +238,9 @@ export default function FaqsPage() {
 	return (
 		<>
 			<MetaDetails
-				metaTitle="FAQs | Top Attractions Dubai"
+				metaTitle="FAQs | WanderNest"
 				metaDescription="Discover who we are, how we operate and what we offer."
-				metaKeywords="FAQs, Top Attractions Dubai, Dubai tours, UAE travel"
+				metaKeywords="FAQs, WanderNest, Dubai tours, UAE travel"
 				ogType="article"
 				ogUrl={`${process.env.VITE_MAIN_APP_URL}/faqs`}
 				canonicalUrl={`${process.env.VITE_MAIN_APP_URL}/faqs`}

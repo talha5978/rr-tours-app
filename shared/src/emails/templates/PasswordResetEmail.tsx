@@ -11,7 +11,7 @@ export default function PasswordResetEmail({ recoveryLink, email }: RecoveryEmai
 	return (
 		<Html lang="en">
 			<Head />
-			<Preview>Reset your password for Top Attractions Dubai</Preview>
+			<Preview>Reset your password for WanderNest</Preview>
 
 			<Container
 				style={{

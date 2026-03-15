@@ -92,7 +92,7 @@ export default function ForgotPassword() {
 	return (
 		<>
 			<MetaDetails
-				metaTitle="Forgot Password | Top Attractions Dubai"
+				metaTitle="Forgot Password | WanderNest"
 				metaDescription="Reset your password"
 			/>
 

@@ -32,7 +32,7 @@ export default function TrackBookingPage() {
 	return (
 		<>
 			<MetaDetails
-				metaTitle={`${currentQuery !== "" ? `${currentQuery} | ` : ""}Track Booking | Top Attractions Dubai`}
+				metaTitle={`${currentQuery !== "" ? `${currentQuery} | ` : ""}Track Booking | WanderNest`}
 				metaDescription={"Track Tour Booking Page"}
 				metaKeywords="Track Booking"
 				ogType="article"
@@ -178,7 +178,7 @@ export default function TrackBookingPage() {
 										className={
 											booking.payment_status === "FAILED"
 												? "bg-red-100 text-destructive"
-												: booking.payment_status === "REFUNDED"
+												: (booking.payment_status === "REFUNDED" || booking.payment_status === "CANCELLED")
 													? ""
 													: booking.payment_status === "PARTIAL"
 														? "bg-yellow-100 text-yellow-800"

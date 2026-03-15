@@ -102,9 +102,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 	return (
 		<>
 			<MetaDetails
-				metaTitle="Top Attractions Dubai | Book Unforgettable Tours & Experiences"
+				metaTitle="WanderNest | Book Unforgettable Tours & Experiences"
 				metaDescription="Explore top destinations, book amazing tours, and enjoy unforgettable travel experiences. Easy booking, trusted operators, and great prices."
-				metaKeywords="Top Attractions Dubai, Dubai Tours, Abu Dhabi Tours, UAE Tours, Burj Khalifa Tour, Dubai theme park tour, Dubai Mall, Al Ain City, Mesum of Future Tour, Dubai safari parks, National Aquarium Tour, Dubai Desert Safari Tour, Cruise Tours Dubai"
+				metaKeywords="WanderNest, Dubai Tours, Abu Dhabi Tours, UAE Tours, Burj Khalifa Tour, Dubai theme park tour, Dubai Mall, Al Ain City, Mesum of Future Tour, Dubai safari parks, National Aquarium Tour, Dubai Desert Safari Tour, Cruise Tours Dubai"
 				canonicalUrl={`${process.env.VITE_MAIN_APP_URL}`}
 				ogUrl={`${process.env.VITE_MAIN_APP_URL}`}
 				ogImage={SUPABASE_IMAGE_BUCKET_PATH + "/" + loaderData.heroSectionsResp![0].image}

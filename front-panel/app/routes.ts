@@ -23,6 +23,9 @@ export default [
 		route("city/:id/:url_key", "./routes/City/city.tsx"),
 
 		route("booking", "./routes/Booking/booking.tsx"),
+		route("booking/:bookingRef/payment-success", "./routes/Payment/PaymentSuccess.tsx"),
+		route("booking/:bookingRef/payment-cancel", "./routes/Payment/PaymentCancel.tsx"),
+		route("get-stripe-checkout-session", "./routes/_actions/get-stripe-checkout-session.tsx"),
 		route("payment", "./routes/Payment/Payment.tsx"),
 		route("track-booking", "./routes/Booking/track-booking.tsx"),
 

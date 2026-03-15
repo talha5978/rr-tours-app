@@ -97,7 +97,7 @@ export default function InquiryEmail(props: InquiryEmailProps) {
 							lineHeight: "1.5",
 						}}
 					>
-						This message was sent from the contact form on topattractionsdubai.com
+						This message was sent from the contact form on wandernest.com
 					</Text>
 				</Section>
 

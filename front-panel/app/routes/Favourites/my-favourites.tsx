@@ -18,7 +18,7 @@ export default function MyFavourites() {
 
 	return (
 		<>
-			<MetaDetails metaTitle="My Favourites | Top Attractions Dubai" metaDescription="My Favourites" />
+			<MetaDetails metaTitle="My Favourites | WanderNest" metaDescription="My Favourites" />
 			<section className="space-y-5 pb-10">
 				<div className="flex gap-4 flex-wrap justify-between items-center">
 					<h1 className="section-heading">My Favourites</h1>

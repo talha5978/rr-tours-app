@@ -249,7 +249,7 @@ function Login() {
 		<>
 			<MetaDetails
 				metaTitle="Login | Admin Panel"
-				metaDescription="Login in to admin panel of Top Attractions Dubai"
+				metaDescription="Login in to admin panel of WanderNest"
 			/>
 			<section className="flex w-full h-svh items-center py-4 px-4">
 				<div className="flex flex-col gap-6 max-w-md mx-auto">

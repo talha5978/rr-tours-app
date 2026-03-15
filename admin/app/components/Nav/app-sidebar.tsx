@@ -20,7 +20,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
 					<SidebarMenuItem>
 						<SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:p-1.5!">
 							<Link to="/" prefetch="intent" viewTransition>
-								<span className="text-base font-semibold">Top Attractions Dubai</span>
+								<span className="text-base font-semibold">WanderNest</span>
 							</Link>
 						</SidebarMenuButton>
 					</SidebarMenuItem>

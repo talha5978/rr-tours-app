@@ -98,7 +98,7 @@ export default function CityPage() {
 	return (
 		<>
 			<MetaDetails
-				metaTitle={cityData.data?.meta_details.meta_title + ` Tours | Top Attractions Dubai`}
+				metaTitle={cityData.data?.meta_details.meta_title + ` Tours | WanderNest`}
 				metaDescription={cityData.data?.meta_details.meta_description ?? ""}
 				metaKeywords={cityData.data?.meta_details.meta_keywords ?? ""}
 				canonicalUrl={metaUrl}

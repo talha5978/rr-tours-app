@@ -167,9 +167,9 @@ function LoginPage() {
 	return (
 		<>
 			<MetaDetails
-				metaTitle="Login | Top Attractions Dubai"
+				metaTitle="Login | WanderNest"
 				metaDescription="Login into our website and add reviews and book tour tickets without any hassle"
-				metaKeywords="Top Attractions Dubai"
+				metaKeywords="WanderNest"
 			/>
 
 			<section className="flex w-full my-6 items-center py-4 sm:px-4">

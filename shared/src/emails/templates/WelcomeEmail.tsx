@@ -18,7 +18,7 @@ export default function WelcomeEmail({
 	return (
 		<Html lang="en">
 			<Head />
-			<Preview>Welcome to Top Attractions Dubai – Let's start exploring!</Preview>
+			<Preview>Welcome to WanderNest – Let's start exploring!</Preview>
 
 			<Container
 				style={{
@@ -35,7 +35,7 @@ export default function WelcomeEmail({
 					<Text style={{ fontSize: "18px", lineHeight: "1.6" }}>Hi {name},</Text>
 
 					<Text style={{ fontSize: "16px", lineHeight: "1.6", marginTop: "16px" }}>
-						Thank you for joining <strong>Top Attractions Dubai</strong>!
+						Thank you for joining <strong>WanderNest</strong>!
 					</Text>
 
 					<Text style={{ fontSize: "16px", lineHeight: "1.6", marginTop: "12px" }}>
@@ -88,7 +88,7 @@ export default function WelcomeEmail({
 
 					<Text style={{ fontSize: "14px", color: "#6b7280", lineHeight: "1.5" }}>
 						This email was sent to <strong>{email}</strong> because you signed up for an account
-						with Top Attractions Dubai.
+						with WanderNest.
 						<br />
 						If this wasn't you, please ignore this message or contact support.
 					</Text>

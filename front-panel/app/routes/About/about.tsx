@@ -106,9 +106,9 @@ export default function About() {
 	return (
 		<>
 			<MetaDetails
-				metaTitle="About Us | Top Attractions Dubai"
+				metaTitle="About Us | WanderNest"
 				metaDescription="Discover who we are - your trusted partner for unforgettable experiences in Dubai and the UAE."
-				metaKeywords="About us, Top Attractions Dubai, Dubai tours, UAE travel"
+				metaKeywords="About us, WanderNest, Dubai tours, UAE travel"
 				ogType="website"
 				ogUrl={`${process.env.VITE_MAIN_APP_URL}/about`}
 				canonicalUrl={`${process.env.VITE_MAIN_APP_URL}/about`}

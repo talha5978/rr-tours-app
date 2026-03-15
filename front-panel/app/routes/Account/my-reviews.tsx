@@ -125,9 +125,9 @@ export default function MyReviewsPage() {
 		return (
 			<>
 				<MetaDetails
-					metaTitle="My Reviews | Top Attractions Dubai"
+					metaTitle="My Reviews | WanderNest"
 					metaDescription="See your reviews with us"
-					metaKeywords="Top Attractions Dubai"
+					metaKeywords="WanderNest"
 				/>
 				<div className="container mx-auto py-12 max-w-4xl">
 					<Card>
@@ -152,9 +152,9 @@ export default function MyReviewsPage() {
 		return (
 			<>
 				<MetaDetails
-					metaTitle="My Reviews | Top Attractions Dubai"
+					metaTitle="My Reviews | WanderNest"
 					metaDescription="See your reviews with us"
-					metaKeywords="Top Attractions Dubai"
+					metaKeywords="WanderNest"
 				/>
 				<div className="container mx-auto py-12 max-w-4xl">
 					<Card>
@@ -173,9 +173,9 @@ export default function MyReviewsPage() {
 	return (
 		<>
 			<MetaDetails
-				metaTitle="My Reviews | Top Attractions Dubai"
+				metaTitle="My Reviews | WanderNest"
 				metaDescription="See your reviews with us"
-				metaKeywords="Top Attractions Dubai"
+				metaKeywords="WanderNest"
 			/>
 			<div className="min-w-full">
 				<div className="mb-8">

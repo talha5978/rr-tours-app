@@ -38,6 +38,7 @@ export default [
 		]),
 		route("bookings/:id/:ref/update", "./routes/Booking/update-booking.tsx"),
 		route("bookings/:booking_id/refund", "./routes/_actions/refund-payment.tsx"),
+		route("retry-stripe-checkout", "./routes/_actions/retry-stripe-checkout.tsx"),
 
 		route("hero-sections", "./routes/HeroSections/hero-sections.tsx", [
 			route("add", "./routes/HeroSections/add-hero-section.tsx"),

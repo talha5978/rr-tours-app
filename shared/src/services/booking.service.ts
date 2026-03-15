@@ -17,6 +17,7 @@ import type {
 import { UseMiddleware } from "@workspace/shared/decorators/useMiddleware";
 import { verifyUser } from "@workspace/shared/middlewares/auth.middleware";
 import { MediaService } from "@workspace/shared/services/media.service";
+import { StripeServerService } from "@workspace/shared/services/stripe.service";
 
 @UseClassMiddleware(loggerMiddleware)
 export class BookingService extends Service {
@@ -546,9 +547,27 @@ export class BookingService extends Service {
 			) {
 				await mediaSvc.deleteImage(currentBooking.payment_ref);
 			}
+
+			if(input.payment_status === "CANCELLED" && currentBooking.payment_ref !== null && currentBooking.payment_ref.length > 0) {
+				const stripeSvc = new StripeServerService();
+				await stripeSvc.cancelPayment(currentBooking.payment_ref);
+			}
+
 		} catch (error) {
 			throw error instanceof ApiError ? error : new ApiError("Failed to update booking", 500, []);
 		}
+	}
+
+	/** Update booking checkout session id */
+	async updateBookingCheckoutSessionId(bookingRef: string, checkout_session_id: string): Promise<{error:ApiError | null}> {
+		const { error } = await this.supabase
+			.from(this.BOOKINGS_TABLE)
+			.update({
+				checkout_session_id: checkout_session_id.trim()
+			})
+			.eq("booking_ref", bookingRef);
+		
+		return { error: error ? new ApiError("Failed to update checkout session id", 500, [error]) : null };
 	}
 
 	/** get booking details for confirmation email dialog */

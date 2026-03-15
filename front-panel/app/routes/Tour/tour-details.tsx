@@ -160,7 +160,7 @@ function getStructuredData(tour: GetTourDetails) {
 		],
 		brand: {
 			"@type": "Brand",
-			name: "Top Attractions Dubai",
+			name: "WanderNest",
 		},
 		offers: tour.tour_options.map((option, idx) => ({
 			"@type": "Offer",
@@ -181,7 +181,7 @@ function getStructuredData(tour: GetTourDetails) {
 
 			seller: {
 				"@type": "Organization",
-				name: tour.provider?.name ?? "Top Attractions Dubai",
+				name: tour.provider?.name ?? "WanderNest",
 			},
 		})),
 	};
@@ -283,7 +283,7 @@ export default function TourDetailsPage() {
 	return (
 		<>
 			<MetaDetails
-				metaTitle={(tour.meta_details?.meta_title ?? tour.name) + " | Top Attractions Dubai"}
+				metaTitle={(tour.meta_details?.meta_title ?? tour.name) + " | WanderNest"}
 				metaDescription={tour.meta_details?.meta_description ?? tour.overview?.slice(0, 320)}
 				metaKeywords={tour.meta_details?.meta_keywords ?? tour.name}
 				canonicalUrl={metaUrl}
@@ -313,7 +313,7 @@ export default function TourDetailsPage() {
 							<div className="max-lg:hidden flex gap-2">
 								<AddToFavouriteBtn tour_id={tour.id} />
 								<ShareDialog
-									url={`www.topattractionsdubai.com/tours/tour/${tour.id}/${tour.meta_details?.url_key}`}
+									url={`www.wandernest.com/tours/tour/${tour.id}/${tour.meta_details?.url_key}`}
 								/>
 							</div>
 						</div>
@@ -1268,7 +1268,7 @@ const AttributesCard = memo(
 					<div className="lg:hidden flex gap-2 ml-auto w-fit">
 						<AddToFavouriteBtn tour_id={tour.id} />
 						<ShareDialog
-							url={`www.topattractionsdubai.com/tours/tour/${tour.id}/${tour.meta_details?.url_key}`}
+							url={`www.wandernest.com/tours/tour/${tour.id}/${tour.meta_details?.url_key}`}
 						/>
 					</div>
 				</CardContent>

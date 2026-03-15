@@ -31,7 +31,7 @@ const NAV_LINKS = [
 export default function Header({ categories }: { categories: FPHighLevelCategory[] }) {
 	return (
 		<header className="bg-background">
-			<div className="mx-auto flex items-center py-0">
+			<div className="mx-auto flex items-center pt-4">
 				{/* Mobile menu */}
 				<div className="mr-2 flex lg:hidden">
 					<Sheet>
@@ -42,7 +42,7 @@ export default function Header({ categories }: { categories: FPHighLevelCategory
 						</SheetTrigger>
 						<SheetContent side="left" className="w-64 overflow-y-auto">
 							<SheetHeader className="mt-5">
-								<span className="text-lg font-semibold">Top Attractions Dubai</span>
+								<span className="text-lg font-semibold">WanderNest</span>
 							</SheetHeader>
 
 							<nav className="p-4 space-y-4">
@@ -124,8 +124,8 @@ export default function Header({ categories }: { categories: FPHighLevelCategory
 
 				{/* Logo */}
 				<Link to="/" viewTransition prefetch="intent">
-					<div className="sm:w-36 w-32 h-fit">
-						<img src="/logo.png" className="sm:w-36 w-32 h-32" alt="Top Attractions Dubai" />
+					<div className="w-32 h-fit">
+						<img src="/logo.png" className="w-32 h-fit" alt="WanderNest" />
 					</div>
 				</Link>
 

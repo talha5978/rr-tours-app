@@ -167,9 +167,9 @@ export default function AccountDetailsPage() {
 	return (
 		<>
 			<MetaDetails
-				metaTitle="Account Details | Top Attractions Dubai"
+				metaTitle="Account Details | WanderNest"
 				metaDescription="My account information"
-				metaKeywords="Top Attractions Dubai"
+				metaKeywords="WanderNest"
 			/>
 
 			<div className="space-y-6">

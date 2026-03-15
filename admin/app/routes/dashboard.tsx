@@ -19,7 +19,7 @@ export default function Home() {
 	return (
 		<>
 			<MetaDetails
-				metaTitle="Dashboard | Top Attractions Dubai"
+				metaTitle="Dashboard | WanderNest"
 				metaDescription="See stats and overview of the system in dashboard"
 			/>
 			<section className="space-y-4">

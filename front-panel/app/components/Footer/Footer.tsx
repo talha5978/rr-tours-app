@@ -10,7 +10,14 @@ export default function Footer({ categories }: { categories: FPHighLevelCategory
 				<div className="grid gap-8 md:grid-cols-[2fr_1fr_1fr_1fr]">
 					{/* Brand */}
 					<div className="space-y-4">
-						<span className="text-lg font-semibold">Top Attractions Dubai</span>
+						{/* Logo */}
+						<Link to="/" viewTransition prefetch="intent">
+							<div className="w-32 h-fit mb-2">
+								<img src="/logo.png" className="w-32 h-fit" alt="WanderNest" />
+							</div>
+						</Link>
+
+						<span className="text-lg font-semibold">WanderNest</span>
 
 						<p className="max-w-sm text-sm text-muted-foreground">
 							Trusted tours, handpicked experiences, and easy bookings for memorable trips.
@@ -80,7 +87,12 @@ export default function Footer({ categories }: { categories: FPHighLevelCategory
 						<h4 className="mb-3 text-sm font-semibold">Support</h4>
 						<ul className="space-y-2 text-sm text-muted-foreground">
 							<li>
-								<Link to="/contact-us" prefetch="viewport" viewTransition className="hover:text-foreground">
+								<Link
+									to="/contact-us"
+									prefetch="viewport"
+									viewTransition
+									className="hover:text-foreground"
+								>
 									Contact
 								</Link>
 							</li>
@@ -142,7 +154,7 @@ export default function Footer({ categories }: { categories: FPHighLevelCategory
 				{/* Bottom bar - Payment logos added here */}
 				<div className="mt-8 flex flex-col gap-4 border-t pt-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
 					<div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
-						<p>© {new Date().getFullYear()} Top Attractions Dubai. All rights reserved.</p>
+						<p>© {new Date().getFullYear()} WanderNest. All rights reserved.</p>
 
 						<span className="flex gap-2 items-center">
 							<span>Made with care for travelers</span>

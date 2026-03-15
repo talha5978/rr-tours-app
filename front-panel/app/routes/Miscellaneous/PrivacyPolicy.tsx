@@ -6,9 +6,9 @@ export default function PrivacyPolicyPage() {
 	return (
 		<>
 			<MetaDetails
-				metaTitle="Privacy Policy | Top Attractions Dubai"
+				metaTitle="Privacy Policy | WanderNest"
 				metaDescription="Our privacy policy explains how we collect, use, and protect your personal information when you use our services."
-				metaKeywords="Privacy Policy, Data Protection, Top Attractions Dubai"
+				metaKeywords="Privacy Policy, Data Protection, WanderNest"
 				canonicalUrl={`${process.env.VITE_MAIN_APP_URL}/privacy-policy`}
 			/>
 
@@ -32,7 +32,7 @@ export default function PrivacyPolicyPage() {
 						<section>
 							<h2 className="text-xl font-semibold text-foreground mb-3">1. Introduction</h2>
 							<p>
-								At Top Attractions Dubai, we value your privacy and are committed to
+								At WanderNest, we value your privacy and are committed to
 								protecting your personal information. This Privacy Policy explains how we
 								collect, use, disclose, and safeguard your information when you visit our
 								website, book tours, or interact with our services. By using our site, you

@@ -172,9 +172,9 @@ export default function SignupPage() {
 	return (
 		<>
 			<MetaDetails
-				metaTitle="Sign Up | Top Attractions Dubai"
+				metaTitle="Sign Up | WanderNest"
 				metaDescription="Create an account to book tours and manage your bookings"
-				metaKeywords="Top Attractions Dubai"
+				metaKeywords="WanderNest"
 			/>
 
 			<section className="flex w-full my-6 items-center py-4 sm:px-4">

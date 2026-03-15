@@ -99,9 +99,9 @@ export default function ContactUs() {
 	return (
 		<>
 			<MetaDetails
-				metaTitle="Contact Us | Top Attractions Dubai"
+				metaTitle="Contact Us | WanderNest"
 				metaDescription="We're here to help you with any questions or concerns you may have. Don't hesitate to reach out to us!"
-				metaKeywords="Top Attractions Dubia, Contact"
+				metaKeywords="WanderNest, Contact"
 				ogType="article"
 				ogUrl={`${process.env.VITE_MAIN_APP_URL}/contact-us`}
 				canonicalUrl={`${process.env.VITE_MAIN_APP_URL}/contact-us`}

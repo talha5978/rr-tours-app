@@ -75,9 +75,9 @@ export default function MyBookingsPage() {
 		return (
 			<>
 				<MetaDetails
-					metaTitle="My Bookings | Top Attractions Dubai"
+					metaTitle="My Bookings | WanderNest"
 					metaDescription="See your bookings with us"
-					metaKeywords="Top Attractions Dubai"
+					metaKeywords="WanderNest"
 				/>
 				<div className="container mx-auto py-12 max-w-4xl">
 					<Card>
@@ -102,9 +102,9 @@ export default function MyBookingsPage() {
 		return (
 			<>
 				<MetaDetails
-					metaTitle="My Bookings | Top Attractions Dubai"
+					metaTitle="My Bookings | WanderNest"
 					metaDescription="See your bookings with us"
-					metaKeywords="Top Attractions Dubai"
+					metaKeywords="WanderNest"
 				/>
 				<div className="container mx-auto py-12 max-w-4xl">
 					<Card>
@@ -123,9 +123,9 @@ export default function MyBookingsPage() {
 	return (
 		<>
 			<MetaDetails
-				metaTitle="My Bookings | Top Attractions Dubai"
+				metaTitle="My Bookings | WanderNest"
 				metaDescription="See your bookings with us"
-				metaKeywords="Top Attractions Dubai"
+				metaKeywords="WanderNest"
 			/>
 			<div className="container mx-auto max-w-5xl">
 				<div className="mb-8">

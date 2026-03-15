@@ -23,7 +23,7 @@ export default function CollectionsSection({
 					<h2 className="text-3xl font-bold text-center">{title}</h2>
 					<p className="text-center text-muted-foreground">
 						{!isCity
-							? "🍀 Collections curated by Top Attractions Dubai 🍀"
+							? "🍀 Collections curated by WanderNest 🍀"
 							: "Explore handpicked tours for your next adventure ❣️"}
 					</p>
 				</div>

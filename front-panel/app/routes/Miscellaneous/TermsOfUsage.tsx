@@ -7,9 +7,9 @@ export default function TermsOfUsePage() {
 	return (
 		<>
 			<MetaDetails
-				metaTitle="Terms of Use | Top Attractions Dubai"
+				metaTitle="Terms of Use | WanderNest"
 				metaDescription="Our terms of use outline the rules and guidelines for using our website and services."
-				metaKeywords="Terms of Use, User Agreement, Top Attractions Dubai"
+				metaKeywords="Terms of Use, User Agreement, WanderNest"
 				canonicalUrl={`${process.env.VITE_MAIN_APP_URL}/terms-of-use`}
 			/>
 
@@ -35,7 +35,7 @@ export default function TermsOfUsePage() {
 								1. Acceptance of Terms
 							</h2>
 							<p>
-								By accessing or using Top Attractions Dubai's website and services, you agree
+								By accessing or using WanderNest's website and services, you agree
 								to be bound by these Terms of Use. If you do not agree, please do not use our
 								services.
 							</p>

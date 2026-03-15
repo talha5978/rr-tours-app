@@ -20,7 +20,7 @@ export function MetaDetails({
 	canonicalUrl,
 	ogUrl,
 	ogImage,
-	siteName = "Top Attractions Dubai",
+	siteName = "WanderNest",
 	ogType = "website",
 	hasPricing = false,
 	pricing = null,

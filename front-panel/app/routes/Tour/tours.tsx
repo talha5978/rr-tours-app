@@ -98,7 +98,7 @@ export default function ToursPage() {
 	return (
 		<>
 			<MetaDetails
-				metaTitle="Explore Tours | Top Attractions Dubai"
+				metaTitle="Explore Tours | WanderNest"
 				metaDescription="Explore top destinations, book amazing tours, and enjoy unforgettable travel experiences. Easy booking, trusted operators, and great prices."
 				metaKeywords={toursResp.tours.map((i) => i.name).join(", ")}
 				canonicalUrl={`${process.env.VITE_MAIN_APP_URL}/tours`}

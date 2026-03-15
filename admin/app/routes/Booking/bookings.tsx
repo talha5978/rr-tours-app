@@ -60,10 +60,6 @@ export default function BookingsPage() {
 	const isFetchingThisRoute =
 		navigation.state === "loading" && navigation.location?.pathname === location.pathname;
 
-	const getPaymentLink = (bookingRef: string) => {
-		return `${process.env.VITE_MAIN_APP_URL}/payment?booking_ref=${encodeURIComponent(bookingRef)}`;
-	};
-
 	const tableColumns: ColumnDef<HighLevelBooking, unknown>[] = [
 		{
 			id: "Ref",
@@ -84,7 +80,7 @@ export default function BookingsPage() {
 					<span className="font-semibold text-base">{info.row.original.customer_name}</span>
 					<span className="hover:text-primary hover:underline underline-offset-4">
 						<a
-							href={`https://wa.me/${info.row.original.customer_phone}?text=Hi! I am from Top Attractions Dubai.\nThanks for booking with us.\nYour booking reference is ${info.row.original.booking_ref}`}
+							href={`https://wa.me/${info.row.original.customer_phone}?text=Hi! I am from WanderNest.\nThanks for booking with us.\nYour booking reference is ${info.row.original.booking_ref}`}
 							target="_blank"
 							rel="noopener noreferrer"
 						>
@@ -140,7 +136,7 @@ export default function BookingsPage() {
 								className={
 									payment_status === "PENDING" || payment_status === "PARTIAL"
 										? "bg-warning/20 dark:text-warning text-yellow-700"
-										: payment_status === "REFUNDED"
+										: (payment_status === "REFUNDED" || payment_status === "CANCELLED")
 											? "border-2 border-muted-foreground/20"
 											: ""
 								}
@@ -167,7 +163,7 @@ export default function BookingsPage() {
 							target="_blank"
 						>
 							<span className="font-semibold max-w-40 truncate hover:underline underline-offset-4 hover:text-primary">
-								{info.row.original.tour_name}fdf Tldsasd sadha talh a tal
+								{info.row.original.tour_name}
 							</span>
 						</Link>
 					) : (
@@ -235,10 +231,58 @@ export default function BookingsPage() {
 					navigation.state === "loading" &&
 					navigation.location?.pathname === "/bookings/send-confirmation-email/" + rowData.id;
 
-				const paymentLink = getPaymentLink(rowData.booking_ref);
-
 				const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
 				const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
+
+				
+				const [paymentLink, setPaymentLink] = useState<{
+					isFetching?: boolean;
+					link: string | null;
+					error: string | null;
+				}>({ isFetching: false, link: null, error: null });
+
+				const getPaymentLink = async (bookingRef: string) => {
+					console.log("Getting payment link....");
+			
+					setPaymentLink({ isFetching: true, link: null, error: null });
+			
+					try {
+						const resp = await fetch("/retry-stripe-checkout", {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ bookingRef }),
+						});
+			
+						if (!resp.ok) {
+							const text = await resp.text();
+							setPaymentLink((prev) => ({
+								...prev,
+								isFetching: false,
+								link: null,
+								error: `HTTP ${resp.status}: ${text}`,
+							}));
+							return;
+						}
+			
+						const data = await resp.json();
+						console.log("Response data:", data);
+			
+						setPaymentLink((prev) => ({
+							...prev,
+							isFetching: false,
+							link: data.url || null,
+							error: data.error || null,
+						}));
+					} catch (err: any) {
+						console.error("Fetch error:", err);
+						setPaymentLink((prev) => ({
+							...prev,
+							isFetching: false,
+							link: null,
+							error: err.message || "Network error",
+						}));
+					}
+				};
 
 				return (
 					<>
@@ -283,10 +327,11 @@ export default function BookingsPage() {
 									</>
 								)}
 
-								{/* Payment Link - controlled open */}
+								{/* Payment Link */}
 								<DropdownMenuItem
-									onSelect={(e) => {
-										e.preventDefault(); // ← important: prevent dropdown auto-close
+									onClick={(e) => {
+										e.preventDefault();
+										e.stopPropagation();
 										setIsPaymentDialogOpen(true);
 									}}
 									className="cursor-pointer"
@@ -325,26 +370,59 @@ export default function BookingsPage() {
 
 								<div className="space-y-6 py-4">
 									{/* The link itself */}
-									<div
-										className="cursor-pointer hover:underline hover:underline-offset-4"
-										onClick={() => {
-											navigator.clipboard.writeText(paymentLink);
-											toast.success("Payment link copied to clipboard!");
-										}}
-									>
-										<p className="text-sm font-medium text-muted-foreground break-all">
-											{paymentLink}
+									{paymentLink.isFetching ? (
+										<div className="flex justify-center py-4">
+											<Loader2 className="h-6 w-6 animate-spin text-primary" />
+										</div>
+									) : paymentLink.link ? (
+										<div>
+											<p className="mb-1">Click the link below to copy</p>
+											<div
+												className="cursor-pointer hover:underline hover:underline-offset-4 break-all"
+												onClick={() => {
+													navigator.clipboard.writeText(paymentLink.link!);
+													toast.success("Payment link copied!");
+												}}
+											>
+												<p className="text-sm font-medium text-muted-foreground">
+													{paymentLink.link}
+												</p>
+											</div>
+										</div>
+									) : paymentLink.error ? (
+										<p className="text-sm font-medium text-destructive text-center">
+											{paymentLink.error}
 										</p>
-									</div>
+									) : (
+										<p className="text-sm text-muted-foreground text-center">
+											Click Generate to create a payment link
+										</p>
+									)}
 
-									{/* Share buttons */}
+									{!paymentLink.link && !paymentLink.error && (
+										<div className="w-full flex justify-center">
+											<Button
+												onClick={() => getPaymentLink(rowData.booking_ref)}
+												variant="default"
+												size="sm"
+												disabled={paymentLink.isFetching}
+											>
+												{paymentLink.isFetching && (
+													<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+												)}
+												Generate
+											</Button>
+										</div>
+									)}
+
+									{/* Share buttons – unchanged but now safer */}
 									<div className="grid sm:grid-cols-2 grid-cols-1 gap-4">
-										{/* WhatsApp */}
 										<Button
 											variant="outline"
 											className="w-full"
+											disabled={!paymentLink.link || !!paymentLink.error}
 											onClick={() => {
-												const waText = `Hi! Please complete your payment for booking #${rowData.booking_ref} for ${rowData.tour_name} - ${rowData.tour_option_name}\n\nLink:\n\n${paymentLink}\n\nThank you!\nTop Attractions Dubai`;
+												const waText = `Hi! Please complete your payment for booking #${rowData.booking_ref} for ${rowData.tour_name} - ${rowData.tour_option_name}\n\nLink:\n\n${paymentLink.link}\n\nThank you!\nWanderNest`;
 												window.open(
 													`https://wa.me/?text=${encodeURIComponent(waText)}`,
 													"_blank",
@@ -355,13 +433,13 @@ export default function BookingsPage() {
 											Share on WhatsApp
 										</Button>
 
-										{/* Email */}
 										<Button
 											variant="outline"
 											className="w-full"
+											disabled={!paymentLink.link || !!paymentLink.error}
 											onClick={() => {
 												const subject = `Complete Your Payment - Booking #${rowData.booking_ref} for ${rowData.tour_name}`;
-												const body = `Dear Customer!\n\nPlease complete your payment for booking #${rowData.booking_ref} for ${rowData.tour_name} - ${rowData.tour_option_name}\n\nLink: ${paymentLink}\n\nThank you!\nTop Attractions Dubai`;
+												const body = `Dear Customer!\n\nPlease complete your payment for booking #${rowData.booking_ref} for ${rowData.tour_name} - ${rowData.tour_option_name}\n\nLink: ${paymentLink.link}\n\nThank you!\nWanderNest`;
 												window.open(
 													`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}&to=${
 														rowData.customer_email

@@ -164,9 +164,9 @@ function PaymentPage() {
 	return (
 		<>
 			<MetaDetails
-				metaTitle={"Complete Payment #" + booking_ref + " | Top Attractions Dubai"}
+				metaTitle={"Complete Payment #" + booking_ref + " | WanderNest"}
 				metaDescription={"Complete your payment for booking reference " + booking_ref}
-				metaKeywords="Top Attractions Dubai"
+				metaKeywords="WanderNest"
 			/>
 			<div className="max-w-xl mx-auto mb-5 p-8 bg-card rounded-xl shadow-md">
 				<h1 className="text-2xl font-bold text-center mb-2">Complete Payment</h1>
@@ -174,7 +174,7 @@ function PaymentPage() {
 				<form onSubmit={handleSubmit} className="flex flex-col gap-4">
 					<div className="rounded-md">
 						<Suspense fallback={<Skeleton className="w-full h-20" />}>
-							<PaymentElement options={{ business: { name: "Top Attractions Dubai" } }} />
+							<PaymentElement options={{ business: { name: "WanderNest" } }} />
 						</Suspense>
 					</div>
 
@@ -251,10 +251,10 @@ const ThankYouDialog = memo(({ open, setOpen }: { open: boolean; setOpen: (open:
 					<p>
 						If you have any questions, please contact us at{" "}
 						<a
-							href="mailto:topattractionsdubai@gmail.com"
+							href="mailto:wandernest@gmail.com"
 							className="text-primary hover:underline"
 						>
-							topattractionsdubai@gmail.com
+							wandernest@gmail.com
 						</a>
 						.
 					</p>

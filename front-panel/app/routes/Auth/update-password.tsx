@@ -180,7 +180,7 @@ export default function UpdatePassword() {
 	if (isVerifying) {
 		return (
 			<>
-				<MetaDetails metaTitle="Verifying... | Top Attractions Dubai" metaDescription="Please wait" />
+				<MetaDetails metaTitle="Verifying... | WanderNest" metaDescription="Please wait" />
 				<div className="flex min-h-[50vh] items-center justify-center">
 					<Loader2 className="h-10 w-10 animate-spin text-primary" />
 				</div>
@@ -192,7 +192,7 @@ export default function UpdatePassword() {
 		return (
 			<Fragment>
 				<MetaDetails
-					metaTitle="Update Password | Top Attractions Dubai"
+					metaTitle="Update Password | WanderNest"
 					metaDescription="Update your password"
 				/>
 				<div className="text-center py-10">
@@ -211,7 +211,7 @@ export default function UpdatePassword() {
 	return (
 		<>
 			<MetaDetails
-				metaTitle="Update Password | Top Attractions Dubai"
+				metaTitle="Update Password | WanderNest"
 				metaDescription="Update your password"
 			/>
 			<section className="flex w-full items-center py-4 sm:px-4">

@@ -100,6 +100,32 @@ export const loader = () => {
 	return null;
 };
 
+async function getCheckoutSession(body: any) {
+	console.log("Creating CHECKOUT SESSION...");
+
+	const res = await fetch("/get-stripe-checkout-session", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
+
+	const data: { sessionId: string | null; url: string | null; error: any } = await res.json();
+	console.log("Checkout session response:", data);
+
+	if (data.error) {
+		toast.error(data.error.message || "Failed to create payment page");
+		return;
+	}
+
+	if (data.url) {
+		window.location.href = data.url;
+	} else {
+		toast.error("No payment URL received from Stripe", {
+			description: "Please try again or contact support",
+		});
+	}
+}
+
 export default function BookingPage() {
 	const location = useLocation();
 	const navigate = useNavigate();
@@ -165,20 +191,8 @@ export default function BookingPage() {
 		if (actionData) {
 			if (actionData.success) {
 				toast.success("Booking created successfully!", {
-					description: "You can track your booking using the provided reference ID.",
+					description: "Initiating payment process.",
 				});
-
-				navigate(
-					`/payment?success=${actionData.success}&booking_ref=${actionData.booking_ref}&client_secret=${actionData.clientSecret}`,
-					{
-						replace: true,
-						viewTransition: true,
-						state: {
-							booking_ref: actionData.booking_ref,
-							client_secret: actionData.clientSecret,
-						},
-					},
-				);
 
 				setRecaptchaToken(null);
 				reset();
@@ -186,6 +200,16 @@ export default function BookingPage() {
 					// @ts-ignore
 					recaptchaRef.current.reset();
 				}
+
+				getCheckoutSession({
+					amount: total,
+					bookingRef: actionData?.booking_ref,
+					tour_name: tour.name,
+					tour_cover_img_url: SUPABASE_IMAGE_BUCKET_PATH + "/" + tour.cover_image,
+					description: "Payment for tour: " + tour.name + " for " + option.name,
+					successUrl: `${process.env.VITE_MAIN_APP_URL}/booking/${actionData?.booking_ref}/payment-success?tour=${tour.name}`,
+					cancelUrl: `${process.env.VITE_MAIN_APP_URL}/booking/${actionData?.booking_ref}/payment-cancel?tour=${tour.name}`,
+				});
 			} else if (actionData.error) {
 				toast.error(actionData.error);
 				setRecaptchaToken(null);
@@ -260,39 +284,10 @@ export default function BookingPage() {
 		});
 	};
 
-	// if (bookingRef) {
-	// 	return (
-	// 		<>
-	// 			<MetaDetails
-	// 				metaTitle={`Booking Pending | ${tour.name} | Top Attractions Dubai`}
-	// 				metaDescription={`Your booking has been created and is pending confirmation. Admins will contact you shortly. You can track your booking using the provided reference ID.`}
-	// 				ogImage={SUPABASE_IMAGE_BUCKET_PATH + "/" + tour.cover_image}
-	// 				ogType="article"
-	// 			/>
-	// 			<section className="space-y-4 flex flex-col items-center justify-center py-20 ">
-	// 				<div className="bg-card w-fit flex flex-col items-center justify-center p-6 gap-4 border shadow-xs hover:shadow-lg transition duration-200 ease-in-out rounded-lg max-w-lg">
-	// 					<h1 className="section-heading text-center">Booking Confirmation</h1>
-	// 					<p className="text-center">
-	// 						Your booking has been created and is pending confirmation. Admins will contact you
-	// 						shortly.
-	// 					</p>
-	// 					<div className="bg-accent p-4 w-full rounded-lg">
-	// 						<p className="font-semibold">Booking Reference ID: {bookingRef}</p>
-	// 						<p>Use this ID to track your booking.</p>
-	// 					</div>
-	// 					<Link to="/track-booking" viewTransition>
-	// 						<Button type="button">Track Booking</Button>
-	// 					</Link>
-	// 				</div>
-	// 			</section>
-	// 		</>
-	// 	);
-	// }
-
 	return (
 		<>
 			<MetaDetails
-				metaTitle={`Complete your booking | ${tour.name} | Top Attractions Dubai`}
+				metaTitle={`Complete your booking | ${tour.name} | WanderNest`}
 				metaDescription={"Tour Booking Page"}
 				metaKeywords="Booking"
 				ogImage={SUPABASE_IMAGE_BUCKET_PATH + "/" + tour.cover_image}

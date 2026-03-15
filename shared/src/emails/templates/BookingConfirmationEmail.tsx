@@ -61,7 +61,7 @@ export default function BookingConfirmationEmail(props: BookingConfirmationPaylo
 							margin: "0 0 32px",
 						}}
 					>
-						Thank you for booking with Top Attractions Dubai! Your reservation is now confirmed.
+						Thank you for booking with WanderNest! Your reservation is now confirmed.
 						We’re excited to welcome you.
 					</Text>
 
