@@ -35,6 +35,7 @@ import { CacheInvalidationService } from "@workspace/shared/services/cache-event
 import { GoogleReCaptcha, verifyRecaptcha } from "~/components/ReCaptcha/GoogleReCaptcha";
 import { type loader as rootLoader } from "~/root";
 import { CheckoutService } from "@workspace/shared/services/checkout.service";
+import { queryClient } from "@workspace/shared/utils/query-client";
 // import { emailService } from "@workspace/shared/services/emails.service";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -76,6 +77,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 					error instanceof ApiError ? error.message : error.message || "Failed to create booking",
 			};
 		}
+
+		await queryClient.invalidateQueries({ queryKey: ["my_bookings"] });
 
 		const cacheSvc = new CacheInvalidationService(request);
 		await cacheSvc.pushCacheInvalidationEvent({

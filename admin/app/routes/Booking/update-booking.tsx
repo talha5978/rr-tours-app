@@ -144,7 +144,7 @@ export default function UpdateBooking() {
 	const form = useForm<UpdateBookingInput>({
 		resolver: zodResolver(UpdateBookingSchema),
 		mode: "onSubmit",
-		disabled: booking.cancelled_at != null || booking.confirmed_at != null,
+		disabled: booking.cancelled_at != null,
 		defaultValues: {
 			admin_note: booking.admin_note === null ? "" : booking.admin_note,
 			booking_status: booking.booking_status,
@@ -900,7 +900,6 @@ export default function UpdateBooking() {
 									type="submit"
 									disabled={
 										isSubmitting ||
-										booking.confirmed_at != null ||
 										booking.cancelled_at != null
 									}
 								>

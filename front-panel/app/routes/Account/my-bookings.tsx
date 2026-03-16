@@ -3,13 +3,15 @@ import { format } from "date-fns";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { ArrowRight, ChevronLeft, ChevronRight, Clock, Ticket } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, CircleAlert, Clock, Loader2, Ticket } from "lucide-react";
 import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
 import { currentFullUserQuery } from "~/queries/auth.q";
 import { queryClient } from "@workspace/shared/utils/query-client";
 import type { Database } from "@workspace/shared/types/supabase";
 import { myBookingsQuery } from "~/queries/bookings.q";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
+import { toast } from "sonner";
+import { useState } from "react";
 
 const PAGE_SIZE = 10;
 
@@ -57,6 +59,8 @@ export default function MyBookingsPage() {
 
 	const { bookings, total } = bookingsData;
 	const totalPages = Math.ceil(total / PAGE_SIZE);
+
+	const [fetchingPaymentLink, setFetchingPaymentLink] = useState(false);
 
 	const [_, setSearchParams] = useSearchParams();
 
@@ -119,6 +123,54 @@ export default function MyBookingsPage() {
 			</>
 		);
 	}
+
+	const getPaymentLink = async (bookingRef: string) => {
+		if(bookingRef == null) {
+			toast.warning("No booking reference found");
+			return;
+		}
+
+		console.log("Getting payment link....");
+		setFetchingPaymentLink(true);
+
+		try {
+			const resp = await fetch("/retry-stripe-checkout", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ bookingRef }),
+			});
+	
+			if (!resp.ok) {
+				toast.error("Failed to create payment session", {
+					description: "Please try again or contact support",
+				});
+				return;
+			}
+	
+			const data = await resp.json();
+			
+			if(data.success) {
+				if(data.url) {
+					window.location.href = data.url;
+				} else {
+					toast.error("Failed to get payment link", {
+						description: "Please try again or contact support",
+					})
+				}
+			} else {
+				toast.error("Failed to create payment session", {
+					description: "Please try again or contact support",
+				})
+			}
+		} catch (err: any) {
+			console.error("Fetch error:", err);
+			toast.error("Failed to create payment session", {
+				description: "Please try again or contact support",
+			})
+		} finally {
+			setFetchingPaymentLink(false);
+		}
+	};
 
 	return (
 		<>
@@ -246,8 +298,27 @@ export default function MyBookingsPage() {
 									</div>
 								</div>
 
-								<div className="flex justify-end pt-2">
-									<Link to={`/track-booking?ref=${booking.booking_ref}`} viewTransition>
+								<div className="flex justify-end gap-2 pt-2">
+									{booking.payment_status === "PENDING" && (
+										<Button
+											size={"sm"}
+											disabled={fetchingPaymentLink}
+											className="bg-warning hover:bg-warning/90"
+											onClick={() => getPaymentLink(booking.booking_ref)}
+										>
+											{fetchingPaymentLink ? (
+												<Loader2 className="w-4 h-4 animate-spin" />
+											) : (
+												<CircleAlert className="w-4 h-4" />
+											)}
+											Pay Now
+										</Button>
+									)}
+									<Link
+										to={`/track-booking?ref=${booking.booking_ref}`}
+										viewTransition
+										prefetch="intent"
+									>
 										<Button variant="outline" size="sm">
 											View Details
 											<ArrowRight />

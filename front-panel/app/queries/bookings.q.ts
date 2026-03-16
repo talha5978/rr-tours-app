@@ -13,6 +13,8 @@ export const bookingByRefQuery = ({ request, ref }: { request: Request; ref: str
 			return result;
 		},
 		enabled: !!ref,
+		staleTime: 2 * 60 * 1000,
+		gcTime: 2 * 60 * 1000,
 	});
 };
 
@@ -34,5 +36,7 @@ export const myBookingsQuery = ({
 			const result = await svc.getMyBookings(userId, pageIndex, pageSize);
 			return result;
 		},
+		staleTime: 2 * 60 * 1000,
+		gcTime: 2 * 60 * 1000,
 	});
 };
