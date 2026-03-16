@@ -49,11 +49,6 @@ export const HERO_SECTION_IMG_DIMENSIONS = {
 	max: { width: 3500, height: 3500 },
 };
 
-export const PAYMENT_REF_DIMENSIONS = {
-	min: { width: 100, height: 100 },
-	max: { width: 2000, height: 2000 },
-};
-
 export const MAX_META_KEYWORDS = 25;
 
 export const sortTypeEnums = ["asc", "desc"] as const;

@@ -16,7 +16,6 @@ import type {
 } from "@workspace/shared/types/booking";
 import { UseMiddleware } from "@workspace/shared/decorators/useMiddleware";
 import { verifyUser } from "@workspace/shared/middlewares/auth.middleware";
-import { MediaService } from "@workspace/shared/services/media.service";
 import { StripeServerService } from "@workspace/shared/services/stripe.service";
 
 @UseClassMiddleware(loggerMiddleware)
@@ -370,7 +369,7 @@ export class BookingService extends Service {
 		try {
 			// Fetch current booking to get existing values if needed
 			const { data: currentBooking, error: fetchError } = await this.supabase
-				.from("bookings")
+				.from(this.BOOKINGS_TABLE)
 				.select("*")
 				.eq("id", id)
 				.single();
@@ -517,35 +516,18 @@ export class BookingService extends Service {
 				payload.total = total;
 			}
 
-			const mediaSvc = await this.createSubService(MediaService);
-
-			// Handle payment_ref upload if File
-			if (input.payment_ref instanceof File) {
-				const { data } = await mediaSvc.uploadImage(input.payment_ref);
-				payload.payment_ref = data.path;
-			} else if (input.payment_ref === null) {
-				payload.payment_ref = null;
-			}
-			console.log(payload);
+			// console.log(payload);
 
 			// Perform update if payload has changes
 			if (Object.keys(payload).length > 0) {
 				const { error: updateError } = await this.supabase
-					.from("bookings")
+					.from(this.BOOKINGS_TABLE)
 					.update(payload)
 					.eq("id", id);
 
 				if (updateError) {
 					throw new ApiError("Failed to update booking", 500, []);
 				}
-			}
-
-			if (
-				currentBooking.payment_ref !== null &&
-				currentBooking.payment_ref.length > 0 &&
-				payload.payment_ref != undefined
-			) {
-				await mediaSvc.deleteImage(currentBooking.payment_ref);
 			}
 
 			if (

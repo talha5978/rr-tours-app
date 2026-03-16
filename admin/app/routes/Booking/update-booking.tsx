@@ -1,9 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-	BOOKING_STATUS,
-	PAYMENT_REF_DIMENSIONS,
-	PAYMENT_STATUS,
-} from "@workspace/shared/constants/constants";
+import { BOOKING_STATUS, PAYMENT_STATUS } from "@workspace/shared/constants/constants";
 import {
 	UpdateBookingActionData,
 	type UpdateBookingInput,
@@ -37,7 +33,6 @@ import { Textarea } from "~/components/ui/textarea";
 import { getBookingDetailById } from "~/queries/bookings.q";
 import DatePicker from "~/components/Custom-Inputs/date-picker";
 import { Label } from "~/components/ui/label";
-import ImageInput from "~/components/Custom-Inputs/image-input";
 import { PhoneInput } from "~/components/Custom-Inputs/phone-number-input";
 import { format } from "date-fns";
 import { ApiError } from "@workspace/shared/utils/ApiError";
@@ -74,10 +69,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 		if (rawPayload.taxes != undefined) booking.taxes = rawPayload.taxes;
 		if (rawPayload.participants_unit_prices && rawPayload.participants_unit_prices.length > 0)
 			booking.participants_unit_prices = rawPayload.participants_unit_prices;
-	}
-
-	if (formData.has("payment_ref") && formData.get("payment_ref") instanceof File) {
-		booking.payment_ref = formData.get("payment_ref") as File;
 	}
 
 	const svc = new BookingService(request);
@@ -203,13 +194,6 @@ export default function UpdateBooking() {
 			return;
 		}
 
-		if (typeof booking.payment_ref === "string" && values.payment_ref == null) {
-			toast.error(
-				"Deletion o600f payment reference is not allowed. Please upload other payment reference or don't delete the existing one.",
-			);
-			return;
-		}
-
 		const payload: UpdateBookingActionData = {};
 
 		// Helper to check if value changed (handles null/undefined/Date)
@@ -296,24 +280,11 @@ export default function UpdateBooking() {
 			payload.participants_unit_prices = changedParticipants;
 		}
 
-		// If nothing changed → early exit
-		if (Object.keys(payload).length === 0) {
-			if (values.payment_ref && typeof values.payment_ref !== "string") {
-			} else {
-				toast.info("No changes detected.");
-				return;
-			}
-		}
-
 		console.log(payload);
 
 		// Submit only changed fields
 		const formData = new FormData();
 		formData.append("payload", JSON.stringify(payload));
-
-		if (values.payment_ref && typeof values.payment_ref !== "string") {
-			formData.set("payment_ref", values.payment_ref);
-		}
 
 		submit(formData, {
 			method: "PATCH",
@@ -352,9 +323,6 @@ export default function UpdateBooking() {
 					<BackButton href="/bookings" />
 					<div className="flex gap-2 items-center flex-wrap">
 						<h1 className="text-2xl font-semibold">Booking #{booking?.booking_ref}</h1>
-						{(booking.confirmed_at != null || booking.cancelled_at != null) && (
-							<Badge className="w-fit h-fit">Read Only</Badge>
-						)}
 					</div>
 				</div>
 				<form className="space-y-8" onSubmit={handleSubmit(onFormSubmit)}>
@@ -469,16 +437,17 @@ export default function UpdateBooking() {
 												<FormField
 													control={control}
 													name="payment_ref"
-													render={() => (
+													render={({ field }) => (
 														<FormItem>
 															<FormLabel className="text-sm">
 																Payment Reference
 															</FormLabel>
 															<FormControl>
-																<ImageInput
-																	name="payment_ref"
-																	dimensions={PAYMENT_REF_DIMENSIONS}
-																	aspectRatio="square"
+																<Input
+																	type="text"
+																	disabled
+																	value={field.value ?? "N/A"}
+																	className="disabled:cursor-not-allowed pointer-events-none"
 																/>
 															</FormControl>
 															<FormMessage className="text-xs" />

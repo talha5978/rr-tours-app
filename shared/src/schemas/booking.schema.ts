@@ -1,10 +1,4 @@
-import {
-	ALLOWED_IMAGE_FORMATS,
-	BOOKING_STATUS,
-	getSimpleImgFormats,
-	MAX_IMAGE_SIZE,
-	PAYMENT_STATUS,
-} from "@workspace/shared/constants/constants";
+import { BOOKING_STATUS, PAYMENT_STATUS } from "@workspace/shared/constants/constants";
 import type { Database } from "@workspace/shared/types/supabase";
 import z from "zod";
 
@@ -64,18 +58,7 @@ export const UpdateBookingSchema = z.object({
 	confirmed_date: z.date().nullable().optional(),
 	confirmed_time: z.string().nullable().optional(),
 
-	payment_ref: z.union([
-		z
-			.instanceof(File)
-			.refine((file) => file.size <= MAX_IMAGE_SIZE, "Image must be less than 1MB.")
-			.refine(
-				(file) => ALLOWED_IMAGE_FORMATS.includes(file.type),
-				`Only ${getSimpleImgFormats()} image formats are allowed.`,
-			)
-			.optional()
-			.nullable(),
-		z.string().optional().nullable(),
-	]),
+	payment_ref: z.string().optional().nullable(), // READ ONLY FIELD
 
 	admin_note: z.string().nullable().optional(),
 
@@ -112,6 +95,5 @@ export type UpdateBookingActionData = {
 	preffered_time?: string | null;
 	confirmed_date?: string | null;
 	confirmed_time?: string | null;
-	payment_ref?: File;
 	admin_note?: string | null;
 };
