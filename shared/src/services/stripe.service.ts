@@ -1,5 +1,4 @@
 import Stripe from "stripe";
-import { StripeElements, Stripe as StripeClientInstance } from "@stripe/stripe-js";
 import { ApiError } from "@workspace/shared/utils/ApiError";
 import { PAYMENT_CURRENCY } from "@workspace/shared/constants/constants";
 
@@ -188,27 +187,5 @@ export class StripeServerService extends StripeService {
 				error: err instanceof ApiError ? err : new ApiError("Cancel failed", 500, [err.message]),
 			};
 		}
-	}
-}
-
-export class StripeClientService extends StripeService {
-	/** Confirms payment on the Payment page of stripe */
-	async confirmPayment({
-		elements,
-		return_url,
-		stripe_instance,
-	}: {
-		elements: StripeElements;
-		return_url: string;
-		stripe_instance: StripeClientInstance;
-	}) {
-		const { error } = await stripe_instance.confirmPayment({
-			elements,
-			confirmParams: {
-				return_url: return_url,
-			},
-		});
-
-		return error;
 	}
 }

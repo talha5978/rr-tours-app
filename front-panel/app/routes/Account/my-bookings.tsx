@@ -125,7 +125,7 @@ export default function MyBookingsPage() {
 	}
 
 	const getPaymentLink = async (bookingRef: string) => {
-		if(bookingRef == null) {
+		if (bookingRef == null) {
 			toast.warning("No booking reference found");
 			return;
 		}
@@ -139,34 +139,34 @@ export default function MyBookingsPage() {
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ bookingRef }),
 			});
-	
+
 			if (!resp.ok) {
 				toast.error("Failed to create payment session", {
 					description: "Please try again or contact support",
 				});
 				return;
 			}
-	
+
 			const data = await resp.json();
-			
-			if(data.success) {
-				if(data.url) {
+
+			if (data.success) {
+				if (data.url) {
 					window.location.href = data.url;
 				} else {
 					toast.error("Failed to get payment link", {
 						description: "Please try again or contact support",
-					})
+					});
 				}
 			} else {
 				toast.error("Failed to create payment session", {
 					description: "Please try again or contact support",
-				})
+				});
 			}
 		} catch (err: any) {
 			console.error("Fetch error:", err);
 			toast.error("Failed to create payment session", {
 				description: "Please try again or contact support",
-			})
+			});
 		} finally {
 			setFetchingPaymentLink(false);
 		}

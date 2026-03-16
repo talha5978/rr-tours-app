@@ -15,6 +15,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 	const checkoutSvc = new CheckoutService(request);
 	const data = await checkoutSvc.resumePayment(bookingRef);
-	
+
 	return data;
 };

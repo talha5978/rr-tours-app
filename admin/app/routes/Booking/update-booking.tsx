@@ -896,13 +896,7 @@ export default function UpdateBooking() {
 								<Button type="button" variant="outline" onClick={() => navigate(-1)}>
 									Cancel
 								</Button>
-								<Button
-									type="submit"
-									disabled={
-										isSubmitting ||
-										booking.cancelled_at != null
-									}
-								>
+								<Button type="submit" disabled={isSubmitting || booking.cancelled_at != null}>
 									{isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
 									Save Changes
 								</Button>

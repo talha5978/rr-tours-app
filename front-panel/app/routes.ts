@@ -27,7 +27,6 @@ export default [
 		route("booking/:bookingRef/payment-cancel", "./routes/Payment/PaymentCancel.tsx"),
 		route("retry-stripe-checkout", "./routes/_actions/retry-stripe-checkout.tsx"),
 		route("get-stripe-checkout-session", "./routes/_actions/get-stripe-checkout-session.tsx"),
-		route("payment", "./routes/Payment/Payment.tsx"),
 		route("track-booking", "./routes/Booking/track-booking.tsx"),
 
 		route("my-favourites", "./routes/Favourites/my-favourites.tsx"),
