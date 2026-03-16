@@ -24,6 +24,8 @@ export const highLevelBookingsQuery = ({
 			const result = await svc.getHighLevelBookings(q, pageIndex, pageSize);
 			return result;
 		},
+		staleTime: 5 * 60 * 1000,
+		gcTime: 5 * 60 * 1000,
 	});
 };
 
@@ -35,6 +37,8 @@ export const getBookingDetailById = ({ request, id }: { request: Request; id: st
 			const result = await svc.getBookingById(id);
 			return result;
 		},
+		staleTime: 5 * 60 * 1000,
+		gcTime: 5 * 60 * 1000,
 	});
 };
 
@@ -46,5 +50,7 @@ export const getBookingForConfirmation = ({ request, id }: { request: Request; i
 			const result = await svc.getBookingForConfirmation(id);
 			return result;
 		},
+		staleTime: 5 * 60 * 1000,
+		gcTime: 5 * 60 * 1000,
 	});
 };

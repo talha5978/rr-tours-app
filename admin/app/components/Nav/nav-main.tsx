@@ -24,7 +24,7 @@ const SubItem = memo(({ url, icon, title }: NavSubItem) => {
 				<NavLink
 					to={url}
 					className={isActive ? "bg-sidebar-accent" : ""}
-					prefetch="intent"
+					prefetch="viewport"
 					viewTransition
 				>
 					{icon && <>{icon}</>}

@@ -1,14 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-	type UpdateCategoryActionData,
-	UpdateCategoryActionSchema,
-} from "@workspace/shared/schemas/category.schema";
-import {
+	type UpdateCollectionActionSchema,
+	updateCollectionActionSchema,
 	type UpdateCollectionSchema,
 	updateCollectionSchema,
 } from "@workspace/shared/schemas/collection.schema";
 import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
 import { CategoryService } from "@workspace/shared/services/categories.service";
+import { CollectionsService } from "@workspace/shared/services/collections.service";
 import { ActionResponse } from "@workspace/shared/types/action-data";
 import { ApiError } from "@workspace/shared/utils/ApiError";
 import { queryClient } from "@workspace/shared/utils/query-client";
@@ -43,37 +42,43 @@ import { citiesListQuery } from "~/queries/cities.q";
 import { collectionDetailsQuery } from "~/queries/collections.q";
 import { toursListQuery } from "~/queries/tours.q";
 import { getPaginationQueryPayload } from "~/utils/getPaginationQueryPayload";
-import { getSanitizedMetaDetailsForAction } from "~/utils/getSanitizedMetaDetails";
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
 	const id = (params.id as string) || "";
-	if (!id || id == "") {
-		throw new Response("Category ID is required", { status: 400 });
+	if (!id) {
+		throw new Response("Collection id is required", { status: 400 });
 	}
 
 	const formData = await request.formData();
-	// console.log("Form data: ", formData);
 
-	const data: Partial<UpdateCategoryActionData> = {};
+	const data: Partial<UpdateCollectionActionSchema> = {};
 
 	if (formData.has("name")) {
 		data.name = (formData.get("name") as string).trim();
 	}
 
-	if (formData.has("sort_order")) {
-		data.sort_order = (formData.get("sort_order") as string).trim();
+	if (formData.has("description")) {
+		data.description = (formData.get("description") as string)?.trim() || "";
+	}
+	if (formData.has("isFeatured")) {
+		data.isFeatured = (formData.get("isFeatured") as string) === "Y";
+	}
+	if (formData.has("added_cities")) {
+		data.added_cities = formData.getAll("added_cities").map((v) => Number(v));
+	}
+	if (formData.has("removed_cities")) {
+		data.removed_cities = formData.getAll("removed_cities").map((v) => Number(v));
+	}
+	if (formData.has("added_tours")) {
+		data.added_tours = formData.getAll("added_tours") as string[];
+	}
+	if (formData.has("removed_tours")) {
+		data.removed_tours = formData.getAll("removed_tours") as string[];
 	}
 
-	if (formData.has("image") && formData.has("removed_image")) {
-		data.image = formData.get("image") as File;
-		data.removed_image = formData.get("removed_image") as string;
-	}
+	// console.log(data);
 
-	// Parse meta_details fields
-	getSanitizedMetaDetailsForAction({ formData, data });
-
-	const parseResult = UpdateCategoryActionSchema.safeParse(data);
-	// console.log("Parse result: ", parseResult?.error);
+	const parseResult = updateCollectionActionSchema.safeParse(data);
 
 	if (!parseResult.success) {
 		return new Response(JSON.stringify({ validationErrors: parseResult.error.flatten().fieldErrors }), {
@@ -82,13 +87,12 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 		});
 	}
 
-	const svc = new CategoryService(request);
+	const svc = new CollectionsService(request);
 
 	try {
-		await svc.updateCategory(id, parseResult.data);
-		await queryClient.invalidateQueries({ queryKey: ["highLvlCategories"] });
-		await queryClient.invalidateQueries({ queryKey: ["categoryList"] });
-		await queryClient.invalidateQueries({ queryKey: ["categoryDetailsForUpdate", Number(id)] });
+		await svc.updateCollection(Number(id), parseResult.data);
+		await queryClient.invalidateQueries({ queryKey: ["highLvlCollections"] });
+		await queryClient.invalidateQueries({ queryKey: ["collection", id] });
 
 		return { success: true };
 	} catch (error: any) {
@@ -158,7 +162,59 @@ export default function UpdateCollectionPage() {
 		}
 	}, [actionData, navigate, setError]);
 
-	async function onFormSubmit(values: UpdateCollectionSchema) {}
+	async function onFormSubmit(values: UpdateCollectionSchema) {
+		const original = collection.data ?? {
+			name: "",
+			description: "",
+			isFeatured: false,
+			cities: [],
+			tours: [],
+		};
+
+		const partial: any = {};
+
+		if (values.name.trim() !== (original.name ?? "").trim()) partial.name = values.name.trim();
+		if (values.description !== (original.description ?? ""))
+			partial.description = values.description ?? "";
+		if (values.isFeatured !== (original.isFeatured ? "Y" : "N")) partial.isFeatured = values.isFeatured;
+
+		// cities diff + tracking
+		const origCities = original.cities?.map((c) => c.id) ?? [];
+		const newCities = [...values.cities];
+		const addedCities = newCities.filter((id) => !origCities.includes(id));
+		const removedCities = origCities.filter((id) => !newCities.includes(id));
+
+		if (addedCities.length > 0) {
+			partial.added_cities = addedCities;
+		}
+
+		if (removedCities.length > 0) {
+			partial.removed_cities = removedCities;
+		}
+
+		// tours diff + tracking
+		const origTours = original.tours?.map((t: any) => t.id) ?? [];
+		const newTours = [...values.tours];
+		const addedTours = newTours.filter((id) => !origTours.includes(id));
+		const removedTours = origTours.filter((id) => !newTours.includes(id));
+
+		if (addedTours.length > 0) {
+			partial.added_tours = addedTours;
+		}
+
+		if (removedTours.length > 0) {
+			partial.removed_tours = removedTours;
+		}
+
+		console.log(values, partial);
+
+		if (Object.keys(partial).length === 0) {
+			toast.warning("No changes detected");
+			return;
+		}
+
+		submit(partial, { method: "POST", preventScrollReset: true });
+	}
 
 	return (
 		<>
@@ -357,7 +413,11 @@ function ToursSelection({ formControl }: { formControl: Control<UpdateCollection
 				next.set("page", "1");
 				return next;
 			},
-			{ replace: true, preventScrollReset: true, state: { scrollPosition: window.scrollY } },
+			{
+				replace: true,
+				preventScrollReset: true,
+				state: { scrollPosition: window.scrollY, suppressLoadingBar: true },
+			},
 		);
 		setPage(1);
 	};
@@ -382,7 +442,11 @@ function ToursSelection({ formControl }: { formControl: Control<UpdateCollection
 				next.set("page", String(page));
 				return next;
 			},
-			{ replace: true },
+			{
+				replace: true,
+				preventScrollReset: true,
+				state: { scrollPosition: window.scrollY, suppressLoadingBar: true },
+			},
 		);
 	}, [page, setSearchParams]);
 

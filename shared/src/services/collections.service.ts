@@ -15,6 +15,8 @@ import type {
 } from "@workspace/shared/types/collections";
 import { FP_HighLevelTour } from "@workspace/shared/types/fp-tours";
 import type { FPTourFilters } from "@workspace/shared/schemas/fp-tours-filter.schema";
+import type { UpdateCollectionActionSchema } from "@workspace/shared/schemas/collection.schema";
+import type { TablesUpdate } from "@workspace/shared/types/supabase";
 
 @UseClassMiddleware(loggerMiddleware)
 export class CollectionsService extends Service {
@@ -181,6 +183,66 @@ export class CollectionsService extends Service {
 						: new ApiError(err.message || "Failed to create collection", 500),
 			};
 		}
+	}
+
+	@UseMiddleware(asServiceMiddleware<CollectionsService>(verifyUser))
+	async updateCollection(id: number, data: UpdateCollectionActionSchema) {
+		const mainUpdate: TablesUpdate<"collections"> = {};
+
+		if (data.name !== undefined) mainUpdate.name = data.name;
+		if (data.description !== undefined) mainUpdate.description = data.description;
+		if (data.isFeatured !== undefined) mainUpdate.isFeatured = data.isFeatured;
+
+		if (Object.keys(mainUpdate).length > 0) {
+			const { error } = await this.supabase
+				.from(this.COLLECTIONS_TABLE)
+				.update(mainUpdate)
+				.eq("id", id);
+
+			if (error) throw new ApiError(error.message, 500);
+		}
+
+		if (data.added_cities && data.added_cities.length > 0) {
+			const inserts = data.added_cities.map((cityId) => ({
+				collection_id: id,
+				city_id: cityId,
+			}));
+
+			const { error } = await this.supabase.from(this.COLLECTION_CITIES_TABLE).insert(inserts);
+			if (error) throw new ApiError(error.message, 500);
+		}
+
+		if (data.removed_cities && data.removed_cities.length > 0) {
+			const { error } = await this.supabase
+				.from(this.COLLECTION_CITIES_TABLE)
+				.delete()
+				.eq("collection_id", id)
+				.in("city_id", data.removed_cities);
+
+			if (error) throw new ApiError(error.message, 500);
+		}
+
+		if (data.added_tours && data.added_tours.length > 0) {
+			const inserts = data.added_tours.map((tourId) => ({
+				collection_id: id,
+				tour_id: tourId,
+			}));
+
+			const { error } = await this.supabase.from(this.COLLECTION_TOURS_TABLE).insert(inserts);
+			if (error) throw new ApiError(error.message, 500);
+		}
+
+		if (data.removed_tours && data.removed_tours.length > 0) {
+			const { error } = await this.supabase
+				.from(this.COLLECTION_TOURS_TABLE)
+				.delete()
+				.eq("collection_id", id)
+				.in("tour_id", data.removed_tours);
+
+			if (error) throw new ApiError(error.message, 500);
+		}
+
+		return { success: true };
 	}
 
 	/** Delete a collection */

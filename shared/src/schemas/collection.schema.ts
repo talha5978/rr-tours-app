@@ -29,3 +29,15 @@ export const updateCollectionSchema = z.object({
 });
 
 export type UpdateCollectionSchema = z.infer<typeof updateCollectionSchema>;
+
+export const updateCollectionActionSchema = z.object({
+	name: z.string().optional(),
+	description: z.string().optional(),
+	isFeatured: z.boolean().optional(),
+	added_tours: z.array(z.string()).optional(),
+	removed_tours: z.array(z.string()).optional(),
+	added_cities: z.array(z.number()).optional(),
+	removed_cities: z.array(z.number()).optional(),
+});
+
+export type UpdateCollectionActionSchema = z.infer<typeof updateCollectionActionSchema>;

@@ -343,7 +343,11 @@ function ToursSelection({ formControl }: { formControl: Control<AddCollectionSch
 				next.set("page", "1");
 				return next;
 			},
-			{ replace: true, preventScrollReset: true, state: { scrollPosition: window.scrollY } },
+			{
+				replace: true,
+				preventScrollReset: true,
+				state: { scrollPosition: window.scrollY, suppressLoadingBar: true },
+			},
 		);
 		setPage(1);
 	};
@@ -368,7 +372,11 @@ function ToursSelection({ formControl }: { formControl: Control<AddCollectionSch
 				next.set("page", String(page));
 				return next;
 			},
-			{ replace: true },
+			{
+				replace: true,
+				preventScrollReset: true,
+				state: { scrollPosition: window.scrollY, suppressLoadingBar: true },
+			},
 		);
 	}, [page, setSearchParams]);
 

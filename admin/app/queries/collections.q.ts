@@ -22,7 +22,7 @@ export const highLevelCollectionsQuery = ({ request, q, pageIndex, pageSize }: H
 
 export const collectionDetailsQuery = ({ request, id }: { request: Request; id: number }) => {
 	return queryOptions<CollectionDetailsResp>({
-		queryKey: ["collection", id],
+		queryKey: ["collection", String(id)],
 		queryFn: async () => {
 			const svc = new CollectionsService(request);
 			const result = await svc.getCollectionDetails(id);
