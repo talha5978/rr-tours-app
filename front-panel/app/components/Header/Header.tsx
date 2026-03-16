@@ -58,6 +58,8 @@ export default function Header({ categories }: { categories: FPHighLevelCategory
 														: "text-muted-foreground"
 												}`
 											}
+											viewTransition
+											prefetch="viewport"
 										>
 											{link.label}
 										</NavLink>
@@ -68,29 +70,18 @@ export default function Header({ categories }: { categories: FPHighLevelCategory
 										Browse by Category
 									</h2>
 									<div className="flex flex-col gap-2">
-										{categories.slice(0, 5).map((category) => (
+										{categories.map((category) => (
 											<NavLink
 												key={category.id}
 												to={`/tours?categories=${category.id}`}
 												viewTransition
 												className="text-sm text-muted-foreground"
-												prefetch="intent"
+												prefetch="viewport"
 												title={category.name}
 											>
 												{category.name}
 											</NavLink>
 										))}
-										{categories.length > 5 && (
-											<NavLink
-												to={`/tours`}
-												title="See More"
-												prefetch="intent"
-												viewTransition
-												className="text-sm text-muted-foreground"
-											>
-												See More
-											</NavLink>
-										)}
 									</div>
 								</div>
 							</nav>

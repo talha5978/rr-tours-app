@@ -6,7 +6,6 @@ import {
 	updateCollectionSchema,
 } from "@workspace/shared/schemas/collection.schema";
 import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
-import { CategoryService } from "@workspace/shared/services/categories.service";
 import { CollectionsService } from "@workspace/shared/services/collections.service";
 import { ActionResponse } from "@workspace/shared/types/action-data";
 import { ApiError } from "@workspace/shared/utils/ApiError";
@@ -71,9 +70,15 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 	}
 	if (formData.has("added_tours")) {
 		data.added_tours = formData.getAll("added_tours") as string[];
+		if (data.added_tours.length > 0) {
+			data.added_tours = data.added_tours[0].split(",");
+		}
 	}
 	if (formData.has("removed_tours")) {
 		data.removed_tours = formData.getAll("removed_tours") as string[];
+		if (data.removed_tours.length > 0) {
+			data.removed_tours = data.removed_tours[0].split(",");
+		}
 	}
 
 	// console.log(data);
@@ -93,6 +98,12 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 		await svc.updateCollection(Number(id), parseResult.data);
 		await queryClient.invalidateQueries({ queryKey: ["highLvlCollections"] });
 		await queryClient.invalidateQueries({ queryKey: ["collection", id] });
+
+		const cacheSvc = new CacheInvalidationService(request);
+		await cacheSvc.pushCacheInvalidationEvent({
+			target: "front",
+			keys: ["collections", `collection||${id}`, `collection-tours||${id}`],
+		});
 
 		return { success: true };
 	} catch (error: any) {
@@ -193,7 +204,7 @@ export default function UpdateCollectionPage() {
 		}
 
 		// tours diff + tracking
-		const origTours = original.tours?.map((t: any) => t.id) ?? [];
+		const origTours = original.tours?.map((t) => t.id) ?? [];
 		const newTours = [...values.tours];
 		const addedTours = newTours.filter((id) => !origTours.includes(id));
 		const removedTours = origTours.filter((id) => !newTours.includes(id));

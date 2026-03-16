@@ -28,7 +28,7 @@ export const collectionsQuery = ({
 
 export const collectionDetailsQuery = ({ request, id }: { request: Request; id: number }) => {
 	return queryOptions<CollectionRow | null>({
-		queryKey: ["collection", id],
+		queryKey: ["collection", String(id)],
 		queryFn: async () => {
 			const svc = new CollectionsService(request);
 			const result = await svc.getCollectionById(id);
@@ -53,7 +53,7 @@ export const collectionToursQuery = ({
 	filters?: Partial<FPTourFilters>;
 }) => {
 	return queryOptions({
-		queryKey: ["collection-tours", collectionId, pageIndex, pageSize, q, filters],
+		queryKey: ["collection-tours", String(collectionId), pageIndex, pageSize, q, filters],
 		queryFn: async () => {
 			const svc = new CollectionsService(request);
 			const result = await svc.getCollectionTours(collectionId, pageIndex, pageSize, q, filters);

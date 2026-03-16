@@ -123,7 +123,7 @@ export default function Footer({ categories }: { categories: FPHighLevelCategory
 					<div>
 						<h4 className="mb-3 text-sm font-semibold">Tour Categories</h4>
 						<ul className="space-y-2 text-sm text-muted-foreground">
-							{categories.slice(0, 5).map((category) => (
+							{categories.map((category) => (
 								<li key={category.id}>
 									<Link
 										to={`/tours?categories=${category.id}`}
@@ -135,18 +135,6 @@ export default function Footer({ categories }: { categories: FPHighLevelCategory
 									</Link>
 								</li>
 							))}
-							{categories.length > 5 && (
-								<li>
-									<Link
-										to={`/tours`}
-										className="hover:text-foreground"
-										title="See More"
-										viewTransition
-									>
-										See More
-									</Link>
-								</li>
-							)}
 						</ul>
 					</div>
 				</div>
