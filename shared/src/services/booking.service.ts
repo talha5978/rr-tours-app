@@ -514,6 +514,9 @@ export class BookingService extends Service {
 			if (input.participants_unit_prices || input.discount !== undefined || input.taxes !== undefined) {
 				total = subtotal_amount - discount + taxes;
 				payload.total = total;
+
+				// If total is changed then session_id needs to be reset to force a new checkout session
+				payload.checkout_session_id = null;
 			}
 
 			// console.log(payload);
