@@ -1,5 +1,5 @@
 import { Form, Link, NavLink, useActionData, useNavigation, useRouteLoaderData } from "react-router";
-import { Menu, Heart, LogIn, LogOutIcon, Loader2, Info, Star, Calendar } from "lucide-react";
+import { Menu, Heart, LogIn, LogOutIcon, Loader2, Info, Star, Calendar, ShoppingCart } from "lucide-react";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTrigger } from "~/components/ui/sheet";
 import { Button } from "~/components/ui/button";
 import { useFavourites } from "~/utils/favourites.utils";
@@ -65,6 +65,7 @@ export default function Header({ categories }: { categories: FPHighLevelCategory
 										</NavLink>
 									))}
 								</div>
+
 								<div className="space-y-2">
 									<h2 className="text-xs text-muted-foreground font-bold">
 										Browse by Category
@@ -90,22 +91,18 @@ export default function Header({ categories }: { categories: FPHighLevelCategory
 								<h2 className="text-muted-foreground text-sm">Follow Us For More</h2>
 								<div className="flex gap-3">
 									<Link to={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">
-										<div>
-											<img
-												src="https://cdn.iconscout.com/icon/free/png-256/free-instagram-logo-icon-svg-download-png-1583142.png?f=webp&amp;w=128"
-												alt="Instagram"
-												className="w-8 h-8"
-											/>
-										</div>
+										<img
+											src="https://cdn.iconscout.com/icon/free/png-256/free-instagram-logo-icon-svg-download-png-1583142.png?f=webp&w=128"
+											alt="Instagram"
+											className="w-8 h-8"
+										/>
 									</Link>
 									<Link to={FB_URL} target="_blank" rel="noopener noreferrer">
-										<div>
-											<img
-												src="https://cdn.iconscout.com/icon/free/png-256/free-facebook-logo-icon-svg-download-png-721949.png?f=webp&w=256"
-												alt="Facebook"
-												className="w-8 h-8 rounded-md"
-											/>
-										</div>
+										<img
+											src="https://cdn.iconscout.com/icon/free/png-256/free-facebook-logo-icon-svg-download-png-721949.png?f=webp&w=256"
+											alt="Facebook"
+											className="w-8 h-8 rounded-md"
+										/>
 									</Link>
 								</div>
 							</SheetFooter>
@@ -129,11 +126,11 @@ export default function Header({ categories }: { categories: FPHighLevelCategory
 							key={link.to}
 							to={link.to}
 							className={({ isActive }) =>
-								`text-sm hover:underline underline-offset-4 ${
+								`text-sm flex items-center gap-1.5 hover:underline underline-offset-4 ${
 									isActive
-										? "font-medium text-foreground"
+										? "font-medium text-foreground underline underline-offset-4"
 										: "text-muted-foreground hover:text-foreground"
-								} ${isActive ? "underline underline-offset-4" : ""}`
+								}`
 							}
 						>
 							{link.label}
@@ -166,9 +163,9 @@ export default function Header({ categories }: { categories: FPHighLevelCategory
 						</Link>
 					</div>
 					<HeaderFavouriteButton />
+					<HeaderCartButton />
 					<UserAccountButton />
 				</div>
-				{/* Right actions */}
 			</div>
 		</header>
 	);
@@ -188,6 +185,27 @@ function HeaderFavouriteButton() {
 				{count > 0 && (
 					<span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-medium">
 						{count}
+					</span>
+				)}
+			</Button>
+		</Link>
+	);
+}
+
+function HeaderCartButton() {
+	const cartCount = 0;
+
+	return (
+		<Link to="/cart" viewTransition prefetch="intent">
+			<Button
+				variant="ghost"
+				size="icon"
+				className={`${cartCount > 0 ? "bg-primary/10" : ""} relative`}
+			>
+				<ShoppingCart className="h-5 w-5" />
+				{cartCount > 0 && (
+					<span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-medium">
+						{cartCount}
 					</span>
 				)}
 			</Button>

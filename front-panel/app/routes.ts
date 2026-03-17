@@ -29,6 +29,11 @@ export default [
 		route("get-stripe-checkout-session", "./routes/_actions/get-stripe-checkout-session.tsx"),
 		route("track-booking", "./routes/Booking/track-booking.tsx"),
 
+		route("cart", "./routes/Cart/cart.tsx"),
+		route("add-to-cart", "./routes/_actions/add-to-cart.tsx"),
+		route("remove-from-cart/:cart_item_id/:user_id", "./routes/_actions/remove-from-cart.tsx"),
+		route("clear-cart/:user_id", "./routes/_actions/clear-cart.tsx"),
+
 		route("my-favourites", "./routes/Favourites/my-favourites.tsx"),
 
 		route("contact-us", "./routes/Contact/contact-us.tsx"),

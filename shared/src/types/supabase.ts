@@ -368,6 +368,113 @@ export type Database = {
 				};
 				Relationships: [];
 			};
+			cart_items: {
+				Row: {
+					cart_id: number;
+					created_at: string | null;
+					id: number;
+					preferred_date: string | null;
+					preferred_timeslot: string | null;
+					tour_option_id: number;
+				};
+				Insert: {
+					cart_id: number;
+					created_at?: string | null;
+					id?: number;
+					preferred_date?: string | null;
+					preferred_timeslot?: string | null;
+					tour_option_id: number;
+				};
+				Update: {
+					cart_id?: number;
+					created_at?: string | null;
+					id?: number;
+					preferred_date?: string | null;
+					preferred_timeslot?: string | null;
+					tour_option_id?: number;
+				};
+				Relationships: [
+					{
+						foreignKeyName: "cart_items_cart_id_fkey";
+						columns: ["cart_id"];
+						isOneToOne: false;
+						referencedRelation: "carts";
+						referencedColumns: ["id"];
+					},
+					{
+						foreignKeyName: "cart_items_tour_option_id_fkey";
+						columns: ["tour_option_id"];
+						isOneToOne: false;
+						referencedRelation: "tour_options";
+						referencedColumns: ["id"];
+					},
+				];
+			};
+			cart_items_quantities: {
+				Row: {
+					cart_item_id: number;
+					id: number;
+					participant_type_id: number;
+					quantity: number;
+				};
+				Insert: {
+					cart_item_id: number;
+					id?: number;
+					participant_type_id: number;
+					quantity: number;
+				};
+				Update: {
+					cart_item_id?: number;
+					id?: number;
+					participant_type_id?: number;
+					quantity?: number;
+				};
+				Relationships: [
+					{
+						foreignKeyName: "cart_items_quantities_cart_item_id_fkey";
+						columns: ["cart_item_id"];
+						isOneToOne: false;
+						referencedRelation: "cart_items";
+						referencedColumns: ["id"];
+					},
+					{
+						foreignKeyName: "cart_items_quantities_participant_type_id_fkey";
+						columns: ["participant_type_id"];
+						isOneToOne: false;
+						referencedRelation: "participant_types";
+						referencedColumns: ["id"];
+					},
+				];
+			};
+			carts: {
+				Row: {
+					created_at: string | null;
+					expires_at: string | null;
+					id: number;
+					user_id: string | null;
+				};
+				Insert: {
+					created_at?: string | null;
+					expires_at?: string | null;
+					id?: number;
+					user_id?: string | null;
+				};
+				Update: {
+					created_at?: string | null;
+					expires_at?: string | null;
+					id?: number;
+					user_id?: string | null;
+				};
+				Relationships: [
+					{
+						foreignKeyName: "carts_user_id_fkey";
+						columns: ["user_id"];
+						isOneToOne: true;
+						referencedRelation: "app_users";
+						referencedColumns: ["user_id"];
+					},
+				];
+			};
 			cities: {
 				Row: {
 					card_image: string;
@@ -562,6 +669,39 @@ export type Database = {
 					created_at?: string | null;
 					id?: number;
 					name?: string;
+				};
+				Relationships: [];
+			};
+			payments: {
+				Row: {
+					checkout_session_id: string | null;
+					created_at: string | null;
+					currency: string | null;
+					id: string;
+					paid_amount: number;
+					paid_at: string | null;
+					payment_intent_id: string | null;
+					payment_status: Database["public"]["Enums"]["payment_status_enum"];
+				};
+				Insert: {
+					checkout_session_id?: string | null;
+					created_at?: string | null;
+					currency?: string | null;
+					id?: string;
+					paid_amount?: number;
+					paid_at?: string | null;
+					payment_intent_id?: string | null;
+					payment_status?: Database["public"]["Enums"]["payment_status_enum"];
+				};
+				Update: {
+					checkout_session_id?: string | null;
+					created_at?: string | null;
+					currency?: string | null;
+					id?: string;
+					paid_amount?: number;
+					paid_at?: string | null;
+					payment_intent_id?: string | null;
+					payment_status?: Database["public"]["Enums"]["payment_status_enum"];
 				};
 				Relationships: [];
 			};
@@ -977,6 +1117,10 @@ export type Database = {
 			[_ in never]: never;
 		};
 		Functions: {
+			add_to_cart: {
+				Args: { p_cart_items: Json; p_user_id: string };
+				Returns: Json;
+			};
 			delete_collection: { Args: { p_collection_id: number }; Returns: Json };
 		};
 		Enums: {

@@ -16,12 +16,14 @@ import { format, isBefore, startOfToday } from "date-fns";
 import {
 	Accessibility,
 	ArrowRight,
+	BadgePlus,
 	Calendar,
 	CalendarPlusIcon,
 	Check,
 	ClockFading,
 	Edit,
 	Heart,
+	Loader2,
 	MapPinned,
 	Star,
 } from "lucide-react";
@@ -56,6 +58,9 @@ import { useIsMobile } from "~/hooks/use-mobile";
 import { Skeleton } from "~/components/ui/skeleton";
 import { tourReviewsQuery } from "~/queries/reviews.q";
 import TourReviews, { TourReviewsSkeleton } from "~/components/Tour/TourReviews";
+import { AddToCartPayload } from "@workspace/shared/types/cart";
+import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
+import { currentFullUserQuery } from "~/queries/auth.q";
 
 const participantSchema = z.object({
 	quantities: z.record(z.number().min(0).int()),
@@ -125,6 +130,10 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 		}),
 	);
 
+	const { headers, authId } = genAuthSecurity(request);
+
+	const userData = await queryClient.fetchQuery(currentFullUserQuery({ request, authId, headers }));
+
 	return {
 		tour: data,
 		relatedToursByCity: relatedToursByCity ?? [],
@@ -134,6 +143,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 		dateStr,
 		reviewsData,
 		currentReviewPage: review_page,
+		userData,
 	};
 };
 
@@ -313,14 +323,18 @@ export default function TourDetailsPage() {
 							<div className="max-lg:hidden flex gap-2">
 								<AddToFavouriteBtn tour_id={tour.id} />
 								<ShareDialog
-									url={`www.wandernest.com/tours/tour/${tour.id}/${tour.meta_details?.url_key}`}
+									url={`${process.env.VITE_MAIN_APP_URL}/tours/tour/${tour.id}/${tour.meta_details?.url_key}`}
 								/>
 							</div>
 						</div>
 						<div className="flex sm:gap-4 gap-2 flex-wrap items-center">
 							{tour.tour_category && (
 								<>
-									<Link to={`/tours?categories=${tour.tour_category.id}`}>
+									<Link
+										to={`/tours?categories=${tour.tour_category.id}`}
+										viewTransition
+										prefetch="intent"
+									>
 										<div>
 											<p className="text-sm text-muted-foreground">
 												{tour.tour_category.name}
@@ -1004,7 +1018,7 @@ const ParticipantFormComponent = memo(
 		const navigate = useNavigate();
 		const loaderData = useLoaderData<typeof loader>();
 
-		const { control, handleSubmit } = useForm<ParticipantForm>({
+		const { control, handleSubmit, getValues } = useForm<ParticipantForm>({
 			resolver: zodResolver(participantSchema),
 			defaultValues: {
 				quantities: option.prices.reduce((acc: Record<number, number>, price) => {
@@ -1015,6 +1029,7 @@ const ParticipantFormComponent = memo(
 		});
 
 		const quantities = useWatch({ control, name: "quantities" });
+		const [isAddingToCart, setIsAddingToCart] = useState(false);
 
 		function calculatePrice() {
 			return Object.entries(quantities).reduce((sum, [typeId, qty]) => {
@@ -1027,7 +1042,6 @@ const ParticipantFormComponent = memo(
 		const totalPrice = useMemo(() => calculatePrice(), [quantities, option]);
 
 		const onSubmit = (data: ParticipantForm) => {
-			// Stub for checkout
 			if (loaderData == null || loaderData?.tour == null) {
 				toast.error("Something went wrong. Please try again.");
 			}
@@ -1066,6 +1080,65 @@ const ParticipantFormComponent = memo(
 					quantities: data.quantities,
 				},
 			});
+		};
+
+		const handleAddToCart = async () => {
+			const currentQuantities = getValues("quantities");
+			const userId = loaderData?.userData.user?.id;
+
+			if (!userId) {
+				toast.error("Please login to add to cart.");
+				return;
+			}
+
+			setIsAddingToCart(true);
+
+			try {
+				const payload: AddToCartPayload = {
+					user_id: userId,
+					cart_items: [
+						{
+							tour_option_id: option.id,
+							preferred_date: format(selectedDate, "yyyy-MM-dd"),
+							preferred_timeslot: selectedTimeSlot.label,
+							quantities: Object.entries(currentQuantities)
+								.filter(([, qty]) => qty > 0)
+								.map(([participant_type_id, quantity]) => ({
+									participant_type_id: Number(participant_type_id),
+									quantity: Number(quantity),
+								})),
+						},
+					],
+				};
+
+				const res = await fetch("/add-to-cart", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(payload),
+				});
+
+				const json = await res.json();
+
+				if (json.success) {
+					toast.success("Added to cart successfully!", {
+						action: {
+							label: "Go to cart",
+							onClick: () => {
+								navigate("/cart", {
+									viewTransition: true,
+								});
+							},
+						},
+					});
+				} else {
+					toast.error(json.error || "Failed to add to cart");
+				}
+			} catch (error) {
+				toast.error("Failed to add to cart");
+				console.error(error);
+			} finally {
+				setIsAddingToCart(false);
+			}
 		};
 
 		return (
@@ -1126,7 +1199,22 @@ const ParticipantFormComponent = memo(
 						},
 					)}
 				<p className="font-semibold text-base mt-8">Total: {totalPrice.toFixed(2)} AED</p>
-				<div className="w-fit ml-auto">
+
+				<div className="flex gap-3 justify-end">
+					<Button
+						type="button"
+						variant="outline"
+						onClick={handleAddToCart}
+						disabled={isAddingToCart || Object.values(quantities).every((q) => q === 0)}
+					>
+						{isAddingToCart ? (
+							<Loader2 className="h-4 w-4 animate-spin" />
+						) : (
+							<BadgePlus className="h-4 w-4" />
+						)}
+						<p className="my-auto">Add to Cart</p>
+					</Button>
+
 					<Button type="submit">Book Now</Button>
 				</div>
 			</form>
