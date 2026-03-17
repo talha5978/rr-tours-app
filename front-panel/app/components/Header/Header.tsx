@@ -18,6 +18,7 @@ import {
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
+import type { GetCartResponse } from "@workspace/shared/types/cart";
 
 const NAV_LINKS = [
 	{ label: "Home", to: "/" },
@@ -28,7 +29,13 @@ const NAV_LINKS = [
 	{ label: "Track Booking", to: "/track-booking" },
 ];
 
-export default function Header({ categories }: { categories: FPHighLevelCategory[] }) {
+export default function Header({
+	categories,
+	cart,
+}: {
+	categories: FPHighLevelCategory[];
+	cart: GetCartResponse | null;
+}) {
 	return (
 		<header className="bg-background">
 			<div className="mx-auto flex items-center pt-4">
@@ -163,7 +170,7 @@ export default function Header({ categories }: { categories: FPHighLevelCategory
 						</Link>
 					</div>
 					<HeaderFavouriteButton />
-					<HeaderCartButton />
+					<HeaderCartButton cart={cart} />
 					<UserAccountButton />
 				</div>
 			</div>
@@ -192,8 +199,8 @@ function HeaderFavouriteButton() {
 	);
 }
 
-function HeaderCartButton() {
-	const cartCount = 0;
+function HeaderCartButton({ cart }: { cart: GetCartResponse | null }) {
+	const cartCount = cart == null ? 0 : cart.total_items;
 
 	return (
 		<Link to="/cart" viewTransition prefetch="intent">

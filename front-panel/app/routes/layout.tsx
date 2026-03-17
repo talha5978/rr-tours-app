@@ -1,21 +1,33 @@
 import { CONTACT_NUMBER_1 } from "@workspace/shared/constants/constants";
+import { currentUserQuery } from "@workspace/shared/queries/auth.q";
+import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
 import { queryClient } from "@workspace/shared/utils/query-client";
 import { Link, LoaderFunctionArgs, Outlet, useLoaderData } from "react-router";
 import Footer from "~/components/Footer/Footer";
 import Header from "~/components/Header/Header";
+import { myCartQuery } from "~/queries/cart.q";
 import { FPhighLevelCategoriesQuery } from "~/queries/categories.q";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
 	const categoriesResp = await queryClient.fetchQuery(FPhighLevelCategoriesQuery({ request }));
-	return categoriesResp;
+	const { authId, headers } = genAuthSecurity(request);
+	const userData = await queryClient.fetchQuery(currentUserQuery({ request, authId, headers }));
+
+	let myCart = null;
+
+	if (userData && userData.user) {
+		myCart = await queryClient.fetchQuery(myCartQuery({ request, user_id: userData.user?.id }));
+	}
+
+	return { categoriesResp, myCart };
 };
 
 export default function AppLayout() {
-	const categoriesResp = useLoaderData<typeof loader>();
+	const { categoriesResp, myCart } = useLoaderData<typeof loader>();
 
 	return (
 		<div className="max-container space-y-8">
-			<Header categories={categoriesResp.data ?? []} />
+			<Header categories={categoriesResp.data ?? []} cart={myCart} />
 			<main>
 				<Outlet />
 			</main>
