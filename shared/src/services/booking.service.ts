@@ -220,17 +220,29 @@ export class BookingService extends Service {
 			}
 
 			const { data, error } = await this.supabase
-				.from(this.BOOKINGS_TABLE)
+				.from("bookings_new")
 				.select(
 					`
-					*, 
-					participants:booking_participants!inner(
 						*,
-						participant_type:participant_types!inner(
-							*
+						booking_items (
+							*,
+							tour_option:${this.TOUR_OPTIONS_TABLE}!inner (
+								name,
+								tour:${this.TOURS_TABLE}(name)
+							),
+							booking_participants_new (
+								*,
+								participant_types (
+									name,
+									age_min,
+									age_max
+								)
+							)
+						),
+						payment:${this.PAYMENTS_TABLE}!inner (
+							payment_status
 						)
-					)
-				`,
+					`,
 				)
 				.eq("booking_ref", bookingRef)
 				.limit(1)
@@ -240,30 +252,52 @@ export class BookingService extends Service {
 				throw new ApiError(error.message, 500, []);
 			}
 
-			let booking: FPBookingByRefDetail | null =
-				data == null
-					? null
-					: {
-							...data,
-							booking_participants: data.participants.map((p) => ({
-								id: p.id,
-								participant: {
-									id: p.participant_type.id,
-									name: p.participant_type.name,
-									age_max: p.participant_type.age_max,
-									age_min: p.participant_type.age_min,
-								},
-								quantity: p.quantity,
-								unit_price: p.unit_price,
-							})),
-						};
+			if (!data) {
+				return null;
+			}
 
-			if (booking && (booking as any).payment_ref != null) {
-				(booking as any).payment_ref = null;
+			// Transform into clean structure
+			const booking: FPBookingByRefDetail = {
+				id: data.id,
+				booking_ref: data.booking_ref,
+				booking_status: data.booking_status,
+				customer_name: data.customer_name,
+				customer_email: data.customer_email,
+				customer_phone: data.customer_phone,
+				created_at: data.created_at,
+				updated_at: data.updated_at,
+				confirmed_at: data.confirmed_at,
+				cancelled_at: data.cancelled_at,
+				subtotal_amount: data.subtotal_amount,
+				discount: data.discount,
+				taxes: data.taxes,
+				total: data.total,
+				payment_status: data.payment.payment_status,
+				payment_id: data.payment_id,
+				booking_items: (data.booking_items || []).map((item) => ({
+					id: item.id,
+					tour_option_id: item.tour_option_id,
+					preffered_date: item.preffered_date,
+					preffered_timeslot: item.preffered_timeslot,
+					confirmed_date: item.confirmed_date,
+					confirmed_timeslot: item.confirmed_timeslot,
+					tour_option_name: item.tour_option.name || null,
+					tour_name: item.tour_option.tour.name || null,
+					participants: (item.booking_participants_new || []).map((p) => ({
+						participant_type_id: p.participant_type_id,
+						quantity: p.quantity,
+						unit_price: p.unit_price,
+						participant_name: p.participant_types?.name || "Participant",
+						age_min: p.participant_types?.age_min,
+						age_max: p.participant_types?.age_max,
+					})),
+				})),
+			};
+
+			if (booking) {
+				(booking as any).admin_note = null;
 			}
-			if (booking && booking.admin_note != null) {
-				booking.admin_note = null;
-			}
+
 			return booking;
 		} catch (error) {
 			throw error instanceof ApiError ? error : new ApiError("Failed to get booking data", 500, []);

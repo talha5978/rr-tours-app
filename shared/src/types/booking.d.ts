@@ -2,43 +2,40 @@ import type { Database } from "@workspace/shared/types/supabase";
 import { ApiError } from "@workspace/shared/utils/ApiError";
 
 export type FPBookingByRefDetail = {
-	admin_note: string | null;
+	id: string;
 	booking_ref: string;
 	booking_status: Database["public"]["Enums"]["booking_status_enum"];
-	cancelled_at: string | null;
-	confirmed_at: string | null;
-	confirmed_date: string | null;
-	confirmed_timeslot: string | null;
-	created_at: string;
-	customer_email: string | null;
 	customer_name: string | null;
+	customer_email: string | null;
 	customer_phone: string | null;
-	discount: number;
-	id: string;
-	payment_status: Database["public"]["Enums"]["payment_status_enum"];
-	preferred_date: string | null;
-	preferred_timeslot: string | null;
-	price_overriden: boolean;
-	pricing_note: string | null;
+	created_at: string;
+	updated_at: string;
+	confirmed_at: string | null;
+	cancelled_at: string | null;
 	subtotal_amount: number;
+	discount: number;
 	taxes: number;
 	total: number;
-	tour_id: string | null;
-	tour_name: string | null;
-	tour_option_id: number | null;
-	tour_option_name: string | null;
-	updated_at: string;
-	booking_participants: {
+	payment_status: Database["public"]["Enums"]["payment_status_enum"];
+	payment_id?: string | null;
+	booking_items: Array<{
 		id: string;
-		participant: {
-			id: number;
-			name: string;
-			age_max: number;
-			age_min: number;
-		};
-		quantity: number;
-		unit_price: number;
-	}[];
+		tour_option_id: number;
+		preffered_date: string | null;
+		preffered_timeslot: string | null;
+		confirmed_date: string | null;
+		confirmed_timeslot: string | null;
+		tour_option_name: string | null;
+		tour_name: string | null;
+		participants: Array<{
+			participant_type_id: number;
+			quantity: number;
+			unit_price: number;
+			participant_name: string;
+			age_min?: number;
+			age_max?: number;
+		}>;
+	}>;
 } | null;
 
 export type HighLevelBooking = {
