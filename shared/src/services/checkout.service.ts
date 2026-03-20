@@ -59,91 +59,143 @@ export class CheckoutService extends Service {
 
 	/** Function to be used in the retry stripe checkout action function */
 	async resumePayment(bookingRef: string) {
-		const { data: booking, error: fetchErr } = await this.supabase
-			.from(this.BOOKINGS_TABLE)
-			.select(
-				`id, checkout_session_id, total, booking_ref, tour_id, tour_name, tour_option_name, customer_email, tour_details:${this.TOURS_TABLE}!inner(cover_image), booking_status, payment_status`,
-			)
-			.eq("booking_ref", bookingRef)
-			.single();
+		try {
+			// 1. Fetch booking + related items
+			const { data: booking, error: fetchErr } = await this.supabase
+				.from("bookings_new")
+				.select(
+					`
+					id,
+					total,
+					payment_id,
+					booking_ref,
+					customer_email,
+					booking_status,
+					payment:${this.PAYMENTS_TABLE}!inner (
+						payment_status,
+						checkout_session_id
+					),
+					booking_items (
+						tour_option_id,
+						${this.TOUR_OPTIONS_TABLE}!inner (
+							name,
+							${this.TOURS_TABLE}!inner (
+								name,
+								cover_image
+							)
+						),
+						booking_participants_new (
+							quantity,
+							unit_price,
+							${this.PARTICIPANT_TYPES_TABLE}!inner (
+								name
+							)
+						)
+					)
+					`,
+				)
+				.eq("booking_ref", bookingRef)
+				.single();
 
-		if (fetchErr || !booking || booking == null) {
-			return { error: "Booking not found" };
-		}
+			if (fetchErr || !booking) {
+				return { error: "Booking not found" };
+			}
 
-		if (
-			booking.booking_status === "CONFIRMED" ||
-			booking.booking_status === "CANCELLED" ||
-			booking.payment_status === "PAID" ||
-			booking.payment_status === "REFUNDED"
-		) {
+			// 2. Block retry if already completed or invalid
+			if (
+				booking.booking_status === "CONFIRMED" ||
+				booking.booking_status === "CANCELLED" ||
+				booking.payment.payment_status === "PAID" ||
+				booking.payment.payment_status === "REFUNDED"
+			) {
+				return {
+					error: "Cannot retry payment. Payment already completed or booking cancelled/refunded.",
+				};
+			}
+
+			let redirectUrl: string | null = null;
+			let newSessionId: string | null = null;
+
+			const stripeServerService = new StripeServerService();
+
+			// 3. Try to reuse existing session if it exists
+			if (booking.payment.checkout_session_id) {
+				const { session } = await stripeServerService.retreiveCheckoutSession(
+					booking.payment.checkout_session_id,
+				);
+
+				if (session?.payment_status === "paid") {
+					return { error: "Payment has already been completed" };
+				}
+
+				if (session?.url) {
+					redirectUrl = session.url;
+				}
+				// else: expired → create new
+			}
+
+			// 4. If no valid URL, create fresh checkout session
+			if (!redirectUrl) {
+				console.log("Generating new checkout session for resume");
+
+				// Build cartItems array (same format as booking creation)
+				const cartItems = (booking.booking_items || []).flatMap((item) => {
+					const tourName = item.tour_options?.tours?.name || "Tour Experience";
+					const optionName = item.tour_options?.name || "";
+
+					return (item.booking_participants_new || []).map((p) => ({
+						tour_name: tourName,
+						option_name: optionName
+							? `${optionName} - ${p.participant_types?.name || "Participant"}`
+							: undefined,
+						price: p.unit_price,
+						quantity: p.quantity,
+					}));
+				});
+
+				if (cartItems.length === 0) {
+					return { error: "No items found in booking" };
+				}
+
+				const { sessionId, url, error } = await stripeServerService.createCheckoutSession({
+					bookingRef: booking.booking_ref,
+					cartItems,
+					successUrl: `${process.env.VITE_MAIN_APP_URL}/booking/${booking.booking_ref}/payment-success`,
+					cancelUrl: `${process.env.VITE_MAIN_APP_URL}/booking/${booking.booking_ref}/payment-cancel`,
+					customer_email: booking.customer_email ?? undefined,
+				});
+
+				if (error || !url || !sessionId) {
+					return { error: error?.message || "Failed to create payment session" };
+				}
+
+				// 5. Update booking with new session ID
+				if (booking.payment_id) {
+					const { error: updateErr } = await this.supabase
+						.from("payments")
+						.update({
+							checkout_session_id: sessionId,
+						})
+						.eq("id", booking.payment_id);
+
+					if (updateErr) {
+						console.error("Failed to update checkout_session_id:", updateErr);
+					}
+				}
+
+				redirectUrl = url;
+				newSessionId = sessionId;
+			}
+
 			return {
-				error: "Cannot retry payment. Payment already completed or booking cancelled or refunded.",
+				success: true,
+				url: redirectUrl,
+				sessionId: newSessionId || booking.payment.checkout_session_id,
 			};
+		} catch (err: any) {
+			console.error("Resume payment error:", err);
+			return { error: err.message || "Failed to resume payment" };
 		}
-
-		let redirectUrl: string | null = null;
-		let newSessionId: string | null = null;
-
-		const stripeServerService = new StripeServerService();
-
-		if (booking.checkout_session_id) {
-			// Try to reuse existing session
-			const { session } = await stripeServerService.retreiveCheckoutSession(
-				booking.checkout_session_id,
-			);
-
-			// if payment already paid then return error
-			if (session != null && session.payment_status === "paid") {
-				return { error: "Tour payment has already paid" };
-			}
-
-			if (session != null && session.url) {
-				redirectUrl = session.url;
-			}
-			// else → expired, url = null → proceed to create new
-		}
-
-		if (redirectUrl == null) {
-			console.log("|| Generating new checkout session");
-
-			// Create fresh session (fallback)
-			const { sessionId, url, error } = await stripeServerService.createCheckoutSession({
-				bookingRef: booking.booking_ref,
-				tour_name: booking.tour_name as string,
-				tour_cover_img_url: SUPABASE_IMAGE_BUCKET_PATH + "/" + booking.tour_details.cover_image,
-				description: `Payment for tour: ${booking.tour_name} - ${booking.tour_option_name}`,
-				successUrl: `${process.env.VITE_MAIN_APP_URL}/booking/${booking.booking_ref}/payment-success?tour=${booking.tour_name as string}`,
-				cancelUrl: `${process.env.VITE_MAIN_APP_URL}/booking/${booking.booking_ref}/payment-cancel?tour=${booking.tour_name as string}`,
-				customer_email: booking.customer_email ?? undefined,
-			});
-
-			if (error || !url || !sessionId) {
-				return { error: error?.message || "Failed to create payment session" };
-			}
-
-			//  Update DB with new session ID
-			const { error: updateErr } = await this.supabase
-				.from(this.BOOKINGS_TABLE)
-				.update({
-					checkout_session_id: sessionId,
-					// Set payment status to PENDING (if required)
-				})
-				.eq("id", booking.id);
-
-			if (updateErr) {
-				console.error("Failed to update session ID:", updateErr);
-			}
-
-			redirectUrl = url;
-			newSessionId = sessionId;
-		}
-
-		return {
-			success: true,
-			url: redirectUrl,
-			sessionId: newSessionId || booking.checkout_session_id,
-		};
 	}
 
 	/** Function to refund the payment  */

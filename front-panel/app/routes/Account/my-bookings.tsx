@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { ArrowRight, ChevronLeft, ChevronRight, CircleAlert, Clock, Loader2, Ticket } from "lucide-react";
+import { ChevronLeft, ChevronRight, CircleAlert, Loader2 } from "lucide-react";
 import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
 import { currentFullUserQuery } from "~/queries/auth.q";
 import { queryClient } from "@workspace/shared/utils/query-client";
@@ -203,6 +203,23 @@ export default function MyBookingsPage() {
 											</Badge>
 
 											<BookingStatusBadge status={booking.booking_status} />
+											{booking.payment_status === "PENDING" ? (
+												<Button
+													size="sm"
+													disabled={fetchingPaymentLink}
+													onClick={() => getPaymentLink(booking.booking_ref)}
+													className="bg-destructive hover:bg-destructive/90 text-xs py-0! h-7 px-3"
+												>
+													{fetchingPaymentLink ? (
+														<Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+													) : (
+														<CircleAlert className="h-3.5 w-3.5 mr-1" />
+													)}
+													Pay Now
+												</Button>
+											) : (
+												<PaymentStatusBadge status={booking.payment_status} />
+											)}
 										</div>
 
 										{booking.customer_name && (
@@ -224,107 +241,48 @@ export default function MyBookingsPage() {
 								</div>
 							</div>
 
-							<div className="px-5 sm:px-6 pb-2 space-y-5 text-sm">
-								<div>
-									<div className="font-medium text-base leading-snug">
-										{booking.tour_name || "Untitled Tour"}
-									</div>
-									{booking.tour_option_name && (
-										<div className="text-muted-foreground mt-0.5">
-											{booking.tour_option_name}
-										</div>
-									)}
-								</div>
+							<div className="px-5 sm:px-6 pb-2 space-y-5">
+								<h3 className="font-medium text-base">Booked Tours</h3>
 
-								<div className="grid sm:grid-cols-2 gap-6 lg:gap-8">
-									<div className="flex gap-3">
-										<Clock className="h-4.5 w-4.5 text-muted-foreground mt-0.5 shrink-0" />
-										<div className="space-y-1">
-											<div className="font-medium">Date/Timeslot</div>
-
-											<div className="space-y-0.5 text-muted-foreground">
-												{booking.confirmed_date ? (
-													<>
-														<div>
-															<span className="font-medium text-foreground">
-																Confirmed:
-															</span>{" "}
-															{format(new Date(booking.confirmed_date), "PPP")}
-															{booking.confirmed_timeslot && (
-																<> • {booking.confirmed_timeslot}</>
-															)}
-														</div>
-													</>
-												) : booking.preffered_date ? (
-													<>
-														<div>
-															<span className="font-medium text-foreground">
-																Preferred:
-															</span>{" "}
-															{format(new Date(booking.preffered_date), "PPP")}
-															{booking.preffered_timeslot && (
-																<> • {booking.preffered_timeslot}</>
-															)}
-														</div>
-														<div className="text-xs">(Awaiting confirmation)</div>
-													</>
-												) : (
-													<div className="italic">Date not specified</div>
-												)}
-											</div>
-										</div>
-									</div>
-
-									<div className="flex gap-3">
-										<Ticket className="h-4.5 w-4.5 text-muted-foreground mt-0.5 shrink-0" />
-										<div className="space-y-1 flex-1">
-											<div className="font-medium">Payment & Status</div>
-
-											<div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-												<PaymentStatusBadge status={booking.payment_status} />
-
-												{booking.confirmed_at ? (
-													<div className="text-xs text-muted-foreground">
-														Confirmed on{" "}
-														{format(new Date(booking.confirmed_at), "PPp")}
-													</div>
-												) : (
-													<div className="text-xs text-muted-foreground italic">
-														Not yet confirmed
+								{booking.items.length === 0 ? (
+									<p className="text-sm text-muted-foreground italic">
+										No tour details available
+									</p>
+								) : (
+									<div className="space-y-3">
+										{booking.items.map((item, idx) => (
+											<div key={idx} className="border-l-2 border-primary/30 pl-3">
+												<div className="font-medium">{item.tour_name}</div>
+												{item.tour_option_name && (
+													<div className="text-sm text-muted-foreground">
+														{item.tour_option_name}
 													</div>
 												)}
+												<div className="text-xs text-muted-foreground mt-1">
+													{item.confirmed_date ? (
+														<>
+															Confirmed:{" "}
+															{format(new Date(item.confirmed_date), "PPP")}
+															{item.confirmed_timeslot && (
+																<> • {item.confirmed_timeslot}</>
+															)}
+														</>
+													) : item.preffered_date ? (
+														<>
+															Preferred:{" "}
+															{format(new Date(item.preffered_date), "PPP")}
+															{item.preffered_timeslot && (
+																<> • {item.preffered_timeslot}</>
+															)}
+														</>
+													) : (
+														"Date not specified"
+													)}
+												</div>
 											</div>
-										</div>
+										))}
 									</div>
-								</div>
-
-								<div className="flex justify-end gap-2 pt-2">
-									{booking.payment_status === "PENDING" && (
-										<Button
-											size={"sm"}
-											disabled={fetchingPaymentLink}
-											className="bg-warning hover:bg-warning/90"
-											onClick={() => getPaymentLink(booking.booking_ref)}
-										>
-											{fetchingPaymentLink ? (
-												<Loader2 className="w-4 h-4 animate-spin" />
-											) : (
-												<CircleAlert className="w-4 h-4" />
-											)}
-											Pay Now
-										</Button>
-									)}
-									<Link
-										to={`/track-booking?ref=${booking.booking_ref}`}
-										viewTransition
-										prefetch="intent"
-									>
-										<Button variant="outline" size="sm">
-											View Details
-											<ArrowRight />
-										</Button>
-									</Link>
-								</div>
+								)}
 							</div>
 						</Card>
 					))}

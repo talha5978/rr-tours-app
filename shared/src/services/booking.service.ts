@@ -682,37 +682,42 @@ export class BookingService extends Service {
 		const to = from + pageSize - 1;
 
 		try {
-			if (userId === null || userId === "") {
-				throw new ApiError("Failed to fetch your bookings", 500, []);
+			if (!userId) {
+				throw new ApiError("User ID required", 401, []);
 			}
 
-			let query = this.supabase
-				.from(this.BOOKINGS_TABLE)
+			const { data, error, count } = await this.supabase
+				.from("bookings_new")
 				.select(
 					`
 						id,
 						booking_ref,
 						booking_status,
-						payment_status,
-						tour_id,
-						tour_name,
-						tour_option_name,
-						preferred_date,
-						preferred_timeslot,
-						confirmed_date,
-						confirmed_timeslot,
+						payment:${this.PAYMENTS_TABLE}!inner (
+							payment_status
+						),
 						total,
 						created_at,
 						confirmed_at,
-						customer_name
+						customer_name,
+						booking_items (
+							preffered_date,
+							preffered_timeslot,
+							confirmed_date,
+							confirmed_timeslot,
+							${this.TOUR_OPTIONS_TABLE}!inner (
+								name,
+								${this.TOURS_TABLE}!inner (
+									name
+								)
+							)
+						)
 					`,
 					{ count: "exact" },
 				)
 				.eq("added_by", userId)
 				.order("created_at", { ascending: false })
 				.range(from, to);
-
-			const { data, error, count } = await query;
 
 			if (error) {
 				throw new ApiError("Failed to fetch your bookings", 500, [error.message]);
@@ -722,18 +727,19 @@ export class BookingService extends Service {
 				id: b.id,
 				booking_ref: b.booking_ref,
 				booking_status: b.booking_status,
-				payment_status: b.payment_status,
-				tour_id: b.tour_id,
-				tour_name: b.tour_name,
-				tour_option_name: b.tour_option_name,
-				preffered_date: b.preferred_date,
-				preffered_timeslot: b.preferred_timeslot,
-				confirmed_date: b.confirmed_date,
-				confirmed_timeslot: b.confirmed_timeslot,
+				payment_status: b.payment.payment_status,
 				total: b.total,
 				created_at: b.created_at,
 				confirmed_at: b.confirmed_at,
 				customer_name: b.customer_name ?? undefined,
+				items: (b.booking_items || []).map((item) => ({
+					tour_name: item.tour_options?.tours?.name || "Untitled Tour",
+					tour_option_name: item.tour_options?.name || null,
+					preffered_date: item.preffered_date || null,
+					preffered_timeslot: item.preffered_timeslot || null,
+					confirmed_date: item.confirmed_date || null,
+					confirmed_timeslot: item.confirmed_timeslot || null,
+				})),
 			}));
 
 			return {
