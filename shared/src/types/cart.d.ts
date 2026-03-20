@@ -19,17 +19,15 @@ export type CartItemDetail = {
 	preferred_date: string | null;
 	preferred_timeslot: string | null;
 	created_at: string | null;
-	// Joined from tour_options
 	tour_option_name: string | null;
-	// Joined from tour_options → tours
 	tour_id: string | null;
 	tour_name: string | null;
-	// Quantities
 	quantities: Array<{
 		participant_type_id: number;
 		quantity: number;
 		participant_type_name: string | null;
 		participant_age_group: string | null;
+		price: number;
 	}>;
 };
 

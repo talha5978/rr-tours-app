@@ -172,6 +172,57 @@ export type Database = {
 					},
 				];
 			};
+			booking_items: {
+				Row: {
+					booking_id: string;
+					confirmed_date: string | null;
+					confirmed_timeslot: string | null;
+					id: string;
+					preffered_date: string | null;
+					preffered_timeslot: string | null;
+					price_overriden: boolean | null;
+					pricing_note: string | null;
+					tour_option_id: number;
+				};
+				Insert: {
+					booking_id: string;
+					confirmed_date?: string | null;
+					confirmed_timeslot?: string | null;
+					id?: string;
+					preffered_date?: string | null;
+					preffered_timeslot?: string | null;
+					price_overriden?: boolean | null;
+					pricing_note?: string | null;
+					tour_option_id: number;
+				};
+				Update: {
+					booking_id?: string;
+					confirmed_date?: string | null;
+					confirmed_timeslot?: string | null;
+					id?: string;
+					preffered_date?: string | null;
+					preffered_timeslot?: string | null;
+					price_overriden?: boolean | null;
+					pricing_note?: string | null;
+					tour_option_id?: number;
+				};
+				Relationships: [
+					{
+						foreignKeyName: "booking_items_booking_id_fkey";
+						columns: ["booking_id"];
+						isOneToOne: false;
+						referencedRelation: "bookings_new";
+						referencedColumns: ["id"];
+					},
+					{
+						foreignKeyName: "booking_items_tour_option_id_fkey";
+						columns: ["tour_option_id"];
+						isOneToOne: false;
+						referencedRelation: "tour_options";
+						referencedColumns: ["id"];
+					},
+				];
+			};
 			booking_participants: {
 				Row: {
 					booking_id: string;
@@ -204,6 +255,45 @@ export type Database = {
 					},
 					{
 						foreignKeyName: "booking_participants_participant_type_id_fkey";
+						columns: ["participant_type_id"];
+						isOneToOne: false;
+						referencedRelation: "participant_types";
+						referencedColumns: ["id"];
+					},
+				];
+			};
+			booking_participants_new: {
+				Row: {
+					booking_item_id: string;
+					id: string;
+					participant_type_id: number;
+					quantity: number;
+					unit_price: number;
+				};
+				Insert: {
+					booking_item_id: string;
+					id?: string;
+					participant_type_id: number;
+					quantity: number;
+					unit_price: number;
+				};
+				Update: {
+					booking_item_id?: string;
+					id?: string;
+					participant_type_id?: number;
+					quantity?: number;
+					unit_price?: number;
+				};
+				Relationships: [
+					{
+						foreignKeyName: "booking_participants_new_booking_item_id_fkey";
+						columns: ["booking_item_id"];
+						isOneToOne: false;
+						referencedRelation: "booking_items";
+						referencedColumns: ["id"];
+					},
+					{
+						foreignKeyName: "booking_participants_new_participant_type_id_fkey";
 						columns: ["participant_type_id"];
 						isOneToOne: false;
 						referencedRelation: "participant_types";
@@ -325,6 +415,87 @@ export type Database = {
 						columns: ["tour_option_id"];
 						isOneToOne: false;
 						referencedRelation: "tour_options";
+						referencedColumns: ["id"];
+					},
+				];
+			};
+			bookings_new: {
+				Row: {
+					added_by: string | null;
+					admin_note: string | null;
+					booking_ref: string;
+					booking_status: Database["public"]["Enums"]["booking_status_enum"];
+					cancelled_at: string | null;
+					confirmed_at: string | null;
+					confirmed_date: string | null;
+					confirmed_timeslot: string | null;
+					created_at: string;
+					customer_email: string | null;
+					customer_name: string | null;
+					customer_phone: string | null;
+					discount: number;
+					id: string;
+					payment_id: string | null;
+					subtotal_amount: number;
+					taxes: number;
+					total: number;
+					updated_at: string;
+				};
+				Insert: {
+					added_by?: string | null;
+					admin_note?: string | null;
+					booking_ref: string;
+					booking_status?: Database["public"]["Enums"]["booking_status_enum"];
+					cancelled_at?: string | null;
+					confirmed_at?: string | null;
+					confirmed_date?: string | null;
+					confirmed_timeslot?: string | null;
+					created_at?: string;
+					customer_email?: string | null;
+					customer_name?: string | null;
+					customer_phone?: string | null;
+					discount?: number;
+					id?: string;
+					payment_id?: string | null;
+					subtotal_amount?: number;
+					taxes?: number;
+					total?: number;
+					updated_at?: string;
+				};
+				Update: {
+					added_by?: string | null;
+					admin_note?: string | null;
+					booking_ref?: string;
+					booking_status?: Database["public"]["Enums"]["booking_status_enum"];
+					cancelled_at?: string | null;
+					confirmed_at?: string | null;
+					confirmed_date?: string | null;
+					confirmed_timeslot?: string | null;
+					created_at?: string;
+					customer_email?: string | null;
+					customer_name?: string | null;
+					customer_phone?: string | null;
+					discount?: number;
+					id?: string;
+					payment_id?: string | null;
+					subtotal_amount?: number;
+					taxes?: number;
+					total?: number;
+					updated_at?: string;
+				};
+				Relationships: [
+					{
+						foreignKeyName: "bookings_new_added_by_fkey";
+						columns: ["added_by"];
+						isOneToOne: false;
+						referencedRelation: "app_users";
+						referencedColumns: ["user_id"];
+					},
+					{
+						foreignKeyName: "bookings_new_payment_id_fkey";
+						columns: ["payment_id"];
+						isOneToOne: false;
+						referencedRelation: "payments";
 						referencedColumns: ["id"];
 					},
 				];

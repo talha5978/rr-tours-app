@@ -2,7 +2,7 @@ import { Service } from "@workspace/shared/services/service.base";
 import { UseClassMiddleware } from "@workspace/shared/decorators/useClassMiddleware";
 import { loggerMiddleware } from "@workspace/shared/middlewares/logger.middleware";
 import { ApiError } from "@workspace/shared/utils/ApiError";
-import { type CreateBookingInput } from "@workspace/shared/schemas/booking.schema";
+import { type CreateBookingFromCartInput } from "@workspace/shared/schemas/booking.schema";
 import { BookingService } from "@workspace/shared/services/booking.service";
 import { StripeServerService } from "@workspace/shared/services/stripe.service";
 import Stripe from "stripe";
@@ -12,14 +12,18 @@ import { SUPABASE_IMAGE_BUCKET_PATH } from "@workspace/shared/constants/constant
 @UseClassMiddleware(loggerMiddleware)
 export class CheckoutService extends Service {
 	/** Function to be used in the confirm checkout action function */
-	async confirmCheckout(input: CreateBookingInput & { added_by: string | null }) {
+	async confirmCheckout(input: CreateBookingFromCartInput) {
+		if (!input.added_by) {
+			return { success: false, clientSecret: null, bookingRef: null, error: "User not found" };
+		}
+
 		let bookingRef: string | null = null;
 		let clientSecret: string | null = null;
 
 		try {
 			const bookingSvc = await this.createSubService(BookingService);
 			try {
-				bookingRef = await bookingSvc.createBooking(input);
+				bookingRef = await bookingSvc.createBookingFromCart(input);
 			} catch (error: any) {
 				return {
 					success: false,
@@ -105,7 +109,6 @@ export class CheckoutService extends Service {
 
 			// Create fresh session (fallback)
 			const { sessionId, url, error } = await stripeServerService.createCheckoutSession({
-				amount: booking.total,
 				bookingRef: booking.booking_ref,
 				tour_name: booking.tour_name as string,
 				tour_cover_img_url: SUPABASE_IMAGE_BUCKET_PATH + "/" + booking.tour_details.cover_image,

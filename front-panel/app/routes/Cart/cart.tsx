@@ -146,7 +146,7 @@ export default function CartPage() {
 
 	const subtotal = myCart.items.reduce((sum, item) => {
 		const itemTotal = item.quantities.reduce((acc, q) => {
-			return acc + q.quantity * 100;
+			return acc + q.quantity * (q?.price ?? 0);
 		}, 0);
 		return sum + itemTotal;
 	}, 0);
@@ -243,7 +243,6 @@ export default function CartPage() {
 							)}
 							Clear Cart
 						</Button>
-						{/* <form action="/clear-cart" method="POST"> ... </form> */}
 					</div>
 				</div>
 
@@ -304,15 +303,6 @@ export default function CartPage() {
 											))}
 										</div>
 									</div>
-
-									<div className="flex justify-between items-center pt-2">
-										<p className="text-sm text-muted-foreground">
-											Subtotal (placeholder)
-										</p>
-										<p className="font-medium">
-											AED {(subtotal / myCart.total_items).toFixed(2)}
-										</p>
-									</div>
 								</CardContent>
 							</Card>
 						))}
@@ -347,10 +337,10 @@ export default function CartPage() {
 									<span>AED {subtotal.toFixed(2)}</span>
 								</div>
 
-								<Button className="w-full gap-2" size="lg" asChild>
-									<Link to="/checkout">
+								<Button className="w-full gap-2 group" size="lg" asChild>
+									<Link to="/booking" viewTransition prefetch="viewport">
 										Proceed to Checkout
-										<ArrowRight className="h-4 w-4" />
+										<ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition duration-200" />
 									</Link>
 								</Button>
 

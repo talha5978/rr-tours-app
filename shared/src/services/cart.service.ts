@@ -26,9 +26,7 @@ export class CartService extends Service {
 	}
 
 	/** Get user cart */
-	async getCart(user_id: string, page: number = 1): Promise<GetCartResponse> {
-		const pageSize = 15;
-
+	async getCart(user_id: string, page: number = 1, pageSize: number = 15): Promise<GetCartResponse> {
 		try {
 			// 1. Get user's cart
 			const { data: cart, error: cartError } = await this.supabase
@@ -76,19 +74,19 @@ export class CartService extends Service {
 				.from(this.CART_ITEMS_TABLE)
 				.select(
 					`
-                    id,
-                    tour_option_id,
-                    preferred_date,
-                    preferred_timeslot,
-                    created_at,
-                    ${this.TOUR_OPTIONS_TABLE}!inner (
-                        name,
-                        tour_id,
-                        ${this.TOURS_TABLE}!inner (
-                            name
-                        )
-                    )
-                    `,
+						id,
+						tour_option_id,
+						preferred_date,
+						preferred_timeslot,
+						created_at,
+						${this.TOUR_OPTIONS_TABLE}!inner (
+							name,
+							tour_id,
+							${this.TOURS_TABLE}!inner (
+								name
+							)
+						)
+					`,
 				)
 				.eq("cart_id", cartId)
 				.range((page - 1) * pageSize, page * pageSize - 1)
@@ -105,22 +103,22 @@ export class CartService extends Service {
 				};
 			}
 
-			// 4. Fetch all quantities for these items (batch)
+			// 4. Fetch all quantities for these items
 			const cartItemIds = cartItems.map((item) => item.id);
 
 			const { data: quantities, error: qtyError } = await this.supabase
 				.from(this.CART_ITEMS_QUANTITIES_TABLE)
 				.select(
 					`
-                        cart_item_id,
-                        participant_type_id,
-                        quantity,
-                        ${this.PARTICIPANT_TYPES_TABLE}!inner (
-                            name,
-							age_min,
-							age_max
-                        )
-                    `,
+					cart_item_id,
+					participant_type_id,
+					quantity,
+					${this.PARTICIPANT_TYPES_TABLE}!inner (
+						name,
+						age_min,
+						age_max
+					)
+				`,
 				)
 				.in("cart_item_id", cartItemIds);
 
@@ -135,26 +133,65 @@ export class CartService extends Service {
 				};
 			}
 
-			// 5. Group quantities by cart_item_id
-			const quantitiesByItem = new Map<number, any[]>();
-			quantities?.forEach((q) => {
-				if (!quantitiesByItem.has(q.cart_item_id)) {
-					quantitiesByItem.set(q.cart_item_id, []);
+			// 5. Batch fetch ALL relevant prices for these tour options
+			const tourOptionIds = [...new Set(cartItems.map((item) => item.tour_option_id))];
+
+			const { data: allPrices, error: priceError } = await this.supabase
+				.from(this.TOUR_OPTION_PRICES_TABLE)
+				.select("tour_option_id, participant_type_id, price")
+				.in("tour_option_id", tourOptionIds);
+
+			if (priceError) {
+				return {
+					success: false,
+					cart_id: cartId,
+					total_items: totalItems,
+					items: [],
+					pagination: { page, pageSize, totalPages, hasMore },
+					error: priceError.message || "Failed to fetch prices",
+				};
+			}
+
+			// Build price map: tour_option_id → participant_type_id → price
+			const priceMap = new Map<number, Map<number, number>>();
+			allPrices?.forEach((p) => {
+				if (!priceMap.has(p.tour_option_id)) {
+					priceMap.set(p.tour_option_id, new Map());
 				}
-				quantitiesByItem.get(q.cart_item_id)!.push({
+				priceMap.get(p.tour_option_id)!.set(p.participant_type_id, p.price);
+			});
+
+			// 6. Group quantities by cart_item_id + attach real price
+			const quantitiesByItem = new Map<number, any[]>();
+			quantities?.forEach((q: any) => {
+				const itemId = q.cart_item_id;
+				if (!quantitiesByItem.has(itemId)) {
+					quantitiesByItem.set(itemId, []);
+				}
+
+				// Find the tour_option_id for this cart item
+				const cartItem = cartItems.find((ci) => ci.id === itemId);
+				const tourOptionId = cartItem?.tour_option_id;
+
+				const realPrice = tourOptionId
+					? (priceMap.get(tourOptionId)?.get(q.participant_type_id) ?? 0)
+					: 0;
+
+				quantitiesByItem.get(itemId)!.push({
 					participant_type_id: q.participant_type_id,
 					quantity: q.quantity,
 					participant_type_name: q.participant_types?.name || null,
 					participant_age_group:
-						q.participant_types.age_max === 0 && q.participant_types.age_min === 0
+						q.participant_types?.age_max === 0 && q.participant_types?.age_min === 0
 							? "Group"
-							: q.participant_types.age_max === 99
-								? q.participant_types.age_min + "+"
-								: q.participant_types.age_min + "-" + q.participant_types.age_max,
+							: q.participant_types?.age_max === 99
+								? `${q.participant_types.age_min}+`
+								: `${q.participant_types.age_min}-${q.participant_types.age_max}`,
+					price: realPrice,
 				});
 			});
 
-			// 6. Build final response
+			// 7. Build final response
 			const items: CartItemDetail[] = cartItems.map((ci: any) => ({
 				cart_item_id: ci.id,
 				tour_option_id: ci.tour_option_id,

@@ -33,6 +33,17 @@ export const createBookingSchema = z.object({
 
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;
 
+export const createBookingFromCartSchema = z.object({
+	customer_name: z.string().min(1, "Name is required"),
+	customer_email: z.string().email("Invalid email").min(1),
+	customer_phone: z.string().min(10, "Phone number must be at least 10 digits"),
+	cart_id: z.number().positive("Cart ID is required"),
+	recaptchaToken: z.string().min(1, "Captcha is required"),
+	added_by: z.string().nullable(),
+});
+
+export type CreateBookingFromCartInput = z.infer<typeof createBookingFromCartSchema>;
+
 export const customerBookingSchema = createBookingSchema.pick({
 	customer_name: true,
 	customer_email: true,

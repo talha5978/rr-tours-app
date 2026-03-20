@@ -4,16 +4,21 @@ import { ApiError } from "@workspace/shared/utils/ApiError";
 import { type ActionFunctionArgs } from "react-router";
 import z from "zod";
 
-const checkoutSessionSchema = z.object({
-	amount: z
-		.number({ invalid_type_error: "Amount is required", required_error: "Amount is required" })
-		.positive("Amount must be positive"),
-	bookingRef: z.string({ required_error: "Booking reference is required" }),
-	tour_name: z.string({ required_error: "Tour name is required" }),
-	tour_cover_img_url: z.string({ required_error: "Tour cover image URL is required" }),
-	description: z.string().optional(),
-	successUrl: z.string({ required_error: "Success URL is required" }),
-	cancelUrl: z.string({ required_error: "Cancel URL is required" }),
+const schema = z.object({
+	bookingRef: z.string().min(1, "Booking reference is required"),
+	cartItems: z
+		.array(
+			z.object({
+				tour_name: z.string().min(1),
+				option_name: z.string().optional(),
+				price: z.number().nonnegative(),
+				quantity: z.number().int().positive(),
+			}),
+		)
+		.min(1, "At least one item is required"),
+	successUrl: z.string().url(),
+	cancelUrl: z.string().url(),
+	customer_email: z.string().email().optional(),
 });
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -33,18 +38,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 		};
 	}
 
-	const data = {
-		amount: reqBody.amount as unknown as number,
-		bookingRef: reqBody.bookingRef as string,
-		tour_name: reqBody.tour_name as string,
-		tour_cover_img_url: reqBody.tour_cover_img_url as string,
-		description: (reqBody.description as unknown as string) || undefined,
-		successUrl: reqBody.successUrl as string,
-		cancelUrl: reqBody.cancelUrl as string,
-	};
-
 	// console.log(data);
-	const parseResult = checkoutSessionSchema.safeParse(data);
+	const parseResult = schema.safeParse(reqBody);
 
 	if (!parseResult.success) {
 		return {
@@ -56,11 +51,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 	}
 
 	const stripeSvc = new StripeServerService();
-	const resp = await stripeSvc.createCheckoutSession(data);
+
+	const resp = await stripeSvc.createCheckoutSession({
+		bookingRef: parseResult.data.bookingRef,
+		cartItems: parseResult.data.cartItems,
+		successUrl: parseResult.data.successUrl,
+		cancelUrl: parseResult.data.cancelUrl,
+		customer_email: parseResult.data.customer_email,
+	});
 
 	if (resp.sessionId != null) {
 		const bookingSvc = new BookingService(request);
-		await bookingSvc.updateBookingCheckoutSessionId(data.bookingRef, resp.sessionId);
+		await bookingSvc.updateBookingCheckoutSessionId(parseResult.data.bookingRef, resp.sessionId);
 	}
 
 	return resp;

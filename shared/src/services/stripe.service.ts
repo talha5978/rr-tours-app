@@ -63,46 +63,41 @@ export class StripeServerService extends StripeService {
 
 	/** Create Checkout Session for Stripe-hosted payment page */
 	async createCheckoutSession({
-		amount,
 		bookingRef,
-		tour_name,
-		tour_cover_img_url,
-		description,
+		cartItems,
 		successUrl,
 		cancelUrl,
 		customer_email,
-		customer_ref,
 	}: {
-		amount: number;
 		bookingRef: string;
-		tour_name: string;
-		tour_cover_img_url: string;
-		description?: string;
+		cartItems: Array<{
+			tour_name: string;
+			option_name?: string;
+			price: number;
+			quantity: number;
+		}>;
 		successUrl: string;
 		cancelUrl: string;
 		customer_email?: string;
-		customer_ref?: string;
 	}): Promise<{ sessionId: string | null; url: string | null; error: ApiError | null }> {
 		try {
+			const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = cartItems.map((item) => ({
+				price_data: {
+					currency: "aed",
+					product_data: {
+						name: item.tour_name,
+						description: item.option_name || "Tour Experience",
+					},
+					unit_amount: Math.round(item.price * 100),
+				},
+				quantity: item.quantity || 1,
+			}));
+
 			const session = await this.stripe.checkout.sessions.create({
 				payment_method_types: ["card"],
-				line_items: [
-					{
-						price_data: {
-							currency: this.getPaymentCurrency(),
-							product_data: {
-								name: tour_name,
-								description: description || "Tour Booking",
-								images: [tour_cover_img_url],
-							},
-							unit_amount: Math.round(amount * 100),
-						},
-						quantity: 1,
-					},
-				],
+				line_items,
 				mode: "payment",
-				customer_email: customer_email ?? undefined,
-				client_reference_id: customer_ref ?? undefined,
+				customer_email,
 				success_url: successUrl,
 				cancel_url: cancelUrl,
 				metadata: { bookingRef },
@@ -113,12 +108,7 @@ export class StripeServerService extends StripeService {
 			return {
 				sessionId: null,
 				url: null,
-				error:
-					err instanceof ApiError
-						? err
-						: new ApiError(err.message ?? "Failed to create checkout session", 500, [
-								err.message,
-							]),
+				error: new ApiError(err.message || "Failed to create checkout session", 500),
 			};
 		}
 	}

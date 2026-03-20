@@ -2,7 +2,11 @@ import { Service } from "@workspace/shared/services/service.base";
 import { UseClassMiddleware } from "@workspace/shared/decorators/useClassMiddleware";
 import { loggerMiddleware } from "@workspace/shared/middlewares/logger.middleware";
 import { ApiError } from "@workspace/shared/utils/ApiError";
-import { CreateBookingInput, UpdateBookingActionData } from "@workspace/shared/schemas/booking.schema";
+import {
+	CreateBookingFromCartInput,
+	CreateBookingInput,
+	UpdateBookingActionData,
+} from "@workspace/shared/schemas/booking.schema";
 import { Database } from "@workspace/shared/types/supabase";
 import type {
 	BookingDetailById,
@@ -31,6 +35,10 @@ export class BookingService extends Service {
 			for (let i = 0; i < this.BOOKING_REF_LENGTH; i++) {
 				ref += chars[Math.floor(Math.random() * chars.length)];
 			}
+
+			let current_yr = new Date().getFullYear();
+			current_yr = current_yr % 100;
+			ref = `${current_yr}${ref}`;
 
 			const { count } = await this.supabase
 				.from(this.BOOKINGS_TABLE)
@@ -551,14 +559,30 @@ export class BookingService extends Service {
 		bookingRef: string,
 		checkout_session_id: string,
 	): Promise<{ error: ApiError | null }> {
-		const { error } = await this.supabase
-			.from(this.BOOKINGS_TABLE)
+		const { error, data } = await this.supabase
+			.from("bookings_new")
+			.select("payment_id")
+			.eq("booking_ref", bookingRef)
+			.single();
+
+		if (error || !data) {
+			return {
+				error: error ? new ApiError("Failed to update checkout session id", 500, [error]) : null,
+			};
+		}
+
+		const { error: updateError } = await this.supabase
+			.from(this.PAYMENTS_TABLE)
 			.update({
 				checkout_session_id: checkout_session_id.trim(),
 			})
-			.eq("booking_ref", bookingRef);
+			.eq("id", data.payment_id!);
 
-		return { error: error ? new ApiError("Failed to update checkout session id", 500, [error]) : null };
+		return {
+			error: updateError
+				? new ApiError("Failed to update checkout session id", 500, [updateError])
+				: null,
+		};
 	}
 
 	/** get booking details for confirmation email dialog */
@@ -691,6 +715,241 @@ export class BookingService extends Service {
 				total: 0,
 				error: apiErr,
 			};
+		}
+	}
+
+	/**
+	 * Create booking from entire cart (multi-item support)
+	 */
+	async createBookingFromCart(input: CreateBookingFromCartInput): Promise<string> {
+		let bookingRef: string | null = null;
+		let bookingId: string | null = null;
+
+		try {
+			const { data: cartData, error: cartError } = await this.supabase
+				.from(this.CARTS_TABLE)
+				.select(
+					`
+						id,
+						${this.CART_ITEMS_TABLE} (
+							id,
+							tour_option_id,
+							preferred_date,
+							preferred_timeslot,
+							${this.CART_ITEMS_QUANTITIES_TABLE} (
+								participant_type_id,
+								quantity
+							)
+						)
+					`,
+				)
+				.eq("id", input.cart_id!)
+				.single();
+
+			if (cartError || !cartData?.cart_items?.length) {
+				throw new ApiError("Cart is empty or not found", 404);
+			}
+
+			bookingRef = await this.generateUniqueBookingRef();
+
+			const { data: booking, error: bookingError } = await this.supabase
+				.from("bookings_new")
+				.insert({
+					booking_ref: bookingRef,
+					booking_status: "PENDING",
+					customer_name: input.customer_name,
+					customer_email: input.customer_email,
+					customer_phone: input.customer_phone,
+					added_by: input.added_by,
+					subtotal_amount: 0,
+					discount: 0,
+					taxes: 0,
+					total: 0,
+				})
+				.select("id")
+				.single();
+
+			if (bookingError || !booking) {
+				throw new ApiError("Failed to create booking record", 500);
+			}
+
+			bookingId = booking.id;
+			let subtotal = 0;
+
+			for (const cartItem of cartData.cart_items) {
+				const { tour_option_id, preferred_date, preferred_timeslot, cart_items_quantities } =
+					cartItem;
+
+				const totalRequested = cart_items_quantities.reduce((sum, p) => sum + p.quantity, 0);
+
+				const { data: booked, error: bookedErr } = await this.supabase
+					.from("booking_items")
+					.select(
+						`booking_participants_new!inner(quantity), booking:bookings_new(id, booking_status)`,
+					)
+					.eq("tour_option_id", tour_option_id)
+					.eq("preffered_date", preferred_date as string)
+					.eq("preffered_timeslot", preferred_timeslot as string)
+					.in("booking.booking_status", ["PENDING", "CONFIRMED"]);
+
+				if (bookedErr) throw new ApiError("Failed to check booked capacity", 500);
+
+				const alreadyBooked =
+					booked?.reduce(
+						(sum, b) =>
+							sum + (b.booking_participants_new?.reduce((s, p) => s + p.quantity, 0) ?? 0),
+						0,
+					) ?? 0;
+
+				const weekday = await this.getDayOfWeek(preferred_date as string);
+
+				const { data: capacityData, error: capErr } = await this.supabase
+					.from(this.AVAILABILITY_RULES_TABLE)
+					.select(
+						`
+						${this.TIMESLOTS_TABLE}!inner (
+							id,
+							label,
+							capacity
+						)
+					`,
+					)
+					.eq("tour_option_id", tour_option_id)
+					.lte("start_date", preferred_date as string)
+					.gte("end_date", preferred_date as string)
+					.contains("weekdays", [weekday])
+					.single();
+
+				if (capErr || !capacityData) {
+					console.error(capErr ?? "No api error");
+					throw new ApiError("No availability rule found for this date", 400);
+				}
+
+				const matchingSlot = capacityData.time_slots.find(
+					(slot) => slot.label === preferred_timeslot,
+				);
+
+				if (!matchingSlot) {
+					throw new ApiError(
+						`Time slot "${preferred_timeslot}" not available on ${preferred_date}`,
+						400,
+					);
+				}
+
+				const maxCapacity = matchingSlot.capacity ?? Infinity;
+
+				// console.log(alreadyBooked, totalRequested, maxCapacity);
+
+				if (alreadyBooked + totalRequested > maxCapacity) {
+					throw new ApiError(
+						`Not enough capacity available (Only ${maxCapacity - alreadyBooked} left)`,
+						409,
+						[],
+					);
+				}
+
+				const { data: bookingItem, error: itemError } = await this.supabase
+					.from("booking_items")
+					.insert({
+						booking_id: bookingId,
+						tour_option_id,
+						preffered_date: preferred_date,
+						preffered_timeslot: preferred_timeslot,
+						price_overriden: false,
+						pricing_note: null,
+					})
+					.select("id")
+					.single();
+
+				if (itemError || !bookingItem) {
+					throw new ApiError("Failed to create booking item", 500);
+				}
+
+				// --- Get real prices for this option ---
+				const { data: prices } = await this.supabase
+					.from(this.TOUR_OPTION_PRICES_TABLE)
+					.select("participant_type_id, price")
+					.eq("tour_option_id", tour_option_id);
+
+				console.log("--> PRICES DATA:\n", prices);
+
+				const priceMap = new Map(prices?.map((p) => [p.participant_type_id, p.price]) || []);
+
+				// --- Insert participants ---
+				const participantsData = cart_items_quantities.map((q) => ({
+					booking_item_id: bookingItem.id,
+					participant_type_id: q.participant_type_id,
+					quantity: q.quantity,
+					unit_price: priceMap.get(q.participant_type_id) || 0,
+				}));
+
+				const { error: participantsError } = await this.supabase
+					.from("booking_participants_new")
+					.insert(participantsData);
+
+				if (participantsError) {
+					console.error(participantsError);
+					throw new ApiError("Failed to insert participants", 500);
+				}
+
+				// Accumulate subtotal
+				subtotal += participantsData.reduce((sum, p) => sum + p.unit_price * p.quantity, 0);
+			}
+
+			await this.supabase
+				.from("bookings_new")
+				.update({
+					subtotal_amount: subtotal,
+					total: subtotal,
+				})
+				.eq("id", bookingId);
+
+			const { data: paymentInsert } = await this.supabase
+				.from(this.PAYMENTS_TABLE)
+				.insert({
+					checkout_session_id: null,
+					payment_intent_id: null,
+					paid_at: null,
+					currency: "aed",
+					paid_amount: 0.0,
+					payment_status: "PENDING",
+				})
+				.select("id")
+				.single();
+
+			if (paymentInsert) {
+				await this.supabase
+					.from("bookings_new")
+					.update({
+						payment_id: paymentInsert.id,
+					})
+					.eq("id", bookingId);
+			}
+
+			return bookingRef;
+		} catch (error: any) {
+			if (bookingId) {
+				console.warn(`[ROLLBACK] Deleting incomplete booking ${bookingId}`);
+				const { data: booking_item_ids } = await this.supabase
+					.from("booking_items")
+					.delete()
+					.eq("booking_id", bookingId)
+					.select("id");
+				if (booking_item_ids) {
+					await this.supabase
+						.from("booking_participants_new")
+						.delete()
+						.in(
+							"booking_item_id",
+							booking_item_ids.map((b) => b.id),
+						);
+				}
+				await this.supabase.from("bookings_new").delete().eq("id", bookingId);
+			}
+
+			throw error instanceof ApiError
+				? error
+				: new ApiError(error.message || "Failed to create booking from cart", 500);
 		}
 	}
 }

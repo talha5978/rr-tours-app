@@ -2,10 +2,8 @@ import {
 	type ActionFunctionArgs,
 	Link,
 	useActionData,
-	useLocation,
-	useNavigate,
+	useLoaderData,
 	useNavigation,
-	useRouteLoaderData,
 	useSubmit,
 } from "react-router";
 import { useForm } from "react-hook-form";
@@ -15,66 +13,51 @@ import { Input } from "~/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Separator } from "~/components/ui/separator";
 import { format } from "date-fns";
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { TourDetailOption, TourDetailAvailability } from "@workspace/shared/types/tours";
-import { GetTourDetails } from "@workspace/shared/types/tours";
+import { useEffect, useRef, useState } from "react";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
-import { SUPABASE_IMAGE_BUCKET_PATH } from "@workspace/shared/constants/constants";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/components/ui/form";
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { PhoneInput } from "~/components/Booking/phone-number-input";
-import type { ActionResponse } from "@workspace/shared/types/action-data";
 import { toast } from "sonner";
-import { ApiError } from "@workspace/shared/utils/ApiError";
 import {
-	type CreateBookingInput,
+	type CreateBookingFromCartInput,
 	customerBookingSchema,
 	CustomerInput,
 } from "@workspace/shared/schemas/booking.schema";
 import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
 import { GoogleReCaptcha, verifyRecaptcha } from "~/components/ReCaptcha/GoogleReCaptcha";
-import { type loader as rootLoader } from "~/root";
 import { CheckoutService } from "@workspace/shared/services/checkout.service";
 import { queryClient } from "@workspace/shared/utils/query-client";
+import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
+import { currentUserQuery } from "@workspace/shared/queries/auth.q";
+import { myCartQuery } from "~/queries/cart.q";
 // import { emailService } from "@workspace/shared/services/emails.service";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-	let clientSecret: string | null = null;
 	try {
-		if (request.method !== "POST") {
-			throw new ApiError("Invalid request method", 405, []);
-		}
-
 		const rawBody = await request.json();
 
 		const recaptchaToken = rawBody["recaptchaToken"] as string;
 
-		if (!recaptchaToken || recaptchaToken == "") {
-			return {
-				success: false,
-				error: "Captcha identification failed",
-			};
+		if (!recaptchaToken) {
+			return { success: false, error: "Captcha identification failed" };
 		}
 
 		const captchaResult = await verifyRecaptcha(recaptchaToken);
-
 		if (!captchaResult.success) {
-			return {
-				success: false,
-				error: "Captcha verification failed",
-			};
+			return { success: false, error: "Captcha verification failed" };
 		}
 
 		const checkoutSvc = new CheckoutService(request);
-		const { bookingRef, clientSecret, error, success } = await checkoutSvc.confirmCheckout(rawBody);
+		const result = await checkoutSvc.confirmCheckout(rawBody);
+		console.log("Confrim checkout result", result);
 
-		if (!success || error) {
+		if (!result.success) {
 			return {
 				success: false,
 				booking_ref: null,
-				clientSecret,
-				error:
-					error instanceof ApiError ? error.message : error.message || "Failed to create booking",
+				clientSecret: null,
+				error: result.error?.message || "Failed to create booking",
 			};
 		}
 
@@ -83,37 +66,64 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 		const cacheSvc = new CacheInvalidationService(request);
 		await cacheSvc.pushCacheInvalidationEvent({
 			target: "admin",
-			keys: [`high_level_bookings`, "dashboard_main_stats"],
+			keys: ["high_level_bookings", "dashboard_main_stats"],
 		});
 
 		// await emailService.sendSoftBookingCreationEmail({ ...rawBody, booking_ref });
 
-		return { success, booking_ref: bookingRef, clientSecret };
+		return {
+			success: true,
+			booking_ref: result.bookingRef,
+			clientSecret: result.clientSecret,
+		};
 	} catch (error: any) {
+		console.error(error);
+
 		return {
 			success: false,
 			booking_ref: null,
-			clientSecret,
-			error: error instanceof ApiError ? error.message : error.message || "Failed to create booking",
+			clientSecret: null,
+			error: error.message || "Failed to create booking",
 		};
 	}
 };
 
-export const loader = () => {
-	return null;
+export const loader = async ({ request }: { request: Request }) => {
+	const { authId, headers } = genAuthSecurity(request);
+	const userData = await queryClient.fetchQuery(currentUserQuery({ request, authId, headers }));
+
+	const url = new URL(request.url);
+	const page = Number(url.searchParams.get("page")) || 1;
+
+	let myCart = null;
+
+	if (userData && userData.user) {
+		myCart = await queryClient.fetchQuery(
+			myCartQuery({ request, user_id: userData.user?.id, page, limit: 30 }),
+		);
+	}
+
+	// console.log(myCart);
+
+	return { myCart, userData };
 };
 
-async function getCheckoutSession(body: any) {
-	console.log("Creating CHECKOUT SESSION...");
+async function getCheckoutSession(bookingRef: string, cartItems: any[], customer_email: string) {
+	console.log("Creating CHECKOUT SESSION for booking:", bookingRef);
 
 	const res = await fetch("/get-stripe-checkout-session", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify(body),
+		body: JSON.stringify({
+			bookingRef,
+			cartItems,
+			successUrl: `${process.env.VITE_MAIN_APP_URL}/booking/${bookingRef}/payment-success`,
+			cancelUrl: `${process.env.VITE_MAIN_APP_URL}/booking/${bookingRef}/payment-cancel`,
+			customer_email,
+		}),
 	});
 
 	const data: { sessionId: string | null; url: string | null; error: any } = await res.json();
-	console.log("Checkout session response:", data);
 
 	if (data.error) {
 		toast.error(data.error.message || "Failed to create payment page");
@@ -123,69 +133,41 @@ async function getCheckoutSession(body: any) {
 	if (data.url) {
 		window.location.href = data.url;
 	} else {
-		toast.error("No payment URL received from Stripe", {
-			description: "Please try again or contact support",
-		});
+		toast.error("No payment URL received from Stripe");
 	}
 }
 
 export default function BookingPage() {
-	const location = useLocation();
-	const navigate = useNavigate();
+	const {
+		myCart,
+		userData: { user },
+	} = useLoaderData<typeof loader>();
 	const navigation = useNavigation();
 	const submit = useSubmit();
-	const rootLoaderData = useRouteLoaderData<typeof rootLoader>("root");
-
-	// @ts-ignore
-	const actionData: ActionResponse & {
-		booking_ref: string | null;
-		clientSecret?: string | null;
-	} = useActionData();
-
-	const {
-		tour,
-		option,
-		date,
-		timeSlot,
-		quantities,
-	}: {
-		tour: GetTourDetails;
-		option: TourDetailOption;
-		date: Date;
-		timeSlot: TourDetailAvailability["time_slots"][0];
-		quantities: Record<number, number>;
-	} = location.state || {};
+	const actionData = useActionData() as any;
 
 	const form = useForm<CustomerInput>({
 		resolver: zodResolver(customerBookingSchema),
 		defaultValues: {
-			customer_email: rootLoaderData?.user?.email ?? "",
-			customer_name:
-				rootLoaderData?.user?.first_name && rootLoaderData?.user?.first_name
-					? rootLoaderData?.user?.first_name + " " + rootLoaderData?.user?.last_name
-					: "",
-			customer_phone: rootLoaderData?.user?.phone_number ?? "",
+			customer_email: user?.email ?? "",
+			customer_name: user ? `${user.first_name} ${user.last_name}` : "",
+			customer_phone: user?.phone_number ?? "",
 		},
 	});
 
-	const { handleSubmit, control, setError, reset } = form;
-	const recaptchaRef = useRef(null);
+	const { handleSubmit, reset, control } = form;
 
 	const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+	const recaptchaRef = useRef(null);
 
-	const subtotal = useMemo(() => {
-		if (!option || !quantities) {
-			return 0;
-		}
+	const subtotal =
+		myCart?.items?.reduce((sum, item) => {
+			return sum + item.quantities.reduce((acc, q) => acc + q.quantity * q.price, 0);
+		}, 0) ?? 0;
 
-		return Object.entries(quantities).reduce((sum, [typeId, qty]) => {
-			const price = option.prices.find((p) => p.participant_type.id === Number(typeId))?.price || 0;
-			return sum + price * (qty || 0);
-		}, 0);
-	}, [quantities, option]);
+	let discount = 0;
+	let taxes = 0;
 
-	const discount = 0; // Default, as no calculation logic provided
-	const taxes = 0; // Default
 	const total = subtotal - discount + taxes;
 
 	const isSubmitting = navigation.state === "submitting" && navigation.formMethod === "POST";
@@ -204,15 +186,17 @@ export default function BookingPage() {
 					recaptchaRef.current.reset();
 				}
 
-				getCheckoutSession({
-					amount: total,
-					bookingRef: actionData?.booking_ref,
-					tour_name: tour.name,
-					tour_cover_img_url: SUPABASE_IMAGE_BUCKET_PATH + "/" + tour.cover_image,
-					description: "Payment for tour: " + tour.name + " for " + option.name,
-					successUrl: `${process.env.VITE_MAIN_APP_URL}/booking/${actionData?.booking_ref}/payment-success?tour=${tour.name}`,
-					cancelUrl: `${process.env.VITE_MAIN_APP_URL}/booking/${actionData?.booking_ref}/payment-cancel?tour=${tour.name}`,
-				});
+				const cartLineItems =
+					myCart?.items.flatMap((item) =>
+						item.quantities.map((q) => ({
+							tour_name: `${item.tour_name} - ${item.tour_option_name}`,
+							option_name: `${q.participant_type_name} × ${q.quantity}`,
+							price: q.price, // Unit price
+							quantity: q.quantity, // Actual Number of Participants
+						})),
+					) ?? [];
+
+				getCheckoutSession(actionData.booking_ref, cartLineItems, user?.email ?? "");
 			} else if (actionData.error) {
 				toast.error(actionData.error);
 				setRecaptchaToken(null);
@@ -223,66 +207,57 @@ export default function BookingPage() {
 				}
 			} else if (actionData.validationErrors) {
 				toast.error("Invalid form data. Please check your inputs.");
-				Object.entries(actionData.validationErrors).forEach(([field, errors]) => {
-					setError(field as keyof CustomerInput, { message: errors[0] });
-				});
 			}
 		}
-	}, [actionData, navigate, setError]);
+	}, [actionData]);
 
-	if (!tour || !option || !date || !timeSlot || !quantities) {
+	if (!myCart || !myCart.success || myCart.error || myCart.items.length === 0) {
 		return (
-			<div className="py-40">
-				<p className="text-muted-foreground text-center">
-					Missing booking data. Please go back and select your preferences.
-				</p>
-			</div>
+			<>
+				<MetaDetails
+					metaTitle="Missing Booking Data"
+					metaDescription="Missing booking data. Please go back and select your preferences."
+				/>
+				<div className="py-40 flex items-center justify-center">
+					<div className="flex gap-2 flex-col p-6 bg-destructive/10 border-2 border-destructive rounded-md w-fit">
+						<AlertTriangle className="h-12 w-12 text-destructive mx-auto" />
+						<p className="text-destructive text-center">
+							Missing booking data. Please go back and select your preferences.
+						</p>
+					</div>
+				</div>
+			</>
 		);
 	}
 
 	const onSubmit = async (data: CustomerInput) => {
-		if (!tour || !option || !date || !timeSlot || !quantities) {
-			toast.error("Missing booking data. Please go back and select your preferences.");
+		if (!myCart?.success || !myCart.cart_id) {
+			toast.error("Cart is empty or not found. Please add tours first.");
 			return;
 		}
 
-		let payload: CreateBookingInput & { recaptchaToken: string; added_by: string | null } = {
+		if (!recaptchaToken) {
+			toast.error("Please complete the CAPTCHA verification.");
+			return;
+		}
+
+		if (!user) {
+			toast.error("Please sign in to complete your booking.");
+			return;
+		}
+
+		const payload: CreateBookingFromCartInput = {
 			customer_name: data.customer_name.trim(),
 			customer_email: data.customer_email.trim(),
 			customer_phone: data.customer_phone.trim(),
-			tour_id: tour.id,
-			tour_name: tour.name,
-			tour_option_id: option.id,
-			tour_option_name: option.name,
-			date: format(date, "yyyy-MM-dd"),
-			timeslot: timeSlot.label,
-			isOpenDated: option.isOpenDated,
-			participants: Object.entries(quantities)
-				.filter(([, qty]) => qty > 0)
-				.map(([typeId, qty]) => ({
-					participant_name:
-						tour.tour_options
-							.find((opt) => opt.id === option.id)
-							?.prices.find((p) => p.participant_type.id === Number(typeId))
-							?.participant_type.name.trim() || 0,
-					participant_type_id: Number(typeId),
-					quantity: qty,
-					unit_price:
-						option.prices.find((p) => p.participant_type.id === Number(typeId))?.price || 0,
-				})),
-			subtotal,
-			discount,
-			taxes,
-			total,
-			recaptchaToken: recaptchaToken ?? "",
-			added_by: rootLoaderData?.user?.id ?? null,
+			cart_id: myCart.cart_id,
+			recaptchaToken: recaptchaToken,
+			added_by: user?.id ?? null,
 		};
 
 		submit(payload, {
 			method: "POST",
-			action: "/booking",
 			encType: "application/json",
-			state: location.state,
 			replace: true,
 		});
 	};
@@ -290,10 +265,9 @@ export default function BookingPage() {
 	return (
 		<>
 			<MetaDetails
-				metaTitle={`Complete your booking | ${tour.name} | WanderNest`}
+				metaTitle={`Complete your booking | WanderNest`}
 				metaDescription={"Tour Booking Page"}
 				metaKeywords="Booking"
-				ogImage={SUPABASE_IMAGE_BUCKET_PATH + "/" + tour.cover_image}
 				hasPricing
 				pricing={{
 					price: total.toString(),
@@ -302,30 +276,28 @@ export default function BookingPage() {
 			/>
 			<div className="space-y-8">
 				<h1 className="text-2xl md:text-3xl font-bold">Complete Your Booking!</h1>
-
-				{!rootLoaderData?.user && (
+				{!user && (
 					<Card className="border-warning bg-warning/30">
-						<CardContent className="flex flex-col sm:flex-row items-center justify-between gap-4">
+						<CardContent className="flex justify-between items-center">
 							<div>
-								<p className="font-medium">Not signed in yet?</p>
+								<p className="font-medium">Not signed in?</p>
 								<p className="text-sm text-muted-foreground">
-									Sign in to view this booking in your account and track it easily later.
+									Sign in to track this booking easily.
 								</p>
 							</div>
-							<div className="flex gap-3 shrink-0">
-								<Link to="/login" state={{ from: location.pathname }} viewTransition>
+							<div className="flex gap-3">
+								<Link viewTransition to="/login">
 									<Button variant="outline" size="sm">
-										Sign in
+										Sign In
 									</Button>
 								</Link>
-								<Link to="/signup" state={{ from: location.pathname }} viewTransition>
-									<Button size="sm">Sign up</Button>
+								<Link viewTransition to="/signup">
+									<Button size="sm">Sign Up</Button>
 								</Link>
 							</div>
 						</CardContent>
 					</Card>
 				)}
-
 				<div className="w-full md:*:w-full *:h-fit flex md:flex-row flex-col gap-4">
 					<Card>
 						<CardHeader>
@@ -419,78 +391,68 @@ export default function BookingPage() {
 							</CardTitle>
 							<CardDescription>
 								Please note that these details specifically date and timeslots can be changed
-								later after we will contact you.
+								later.
 							</CardDescription>
 						</CardHeader>
 						<Separator />
 						<CardContent className="space-y-2">
-							<div className="booking-page-row">
-								<h3>Tour</h3>
-								<span className="font-semibold">{tour.name}</span>
-							</div>
-							<div className="booking-page-row">
-								<h3>Option</h3>
-								<span className="font-semibold">{option.name}</span>
-							</div>
-							<div className="booking-page-row">
-								<h3>Date</h3>
-								<span>{format(date, "PPPP")}</span>
-							</div>
-							<div className="booking-page-row">
-								<h3>Time Slot</h3>
-								<span>{timeSlot.label}</span>
-							</div>
+							{myCart.items.map((item) => (
+								<div key={item.cart_item_id} className="border rounded-lg p-4">
+									<div className="font-semibold">{item.tour_name}</div>
+									<div className="text-sm text-muted-foreground">
+										{item.tour_option_name}
+									</div>
+									<div className="text-xs mt-1">
+										{format(new Date(item.preferred_date!), "PPPP")} •{" "}
+										{item.preferred_timeslot}
+									</div>
+
+									<div className="mt-3 text-xs">
+										<table className="w-full text-center">
+											<tr className="*:bg-muted-foreground *:text-white *:border *:p-1">
+												<th>Participants</th>
+												<th>Quantity</th>
+												<th>Unit Price</th>
+												<th>Total Price</th>
+											</tr>
+
+											{item.quantities.map((q) => (
+												<tr key={q.participant_type_id} className="*:border *:p-1">
+													<td>
+														{q.participant_type_name} ({q.participant_age_group})
+													</td>
+													<td>{q.quantity}</td>
+													<td>AED {q.price.toFixed(2)}</td>
+													<td>AED {(q.price * q.quantity).toFixed(2)}</td>
+												</tr>
+											))}
+										</table>
+									</div>
+
+									<div className="mt-3 flex items-end">
+										<span className="w-fit font-lg ml-auto">
+											AED{" "}
+											{item.quantities
+												.reduce((acc, q) => acc + q.price * q.quantity, 0)
+												.toFixed(2)}
+										</span>
+									</div>
+								</div>
+							))}
 						</CardContent>
 						<Separator />
 						<CardContent className="space-y-2">
-							<h3 className="font-semibold">Participants:</h3>
-							{Object.entries(quantities)
-								.filter(([, qty]) => qty > 0)
-								.map(([typeId, qty]) => {
-									const pt = option.prices.find(
-										(p) => p.participant_type.id === Number(typeId),
-									)?.participant_type;
-									const price =
-										option.prices.find((p) => p.participant_type.id === Number(typeId))
-											?.price || 0;
-									return (
-										<div key={typeId} className="booking-page-row">
-											<div>
-												<div>
-													{pt?.name} (x{qty})
-												</div>
-												<div className="text-xs">
-													{pt?.age_max && pt?.age_min ? (
-														pt.age_max - pt.age_min > 80 ? (
-															<p>({pt.age_min}+)</p>
-														) : pt.age_max === 0 && pt.age_min === 0 ? (
-															<></>
-														) : (
-															<p>
-																({pt.age_min}-{pt.age_max})
-															</p>
-														)
-													) : null}
-												</div>
-											</div>
-											<span>{(price * qty).toFixed(2)} AED</span>
-										</div>
-									);
-								})}
-						</CardContent>
-						<Separator />
-						<CardContent className="space-y-2">
-							<div className="booking-page-row">
-								<h3>Subtotal</h3>
-								<span>{subtotal.toFixed(2)} AED</span>
-							</div>
 							<div className="booking-page-row">
 								<h3>Discount</h3>
 								<span>{discount.toFixed(2)} AED</span>
 							</div>
 							<div className="booking-page-row">
-								<h3>Taxes</h3>
+								<h3>Taxes/Fees</h3>
 								<span>{taxes.toFixed(2)} AED</span>
+							</div>
+							<div className="booking-page-row">
+								<h3>Subtotal</h3>
+								<span>{subtotal.toFixed(2)} AED</span>
 							</div>
 							<div className="booking-page-row font-semibold">
 								<h3>Total</h3>

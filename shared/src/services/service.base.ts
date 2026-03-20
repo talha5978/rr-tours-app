@@ -58,6 +58,7 @@ export class Service implements ServiceBase {
 
 	protected readonly BOOKINGS_TABLE = "bookings";
 	protected readonly BOOKING_PARTICIPANTS_TABLE = "booking_participants";
+	protected readonly PAYMENTS_TABLE = "payments";
 
 	protected readonly REVIEWS_TABLE = "tour_reviews";
 
