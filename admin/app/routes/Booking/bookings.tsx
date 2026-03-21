@@ -1,7 +1,6 @@
 import { ColumnDef, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { HighLevelBooking } from "@workspace/shared/types/booking";
 import { queryClient } from "@workspace/shared/utils/query-client";
-import { format } from "date-fns";
 import { Loader2, MoreHorizontal, Search } from "lucide-react";
 import { useState } from "react";
 import {
@@ -26,7 +25,7 @@ import {
 import TableCopyField from "~/components/Table/TableId";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -151,58 +150,58 @@ export default function BookingsPage() {
 			header: () => "Status",
 		},
 		{
-			id: "Tour",
-			accessorKey: "Tour",
-			cell: (info) => (
-				<div className="flex flex-col gap-1">
-					{info.row.original.tour_id ? (
-						<Link
-							to={`/tours?q=${info.row.original.tour_name}`}
-							className="w-fit max-w-40 truncate"
-							viewTransition
-							target="_blank"
-						>
-							<span className="font-semibold max-w-40 truncate hover:underline underline-offset-4 hover:text-primary">
-								{info.row.original.tour_name}
+			id: "Tours",
+			accessorKey: "tours",
+			header: () => "Tours",
+			cell: ({ row }) => {
+				const booking = row.original;
+				const firstTour = booking.tours[0];
+				const hasMultiple = booking.tours.length > 1;
+
+				return (
+					<div className="flex flex-col gap-1">
+						<div className="flex items-center gap-2">
+							<span className="font-semibold max-w-52 truncate">
+								{firstTour?.tour_name || "Untitled Tour"}
 							</span>
-						</Link>
-					) : (
-						<span className="font-semibold text-base">{info.row.original.tour_name}</span>
-					)}
-					<span className="max-w-40 truncate">{info.row.original.tour_option_name}</span>
-				</div>
-			),
-			header: () => "Selected Tour",
-		},
-		{
-			id: "Temporary D/T",
-			accessorKey: "Temporary D/T",
-			cell: (info) => (
-				<div className="flex flex-col gap-1">
-					{info.row.original.preffered_date ? (
-						<span>{format(info.row.original.preffered_date, "PPP")}</span>
-					) : (
-						<span>N/A</span>
-					)}
-					<span>{info.row.original.preffered_timeslot ?? "N/A"}</span>
-				</div>
-			),
-			header: () => "Temporary D/T",
-		},
-		{
-			id: "Confirmed D/T",
-			accessorKey: "Confirmed D/T",
-			cell: (info) => (
-				<div className="flex flex-col gap-1">
-					{info.row.original.confirmed_date ? (
-						<span>{format(info.row.original.confirmed_date, "PPP")}</span>
-					) : (
-						<span>N/A</span>
-					)}
-					<span>{info.row.original.confirmed_timeslot ?? "N/A"}</span>
-				</div>
-			),
-			header: () => "Confirmed D/T",
+							{hasMultiple && (
+								<Badge variant="secondary" className="text-xs">
+									+{booking.tours.length - 1} more
+								</Badge>
+							)}
+						</div>
+
+						{firstTour?.tour_option_name && (
+							<span className="text-sm text-muted-foreground truncate max-w-52">
+								{firstTour.tour_option_name}
+							</span>
+						)}
+
+						{hasMultiple && (
+							<Tooltip>
+								<TooltipTrigger className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2 cursor-help">
+									Show all {booking.tours.length} tours
+								</TooltipTrigger>
+								<TooltipContent side="bottom" className="max-w-xs">
+									<ul className="space-y-1 text-sm list-disc list-inside">
+										{booking.tours.map((t, i) => (
+											<li key={i} className="text-xs">
+												{t.tour_name}
+												{t.tour_option_name && (
+													<span className="text-muted-foreground">
+														{" "}
+														— {t.tour_option_name}
+													</span>
+												)}
+											</li>
+										))}
+									</ul>
+								</TooltipContent>
+							</Tooltip>
+						)}
+					</div>
+				);
+			},
 		},
 		{
 			id: "Total",
@@ -307,25 +306,6 @@ export default function BookingsPage() {
 										</>
 									)}
 
-								{rowData.tour_id && (
-									<>
-										<Link
-											to={`/tours?q=${rowData.tour_name}`}
-											viewTransition
-											prefetch="intent"
-										>
-											<DropdownMenuItem>View Tour</DropdownMenuItem>
-										</Link>
-										<Link
-											to={`${process.env.VITE_MAIN_APP_URL}/tours?q=${rowData.tour_name}`}
-											viewTransition
-											target="_blank"
-										>
-											<DropdownMenuItem>View Live Tour</DropdownMenuItem>
-										</Link>
-									</>
-								)}
-
 								{/* Payment Link */}
 								<DropdownMenuItem
 									onClick={(e) => {
@@ -364,7 +344,6 @@ export default function BookingsPage() {
 							<DialogContent className="sm:max-w-md">
 								<DialogHeader>
 									<DialogTitle>Payment Link for #{rowData.booking_ref}</DialogTitle>
-									<DialogDescription>{rowData.tour_name}</DialogDescription>
 								</DialogHeader>
 
 								<div className="space-y-6 py-4">
@@ -421,7 +400,7 @@ export default function BookingsPage() {
 											className="w-full"
 											disabled={!paymentLink.link || !!paymentLink.error}
 											onClick={() => {
-												const waText = `Hi! Please complete your payment for booking #${rowData.booking_ref} for ${rowData.tour_name} - ${rowData.tour_option_name}\n\nLink:\n\n${paymentLink.link}\n\nThank you!\nWanderNest`;
+												const waText = `Hi! Please complete your payment for booking #${rowData.booking_ref} for following tours:\n\n${rowData.tours.map((tour) => `- ${tour.tour_name} - ${tour.tour_option_name}`).join("\n")}\n\nLink:\n\n${paymentLink.link}\n\nThank you!\nWanderNest`;
 												window.open(
 													`https://wa.me/?text=${encodeURIComponent(waText)}`,
 													"_blank",
@@ -437,14 +416,16 @@ export default function BookingsPage() {
 											className="w-full"
 											disabled={!paymentLink.link || !!paymentLink.error}
 											onClick={() => {
-												const subject = `Complete Your Payment - Booking #${rowData.booking_ref} for ${rowData.tour_name}`;
-												const body = `Dear Customer!\n\nPlease complete your payment for booking #${rowData.booking_ref} for ${rowData.tour_name} - ${rowData.tour_option_name}\n\nLink: ${paymentLink.link}\n\nThank you!\nWanderNest`;
+												const subject = `Complete Your Payment - Booking #${rowData.booking_ref} for ${rowData.tours.map((tour) => `- ${tour.tour_name} - ${tour.tour_option_name}`).join("")}`;
+												const body = `Dear Customer!\n\nPlease complete your payment for booking #${rowData.booking_ref} for following tours:\n\n${rowData.tours.map((tour) => `- ${tour.tour_name} - ${tour.tour_option_name}`).join("\n")}\n\nLink: ${paymentLink.link}\n\nThank you!\nWanderNest`;
 												window.open(
 													`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}&to=${
 														rowData.customer_email
 															? encodeURIComponent(rowData.customer_email)
 															: ""
 													}`,
+													"_blank",
+													"noopener,noreferrer",
 												);
 											}}
 										>

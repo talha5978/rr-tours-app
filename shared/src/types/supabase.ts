@@ -426,9 +426,6 @@ export type Database = {
 					booking_ref: string;
 					booking_status: Database["public"]["Enums"]["booking_status_enum"];
 					cancelled_at: string | null;
-					confirmed_at: string | null;
-					confirmed_date: string | null;
-					confirmed_timeslot: string | null;
 					created_at: string;
 					customer_email: string | null;
 					customer_name: string | null;
@@ -447,9 +444,6 @@ export type Database = {
 					booking_ref: string;
 					booking_status?: Database["public"]["Enums"]["booking_status_enum"];
 					cancelled_at?: string | null;
-					confirmed_at?: string | null;
-					confirmed_date?: string | null;
-					confirmed_timeslot?: string | null;
 					created_at?: string;
 					customer_email?: string | null;
 					customer_name?: string | null;
@@ -468,9 +462,6 @@ export type Database = {
 					booking_ref?: string;
 					booking_status?: Database["public"]["Enums"]["booking_status_enum"];
 					cancelled_at?: string | null;
-					confirmed_at?: string | null;
-					confirmed_date?: string | null;
-					confirmed_timeslot?: string | null;
 					created_at?: string;
 					customer_email?: string | null;
 					customer_name?: string | null;

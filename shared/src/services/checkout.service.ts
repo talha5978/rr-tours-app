@@ -7,7 +7,6 @@ import { BookingService } from "@workspace/shared/services/booking.service";
 import { StripeServerService } from "@workspace/shared/services/stripe.service";
 import Stripe from "stripe";
 import { type TablesUpdate } from "@workspace/shared/types/supabase";
-import { SUPABASE_IMAGE_BUCKET_PATH } from "@workspace/shared/constants/constants";
 
 @UseClassMiddleware(loggerMiddleware)
 export class CheckoutService extends Service {
@@ -213,8 +212,8 @@ export class CheckoutService extends Service {
 		try {
 			// 1. Fetch booking
 			const { data: booking, error: fetchErr } = await this.supabase
-				.from(this.BOOKINGS_TABLE)
-				.select("payment_ref, total, payment_status")
+				.from("bookings_new")
+				.select(`total, payment:${this.PAYMENTS_TABLE}!inner(payment_status, id, payment_intent_id)`)
 				.eq("id", booking_id)
 				.single();
 
@@ -226,7 +225,7 @@ export class CheckoutService extends Service {
 				};
 			}
 
-			if (booking.payment_status !== "PAID") {
+			if (booking.payment.payment_status !== "PAID") {
 				return {
 					success: false,
 					error: "Only paid bookings can be refunded",
@@ -234,7 +233,7 @@ export class CheckoutService extends Service {
 				};
 			}
 
-			if (!booking.payment_ref) {
+			if (!booking.payment.payment_intent_id) {
 				return {
 					success: false,
 					error: "Payment intent not found",
@@ -252,7 +251,7 @@ export class CheckoutService extends Service {
 
 			const stripeSvc = new StripeServerService();
 			const { refundId, error: refundErr } = await stripeSvc.refundPayment({
-				paymentIntentId: booking.payment_ref!,
+				paymentIntentId: booking.payment.payment_intent_id,
 				amount,
 				reason: reason as Stripe.RefundCreateParams.Reason,
 				note,
@@ -266,18 +265,24 @@ export class CheckoutService extends Service {
 				};
 			}
 
-			let bookingPayload: TablesUpdate<"bookings"> = {
-				payment_status: "REFUNDED",
+			let bookingPayload: TablesUpdate<"bookings_new"> = {
 				...(amount === booking.total && { booking_status: "CANCELLED" }),
 				...(amount == booking.total && { cancelled_at: new Date().toISOString() }),
 			};
 
 			const { error: updateErr } = await this.supabase
-				.from(this.BOOKINGS_TABLE)
+				.from("bookings_new")
 				.update(bookingPayload)
 				.eq("id", booking_id);
 
-			if (updateErr) {
+			const { error: updatePaymentErr } = await this.supabase
+				.from(this.PAYMENTS_TABLE)
+				.update({
+					payment_status: "REFUNDED",
+				})
+				.eq("id", booking.payment.id);
+
+			if (updateErr || updatePaymentErr) {
 				console.error("Failed to update booking after refund:", updateErr);
 				return {
 					success: false,

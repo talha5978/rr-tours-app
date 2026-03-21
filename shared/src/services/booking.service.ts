@@ -266,7 +266,6 @@ export class BookingService extends Service {
 				customer_phone: data.customer_phone,
 				created_at: data.created_at,
 				updated_at: data.updated_at,
-				confirmed_at: data.confirmed_at,
 				cancelled_at: data.cancelled_at,
 				subtotal_amount: data.subtotal_amount,
 				discount: data.discount,
@@ -312,11 +311,33 @@ export class BookingService extends Service {
 
 		try {
 			let query = this.supabase
-				.from(this.BOOKINGS_TABLE)
+				.from("bookings_new")
 				.select(
 					`
-					id, booking_ref, booking_status, payment_status, created_at, tour_id, tour_name, tour_option_id, tour_option_name, preferred_date, preferred_timeslot, confirmed_date, confirmed_timeslot, total, customer_name, customer_phone, customer_email
-				`,
+					id,
+					booking_ref,
+					booking_status,
+					payment:${this.PAYMENTS_TABLE}!inner (
+						payment_status
+					),
+					created_at,
+					customer_name,
+					customer_phone,
+					customer_email,
+					total,
+					booking_items (
+						preffered_date,
+						preffered_timeslot,
+						confirmed_date,
+						confirmed_timeslot,
+						${this.TOUR_OPTIONS_TABLE}!inner (
+							name,
+							${this.TOURS_TABLE}!inner (
+								name
+							)
+						)
+					)
+					`,
 					{ count: "exact" },
 				)
 				.range(from, to)
@@ -329,31 +350,38 @@ export class BookingService extends Service {
 			const { data, error, count } = await query;
 
 			if (error) {
+				console.error("High-level bookings error:", error);
 				return { bookings: [], total: 0 };
 			}
 
-			let payload: HighLevelBooking[] = data.map((b) => ({
-				id: b.id,
-				booking_ref: b.booking_ref,
-				booking_status: b.booking_status,
-				payment_status: b.payment_status,
-				created_at: b.created_at,
-				tour_id: b.tour_id,
-				tour_name: b.tour_name,
-				tour_option_id: b.tour_option_id,
-				tour_option_name: b.tour_option_name,
-				preffered_date: b.preferred_date,
-				preffered_timeslot: b.preferred_timeslot,
-				confirmed_date: b.confirmed_date,
-				confirmed_timeslot: b.confirmed_timeslot,
-				total: b.total,
-				customer_name: b.customer_name,
-				customer_phone: b.customer_phone,
-				customer_email: b.customer_email,
-			}));
+			const bookings: HighLevelBooking[] = (data ?? []).map((b) => {
+				return {
+					id: b.id,
+					booking_ref: b.booking_ref,
+					booking_status: b.booking_status,
+					payment_status: b.payment?.payment_status || "PENDING",
+					created_at: b.created_at,
+					customer_name: b.customer_name,
+					customer_phone: b.customer_phone,
+					customer_email: b.customer_email,
+					total: b.total,
+					tours: b.booking_items.map((item) => ({
+						tour_name: item.tour_options?.tours?.name || "Untitled Tour",
+						tour_option_name: item.tour_options?.name || null,
+						preffered_date: item.preffered_date || null,
+						preffered_timeslot: item.preffered_timeslot || null,
+						confirmed_date: item.confirmed_date || null,
+						confirmed_timeslot: item.confirmed_timeslot || null,
+					})),
+				};
+			});
 
-			return { bookings: payload, total: Number(count) };
-		} catch (error) {
+			return {
+				bookings,
+				total: Number(count ?? 0),
+			};
+		} catch (err: any) {
+			console.error("getHighLevelBookings error:", err);
 			return {
 				bookings: [],
 				total: 0,
@@ -698,7 +726,6 @@ export class BookingService extends Service {
 						),
 						total,
 						created_at,
-						confirmed_at,
 						customer_name,
 						booking_items (
 							preffered_date,
@@ -730,7 +757,6 @@ export class BookingService extends Service {
 				payment_status: b.payment.payment_status,
 				total: b.total,
 				created_at: b.created_at,
-				confirmed_at: b.confirmed_at,
 				customer_name: b.customer_name ?? undefined,
 				items: (b.booking_items || []).map((item) => ({
 					tour_name: item.tour_options?.tours?.name || "Untitled Tour",

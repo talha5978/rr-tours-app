@@ -8,6 +8,7 @@ import { Textarea } from "~/components/ui/textarea";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
+import { useRevalidator } from "react-router";
 
 const refundReasons: Array<{ value: "duplicate" | "fraudulent" | "requested_by_customer"; label: string }> = [
 	{ value: "duplicate", label: "Duplicate" },
@@ -33,6 +34,8 @@ interface RefundFormProps {
 }
 
 export function RefundForm({ bookingId, paidAmount, onSuccess, onCancel }: RefundFormProps) {
+	const revalidator = useRevalidator();
+
 	const form = useForm<RefundFormValues>({
 		resolver: zodResolver(
 			refundSchema.refine((data) => data.amount <= paidAmount, {
@@ -74,6 +77,8 @@ export function RefundForm({ bookingId, paidAmount, onSuccess, onCancel }: Refun
 			onSuccess();
 		} catch (err: any) {
 			toast.error(err.message || "Failed to process refund");
+		} finally {
+			revalidator.revalidate();
 		}
 	};
 

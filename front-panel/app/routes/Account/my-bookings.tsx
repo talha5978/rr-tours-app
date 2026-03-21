@@ -197,7 +197,13 @@ export default function MyBookingsPage() {
 										<div className="flex flex-wrap items-center gap-2.5">
 											<Badge
 												variant="outline"
-												className="font-mono text-xs tracking-wide px-2.5 py-0.5 bg-background border shadow-xs"
+												className="font-mono text-xs tracking-wide px-2.5 py-0.5 bg-background border shadow-xs cursor-pointer"
+												onClick={() => {
+													navigator.clipboard.writeText(booking.booking_ref);
+													toast.success(
+														`Booking reference #${booking.booking_ref} copied`,
+													);
+												}}
 											>
 												{booking.booking_ref}
 											</Badge>

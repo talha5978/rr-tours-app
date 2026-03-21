@@ -194,11 +194,6 @@ export default function TrackBookingPage() {
 									<h3 className="font-semibold mb-2">Timeline</h3>
 									<div className="text-sm space-y-1">
 										<p>Created: {format(new Date(booking.created_at), "PPPP p")}</p>
-										{booking.confirmed_at && (
-											<p>
-												Confirmed: {format(new Date(booking.confirmed_at), "PPPP p")}
-											</p>
-										)}
 										{booking.cancelled_at && (
 											<p className="text-destructive">
 												Cancelled: {format(new Date(booking.cancelled_at), "PPPP p")}

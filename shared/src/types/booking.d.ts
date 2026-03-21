@@ -10,7 +10,6 @@ export type FPBookingByRefDetail = {
 	customer_phone: string | null;
 	created_at: string;
 	updated_at: string;
-	confirmed_at: string | null;
 	cancelled_at: string | null;
 	subtotal_amount: number;
 	discount: number;
@@ -46,16 +45,16 @@ export type HighLevelBooking = {
 	customer_name: string | null;
 	customer_phone: string | null;
 	customer_email: string | null;
-	created_at: string;
-	tour_id: string | null;
-	tour_name: string | null;
-	tour_option_id: number | null;
-	tour_option_name: string | null;
-	preffered_date: string | null;
-	preffered_timeslot: string | null;
-	confirmed_date: string | null;
-	confirmed_timeslot: string | null;
+	created_at: string | null;
 	total: number;
+	tours: {
+		tour_name: string;
+		tour_option_name: string | null;
+		preffered_date: string | null;
+		preffered_timeslot: string | null;
+		confirmed_date: string | null;
+		confirmed_timeslot: string | null;
+	}[];
 };
 
 export type GetHighLevelBookings = {
@@ -97,7 +96,6 @@ export type FrontPanelBooking = {
 	payment_status: Database["public"]["Enums"]["payment_status_enum"];
 	total: number;
 	created_at: string;
-	confirmed_at: string | null;
 	customer_name?: string | null;
 	items: {
 		tour_name: string;
