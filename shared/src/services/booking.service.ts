@@ -328,7 +328,7 @@ export class BookingService extends Service {
 						confirmed_timeslot
 					),
 					${this.PAYMENTS_TABLE} (*)
-					`,
+				`,
 				)
 				.eq("id", id)
 				.single();
@@ -359,32 +359,59 @@ export class BookingService extends Service {
 				paymentPayload.payment_status = input.payment_status;
 			}
 
-			// 5. Dates & times → update ALL booking_items (multi-tour support)
-			if (
-				input.preffered_date !== undefined ||
-				input.preffered_time !== undefined ||
-				input.confirmed_date !== undefined ||
-				input.confirmed_time !== undefined
-			) {
-				const itemUpdate: any = {};
-				if (input.preffered_date !== undefined) itemUpdate.preffered_date = input.preffered_date;
-				if (input.preffered_time !== undefined) itemUpdate.preffered_timeslot = input.preffered_time;
-				if (input.confirmed_date !== undefined) itemUpdate.confirmed_date = input.confirmed_date;
-				if (input.confirmed_time !== undefined) itemUpdate.confirmed_timeslot = input.confirmed_time;
+			// 5. NEW: Per-item dates & timeslots (multi-tour support)
+			if (input.item_dates && input.item_dates.length > 0) {
+				for (const itemUpdate of input.item_dates) {
+					const updateData: any = {};
 
-				await this.supabase.from("booking_items").update(itemUpdate).eq("booking_id", id);
+					if (itemUpdate.preffered_date !== undefined) {
+						updateData.preffered_date = itemUpdate.preffered_date;
+					}
+					if (itemUpdate.preffered_time !== undefined) {
+						updateData.preffered_timeslot = itemUpdate.preffered_time;
+					}
+					if (itemUpdate.confirmed_date !== undefined) {
+						updateData.confirmed_date = itemUpdate.confirmed_date;
+					}
+					if (itemUpdate.confirmed_time !== undefined) {
+						updateData.confirmed_timeslot = itemUpdate.confirmed_time;
+					}
+
+					// Only update if there are changes
+					if (Object.keys(updateData).length > 0) {
+						const { error: itemErr } = await this.supabase
+							.from("booking_items")
+							.update(updateData)
+							.eq("id", itemUpdate.booking_item_id)
+							.eq("booking_id", id);
+
+						if (itemErr) {
+							console.error(itemErr);
+
+							throw new ApiError(
+								`Failed to update item dates for ${itemUpdate.booking_item_id}`,
+								500,
+								[],
+							);
+						}
+					}
+				}
 			}
 
 			// 6. Participants pricing updates
 			if (input.participants_unit_prices && input.participants_unit_prices.length > 0) {
 				for (const p of input.participants_unit_prices) {
-					await this.supabase
+					const { error: partErr } = await this.supabase
 						.from("booking_participants_new")
 						.update({
 							quantity: p.quantity,
 							unit_price: p.unit_price,
 						})
 						.eq("id", p.booking_participant_id);
+
+					if (partErr) {
+						throw new ApiError("Failed to update participant", 500, []);
+					}
 				}
 
 				// Recalculate subtotal from all participants
@@ -397,7 +424,7 @@ export class BookingService extends Service {
 					);
 
 				const newSubtotal = (allParts || []).reduce(
-					(sum: number, p) => sum + p.quantity * p.unit_price,
+					(sum: number, p: any) => sum + p.quantity * p.unit_price,
 					0,
 				);
 

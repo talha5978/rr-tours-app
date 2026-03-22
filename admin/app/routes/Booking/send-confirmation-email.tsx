@@ -246,19 +246,33 @@ export default function SendConfirmationEmail() {
 												</div>
 											)}
 											<div className="grid grid-cols-2 gap-4 mt-3 text-sm">
-												<div>
-													<span className="text-muted-foreground">Preferred:</span>{" "}
-													{tour.preffered_date
-														? format(new Date(tour.preffered_date), "PPP")
-														: "N/A"}{" "}
-													• {tour.preffered_timeslot || "—"}
+												<div className="grid">
+													<span className="text-muted-foreground text-xs mt-1">
+														Preferred Date:
+													</span>{" "}
+													<span>
+														{tour.preffered_date
+															? format(new Date(tour.preffered_date), "PPP")
+															: "N/A"}
+													</span>
+													<span className="text-muted-foreground text-xs mt-1">
+														Preferred Timeslot:
+													</span>
+													<span>{tour.preffered_timeslot || "N/A"}</span>
 												</div>
-												<div>
-													<span className="text-muted-foreground">Confirmed:</span>{" "}
-													{tour.confirmed_date
-														? format(new Date(tour.confirmed_date), "PPP")
-														: "N/A"}{" "}
-													• {tour.confirmed_timeslot || "—"}
+												<div className="grid">
+													<span className="text-muted-foreground text-xs mt-1">
+														Confirmed Date:
+													</span>{" "}
+													<span>
+														{tour.confirmed_date
+															? format(new Date(tour.confirmed_date), "PPP")
+															: "N/A"}
+													</span>
+													<span className="text-muted-foreground text-xs mt-1">
+														Confirmed Timeslot:
+													</span>
+													<span>{tour.confirmed_timeslot || "N/A"}</span>
 												</div>
 											</div>
 											<div className="mt-3 text-xs text-muted-foreground">

@@ -35,6 +35,7 @@ import { format } from "date-fns";
 import { ApiError } from "@workspace/shared/utils/ApiError";
 import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
 import { BookingService } from "@workspace/shared/services/booking.service";
+import DatePicker from "~/components/Custom-Inputs/date-picker";
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
 	const id = params.id as string;
@@ -56,14 +57,13 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 		if (rawPayload.customer_name) booking.customer_name = rawPayload.customer_name;
 		if (rawPayload.customer_email) booking.customer_email = rawPayload.customer_email;
 		if (rawPayload.customer_phone) booking.customer_phone = rawPayload.customer_phone;
-		if (rawPayload.preffered_date) booking.preffered_date = rawPayload.preffered_date;
-		if (rawPayload.preffered_time !== undefined) booking.preffered_time = rawPayload.preffered_time;
-		if (rawPayload.confirmed_date) booking.confirmed_date = rawPayload.confirmed_date;
-		if (rawPayload.confirmed_time !== undefined) booking.confirmed_time = rawPayload.confirmed_time;
 		if (rawPayload.discount != undefined) booking.discount = rawPayload.discount;
 		if (rawPayload.taxes != undefined) booking.taxes = rawPayload.taxes;
 		if (rawPayload.participants_unit_prices && rawPayload.participants_unit_prices.length > 0)
 			booking.participants_unit_prices = rawPayload.participants_unit_prices;
+		if (rawPayload.item_dates && rawPayload.item_dates.length > 0) {
+			booking.item_dates = rawPayload.item_dates;
+		}
 	}
 
 	const svc = new BookingService(request);
@@ -150,6 +150,14 @@ export default function UpdateBooking() {
 					unit_price: p.unit_price,
 				})),
 			),
+
+			item_dates: booking.booking_items.map((item) => ({
+				booking_item_id: item.id,
+				preffered_date: item.preffered_date ? new Date(item.preffered_date) : null,
+				preffered_time: item.preffered_timeslot ?? "N/A",
+				confirmed_date: item.confirmed_date ? new Date(item.confirmed_date) : null,
+				confirmed_time: item.confirmed_timeslot ?? "N/A",
+			})),
 		},
 	});
 
@@ -160,13 +168,18 @@ export default function UpdateBooking() {
 		name: "participants_unit_prices",
 	});
 
+	const { fields: dateFields } = useFieldArray({
+		control,
+		name: "item_dates",
+	});
+
 	const isSubmitting = navigation.state === "submitting";
 
 	useEffect(() => {
 		if (actionData) {
 			if (actionData.success) {
 				toast.success(`${booking.booking_ref} booking updated successfully`);
-				navigate(`/bookings`);
+				navigate(`/bookings`, { replace: true, viewTransition: true });
 			} else if (actionData.error) {
 				toast.error(actionData.error);
 			} else if (actionData.validationErrors) {
@@ -223,24 +236,28 @@ export default function UpdateBooking() {
 		}
 
 		// Dates & times (apply to first item for compatibility)
-		const firstItem = booking.booking_items[0] || {};
-		if (values.preffered_date instanceof Date) {
-			const newDate = format(values.preffered_date, "yyyy-MM-dd");
-			if (newDate !== firstItem.preffered_date) {
-				payload.preffered_date = newDate;
-			}
-		}
-		if (hasChanged(values.preffered_time, firstItem.preffered_timeslot)) {
-			payload.preffered_time = values.preffered_time || null;
-		}
-		if (values.confirmed_date instanceof Date) {
-			const newDate = format(values.confirmed_date, "yyyy-MM-dd");
-			if (newDate !== firstItem.confirmed_date) {
-				payload.confirmed_date = newDate;
-			}
-		}
-		if (hasChanged(values.confirmed_time, firstItem.confirmed_timeslot)) {
-			payload.confirmed_time = values.confirmed_time || null;
+		if (values.item_dates && values.item_dates.length > 0) {
+			// @ts-ignore
+			payload.item_dates = values.item_dates.map((item, index) => {
+				const originalItem = booking.booking_items[index];
+				return {
+					booking_item_id: item.booking_item_id,
+					preffered_date:
+						item.preffered_date == null
+							? null
+							: item.preffered_date instanceof Date
+								? format(item.preffered_date, "yyyy-MM-dd")
+								: originalItem.preffered_date,
+					preffered_time: item.preffered_time,
+					confirmed_date:
+						item.confirmed_date == null
+							? null
+							: item.confirmed_date instanceof Date
+								? format(item.confirmed_date, "yyyy-MM-dd")
+								: originalItem.confirmed_date,
+					confirmed_time: item.confirmed_time,
+				};
+			});
 		}
 
 		// Participants pricing changes
@@ -428,42 +445,104 @@ export default function UpdateBooking() {
 								<CardContent className="space-y-8">
 									{/* Booked Tours */}
 									<div className="space-y-5">
-										<h3 className="text-base font-medium">
-											Booked Tours ({booking.booking_items.length})
-										</h3>
-										<div className="space-y-4">
-											{booking.booking_items.map((item) => (
-												<div key={item.id} className="border rounded-lg p-4">
-													<div>
-														<h4 className="font-medium">{item.tour_name}</h4>
-														<p className="text-sm text-muted-foreground">
-															{item.tour_option_name}
-														</p>
-													</div>
-													<div className="mt-3 grid sm:grid-cols-2 sm:gap-3 gap-2 text-sm">
-														<div>
-															<span className="text-muted-foreground">
-																Preferred
-															</span>
-															<br />
-															{item.preffered_date
-																? format(new Date(item.preffered_date), "PPP")
-																: "N/A"}{" "}
-															• {item.preffered_timeslot || "—"}
+										<h3 className="text-base font-medium">Tour Dates & Timeslots</h3>
+										<div className="space-y-6">
+											{dateFields.map((field, index) => {
+												const item = booking.booking_items[index];
+												return (
+													<div key={field.id} className="border rounded-lg p-5">
+														<h4 className="font-medium mb-3">
+															{item.tour_name} — {item.tour_option_name}
+														</h4>
+
+														<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+															{/* Preferred */}
+															<div className="space-y-4">
+																<p className="text-sm font-medium text-muted-foreground">
+																	Preferred
+																</p>
+																<FormField
+																	control={control}
+																	name={`item_dates.${index}.preffered_date`}
+																	render={({ field }) => (
+																		<FormItem>
+																			<FormLabel>Date</FormLabel>
+																			<FormControl>
+																				<DatePicker
+																					value={field.value}
+																					onDateChange={
+																						field.onChange
+																					}
+																				/>
+																			</FormControl>
+																			<FormMessage />
+																		</FormItem>
+																	)}
+																/>
+																<FormField
+																	control={control}
+																	name={`item_dates.${index}.preffered_time`}
+																	render={({ field }) => (
+																		<FormItem>
+																			<FormLabel>Timeslot</FormLabel>
+																			<FormControl>
+																				<Input
+																					placeholder="e.g. 10:00 AM"
+																					{...field}
+																					value={field.value ?? ""}
+																				/>
+																			</FormControl>
+																			<FormMessage />
+																		</FormItem>
+																	)}
+																/>
+															</div>
+
+															{/* Confirmed */}
+															<div className="space-y-4">
+																<p className="text-sm font-medium text-muted-foreground">
+																	Confirmed
+																</p>
+																<FormField
+																	control={control}
+																	name={`item_dates.${index}.confirmed_date`}
+																	render={({ field }) => (
+																		<FormItem>
+																			<FormLabel>Date</FormLabel>
+																			<FormControl>
+																				<DatePicker
+																					value={field.value}
+																					onDateChange={
+																						field.onChange
+																					}
+																				/>
+																			</FormControl>
+																			<FormMessage />
+																		</FormItem>
+																	)}
+																/>
+																<FormField
+																	control={control}
+																	name={`item_dates.${index}.confirmed_time`}
+																	render={({ field }) => (
+																		<FormItem>
+																			<FormLabel>Timeslot</FormLabel>
+																			<FormControl>
+																				<Input
+																					placeholder="e.g. 10:00 AM"
+																					{...field}
+																					value={field.value ?? ""}
+																				/>
+																			</FormControl>
+																			<FormMessage />
+																		</FormItem>
+																	)}
+																/>
+															</div>
 														</div>
-														<div>
-															<span className="text-muted-foreground">
-																Confirmed
-															</span>
-															<br />
-															{item.confirmed_date
-																? format(new Date(item.confirmed_date), "PPP")
-																: "N/A"}{" "}
-															• {item.confirmed_timeslot || "—"}
-														</div>
 													</div>
-												</div>
-											))}
+												);
+											})}
 										</div>
 									</div>
 

@@ -64,10 +64,6 @@ export const UpdateBookingSchema = z.object({
 		}),
 	customer_email: z.string().email("Invalid email address").min(1, "Email is required"),
 	customer_phone: z.string().min(10, "Phone number must be at least 10 digits"),
-	preffered_date: z.date().nullable().optional(),
-	preffered_time: z.string().nullable().optional(),
-	confirmed_date: z.date().nullable().optional(),
-	confirmed_time: z.string().nullable().optional(),
 
 	payment_ref: z.string().optional().nullable(), // READ ONLY FIELD
 
@@ -81,6 +77,16 @@ export const UpdateBookingSchema = z.object({
 			booking_participant_id: z.string(),
 			quantity: z.number().int().positive(),
 			unit_price: z.number().nonnegative(),
+		}),
+	),
+
+	item_dates: z.array(
+		z.object({
+			booking_item_id: z.string(),
+			preffered_date: z.date().nullable().optional(),
+			preffered_time: z.string().nullable().optional(),
+			confirmed_date: z.date().nullable().optional(),
+			confirmed_time: z.string().nullable().optional(),
 		}),
 	),
 });
@@ -102,9 +108,12 @@ export type UpdateBookingActionData = {
 				unit_price: number;
 		  }[]
 		| null;
-	preffered_date?: string | null;
-	preffered_time?: string | null;
-	confirmed_date?: string | null;
-	confirmed_time?: string | null;
+	item_dates?: {
+		booking_item_id: string;
+		preffered_date: string | null;
+		preffered_time: string | null;
+		confirmed_date: string | null;
+		confirmed_time: string | null;
+	}[];
 	admin_note?: string | null;
 };
