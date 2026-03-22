@@ -62,10 +62,21 @@ export type GetHighLevelBookings = {
 	total: number;
 };
 
-export type BookingDetailById = Database["public"]["Tables"]["bookings"]["Row"] & {
-	booking_participants: (Database["public"]["Tables"]["booking_participants"]["Row"] & {
-		participant_type: Database["public"]["Tables"]["participant_types"]["Row"];
-	})[];
+export type BookingDetailById = Database["public"]["Tables"]["bookings_new"]["Row"] & {
+	booking_items: Array<
+		Database["public"]["Tables"]["booking_items"]["Row"] & {
+			booking_participants_new: Array<
+				Database["public"]["Tables"]["booking_participants_new"]["Row"] & {
+					participant_type: Database["public"]["Tables"]["participant_types"]["Row"];
+				}
+			>;
+			tour_option_name: string;
+			tour_name: string;
+		}
+	>;
+	payment: {
+		payment_status: Database["public"]["Enums"]["payment_status_enum"];
+	};
 };
 
 export type GetBookingDetailByID = {

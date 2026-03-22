@@ -4,7 +4,6 @@ import { loggerMiddleware } from "@workspace/shared/middlewares/logger.middlewar
 import { ApiError } from "@workspace/shared/utils/ApiError";
 import {
 	CreateBookingFromCartInput,
-	CreateBookingInput,
 	UpdateBookingActionData,
 } from "@workspace/shared/schemas/booking.schema";
 import { Database } from "@workspace/shared/types/supabase";
@@ -20,7 +19,6 @@ import type {
 } from "@workspace/shared/types/booking";
 import { UseMiddleware } from "@workspace/shared/decorators/useMiddleware";
 import { verifyUser } from "@workspace/shared/middlewares/auth.middleware";
-import { StripeServerService } from "@workspace/shared/services/stripe.service";
 
 @UseClassMiddleware(loggerMiddleware)
 export class BookingService extends Service {
@@ -41,7 +39,7 @@ export class BookingService extends Service {
 			ref = `${current_yr}${ref}`;
 
 			const { count } = await this.supabase
-				.from(this.BOOKINGS_TABLE)
+				.from("bookings_new")
 				.select("id", { count: "exact", head: true })
 				.eq("booking_ref", ref);
 
@@ -55,161 +53,6 @@ export class BookingService extends Service {
 		const date = new Date(dateStr);
 		const day = date.getDay();
 		return day === 0 ? 7 : day;
-	}
-
-	async deleteBookingByRef(ref: string): Promise<ApiError | null> {
-		const { error } = await this.supabase.from(this.BOOKINGS_TABLE).delete().eq("booking_ref", ref);
-		return error ? new ApiError("Failed to delete booking", 500, []) : null;
-	}
-
-	/** create a booking */
-	async createBooking(input: CreateBookingInput & { added_by: string | null }): Promise<string> {
-		const {
-			customer_email,
-			customer_name,
-			customer_phone,
-			tour_id,
-			tour_name,
-			tour_option_id,
-			tour_option_name,
-			date,
-			timeslot,
-			isOpenDated,
-			participants,
-			subtotal,
-			discount,
-			taxes,
-			total,
-			added_by,
-		} = input;
-
-		try {
-			if (!isOpenDated) {
-				const totalRequested = participants.reduce((sum, p) => sum + p.quantity, 0);
-				const { data: booked, error: bookedErr } = await this.supabase
-					.from(this.BOOKINGS_TABLE)
-					.select(
-						`
-						id,
-						${this.BOOKING_PARTICIPANTS_TABLE} (quantity)
-					`,
-					)
-					.eq("tour_option_id", tour_option_id)
-					.eq("preferred_date", date)
-					.eq("preferred_timeslot", timeslot)
-					.in("booking_status", ["PENDING", "CONFIRMED"]);
-
-				if (bookedErr) throw new ApiError("Failed to check booked capacity", 500);
-
-				const alreadyBooked =
-					booked?.reduce(
-						(sum, b) => sum + (b.booking_participants?.reduce((s, p) => s + p.quantity, 0) ?? 0),
-						0,
-					) ?? 0;
-
-				const weekday = await this.getDayOfWeek(date);
-
-				const { data: capacityData, error: capErr } = await this.supabase
-					.from(this.AVAILABILITY_RULES_TABLE)
-					.select(
-						`
-						${this.TIMESLOTS_TABLE}!inner (
-							id,
-							label,
-							capacity
-						)
-					`,
-					)
-					.eq("tour_option_id", tour_option_id)
-					.lte("start_date", date)
-					.gte("end_date", date)
-					.contains("weekdays", [weekday])
-					.single();
-
-				if (capErr || !capacityData) {
-					console.error(capErr ?? "No api error");
-
-					throw new ApiError("No availability rule found for this date", 400);
-				}
-
-				const matchingSlot = capacityData.time_slots.find((slot) => slot.label === timeslot);
-
-				if (!matchingSlot) {
-					throw new ApiError(`Time slot "${timeslot}" not available on ${date}`, 400);
-				}
-
-				const maxCapacity = matchingSlot.capacity ?? Infinity;
-
-				// console.log(alreadyBooked, totalRequested, maxCapacity);
-
-				if (alreadyBooked + totalRequested > maxCapacity) {
-					throw new ApiError(
-						`Not enough capacity available (Only ${maxCapacity - alreadyBooked} left)`,
-						409,
-						[],
-					);
-				}
-			}
-
-			// Generate unique booking_ref
-			const booking_ref = await this.generateUniqueBookingRef();
-
-			// Prepare booking data
-			const bookingData: Database["public"]["Tables"]["bookings"]["Insert"] = {
-				booking_ref,
-				booking_status: "PENDING",
-				tour_id,
-				tour_name,
-				tour_option_id,
-				tour_option_name,
-				customer_name,
-				customer_email,
-				customer_phone,
-				payment_status: "PENDING",
-				subtotal_amount: subtotal,
-				discount,
-				taxes,
-				total,
-				price_overriden: false,
-				added_by: added_by ?? null,
-			};
-
-			bookingData.preferred_date = date;
-			bookingData.preferred_timeslot = timeslot;
-
-			// Insert booking
-			const { data: booking, error: bookingError } = await this.supabase
-				.from(this.BOOKINGS_TABLE)
-				.insert([bookingData])
-				.select("id")
-				.single();
-
-			if (bookingError) {
-				throw new ApiError("Failed to insert booking", 500, []);
-			}
-
-			// Prepare participants data
-			const participantsData = participants.map((p) => ({
-				booking_id: booking.id,
-				participant_type_id: p.participant_type_id,
-				quantity: p.quantity,
-				unit_price: p.unit_price,
-			}));
-
-			// Insert participants
-			const { error: participantsError } = await this.supabase
-				.from(this.BOOKING_PARTICIPANTS_TABLE)
-				.insert(participantsData);
-
-			if (participantsError) {
-				await this.supabase.from(this.BOOKINGS_TABLE).delete().eq("id", booking.id);
-				throw new ApiError("Failed to insert booking participants", 500, []);
-			}
-
-			return booking_ref;
-		} catch (error) {
-			throw error instanceof ApiError ? error : new ApiError("Failed to create booking", 500, []);
-		}
 	}
 
 	/** Get booking by ref */
@@ -397,11 +240,25 @@ export class BookingService extends Service {
 		}
 
 		const { data, error } = await this.supabase
-			.from(this.BOOKINGS_TABLE)
+			.from("bookings_new")
 			.select(
 				`
+				*,
+				booking_items (
 					*,
-					${this.BOOKING_PARTICIPANTS_TABLE}!inner(*, ${this.PARTICIPANT_TYPES_TABLE}!inner(*))				`,
+					booking_participants_new (
+						*,
+						${this.PARTICIPANT_TYPES_TABLE} (*)
+					),
+					${this.TOUR_OPTIONS_TABLE}!inner (
+						name,
+						${this.TOURS_TABLE}!inner (
+							name
+						)
+					)
+				),
+				payment:${this.PAYMENTS_TABLE}!inner (payment_status)
+			`,
 			)
 			.eq("id", booking_id)
 			.limit(1)
@@ -410,25 +267,36 @@ export class BookingService extends Service {
 		if (error) {
 			return {
 				booking: null,
-				error: new ApiError(error.message, 500, []),
+				error: new ApiError(error.message, 500, [error]),
 			};
 		}
 
-		// @ts-ignore
-		let payload: BookingDetailById = {
+		if (!data) {
+			return {
+				booking: null,
+				error: new ApiError("Booking not found", 404, []),
+			};
+		}
+
+		// Clean transformation (same style as your old function)
+		const payload: BookingDetailById = {
 			...data,
-			booking_participants: data![this.BOOKING_PARTICIPANTS_TABLE].map((p) => ({
-				id: p.id,
-				booking_id: p.booking_id,
-				quantity: p.quantity,
-				unit_price: p.unit_price,
-				participant_type_id: p.participant_type_id,
-				participant_type: p[this.PARTICIPANT_TYPES_TABLE],
+			payment: {
+				payment_status: data.payment.payment_status,
+			},
+			booking_items: (data.booking_items || []).map((item) => ({
+				...item,
+				booking_participants_new: (item.booking_participants_new || []).map((p) => ({
+					...p,
+					participant_type: p.participant_types,
+				})),
+				tour_option_name: item.tour_options.name || "N/A",
+				tour_name: item.tour_options.tours.name || "N/A",
 			})),
 		};
 
 		return {
-			booking: payload ?? null,
+			booking: payload,
 			error: null,
 		};
 	}
@@ -437,179 +305,120 @@ export class BookingService extends Service {
 	@UseMiddleware(verifyUser)
 	async updateBooking(id: string, input: UpdateBookingActionData): Promise<void> {
 		try {
-			// Fetch current booking to get existing values if needed
-			const { data: currentBooking, error: fetchError } = await this.supabase
-				.from(this.BOOKINGS_TABLE)
-				.select("*")
+			// 1. Fetch current booking + items + payment
+			const { data: booking, error: fetchError } = await this.supabase
+				.from("bookings_new")
+				.select(
+					`
+					id,
+					booking_ref,
+					booking_status,
+					subtotal_amount,
+					discount,
+					taxes,
+					total,
+					admin_note,
+					cancelled_at,
+					payment_id,
+					booking_items (
+						id,
+						preffered_date,
+						preffered_timeslot,
+						confirmed_date,
+						confirmed_timeslot
+					),
+					${this.PAYMENTS_TABLE} (*)
+					`,
+				)
 				.eq("id", id)
 				.single();
 
-			if (fetchError || !currentBooking) {
+			if (fetchError || !booking) {
 				throw new ApiError("Booking not found", 404, []);
 			}
 
-			let payload: Database["public"]["Tables"]["bookings"]["Update"] = {};
+			const bookingPayload: Partial<Database["public"]["Tables"]["bookings_new"]["Update"]> = {};
+			const paymentPayload: Partial<Database["public"]["Tables"]["payments"]["Update"]> = {};
 
-			// Check for confirmed at
-			let temp_booking_status = currentBooking.booking_status;
-			if (input.booking_status !== undefined) {
-				temp_booking_status = input.booking_status;
-			}
+			// 2. Booking-level fields
+			if (input.booking_status !== undefined) bookingPayload.booking_status = input.booking_status;
+			if (input.customer_name !== undefined) bookingPayload.customer_name = input.customer_name;
+			if (input.customer_email !== undefined) bookingPayload.customer_email = input.customer_email;
+			if (input.customer_phone !== undefined) bookingPayload.customer_phone = input.customer_phone;
+			if (input.admin_note !== undefined) bookingPayload.admin_note = input.admin_note;
+			if (input.discount !== undefined) bookingPayload.discount = input.discount;
+			if (input.taxes !== undefined) bookingPayload.taxes = input.taxes;
 
-			let temp_payment_status = currentBooking.payment_status;
-			if (input.payment_status !== undefined) {
-				temp_payment_status = input.payment_status;
-			}
-
-			let temp_confirmed_date = currentBooking.confirmed_date;
-			if (input.confirmed_date !== undefined) {
-				temp_confirmed_date = input.confirmed_date;
-			}
-
-			let temp_confirmed_timeslot = currentBooking.confirmed_timeslot;
-			if (input.confirmed_time !== undefined) {
-				temp_confirmed_timeslot = input.confirmed_time;
-			}
-
-			console.log(
-				temp_booking_status,
-				temp_payment_status,
-				temp_confirmed_date,
-				temp_confirmed_timeslot,
-			);
-
-			// Simple fields
-			if (input.booking_status !== undefined) {
-				payload.booking_status = input.booking_status;
-			}
-
-			if (
-				temp_booking_status === "CONFIRMED" &&
-				temp_payment_status === "PAID" &&
-				temp_confirmed_date !== null &&
-				temp_confirmed_timeslot !== null
-			) {
-				payload.confirmed_at = new Date().toISOString();
-			}
-
+			// 3. Status logic
 			if (input.booking_status === "CANCELLED") {
-				payload.cancelled_at = new Date().toISOString();
+				bookingPayload.cancelled_at = new Date().toISOString();
 			}
 
-			if (input.payment_status !== undefined) {
-				payload.payment_status = input.payment_status;
+			// 4. Payment status → update payments table
+			if (input.payment_status !== undefined && booking.payment_id) {
+				paymentPayload.payment_status = input.payment_status;
 			}
 
-			if (input.customer_name !== undefined) {
-				payload.customer_name = input.customer_name;
+			// 5. Dates & times → update ALL booking_items (multi-tour support)
+			if (
+				input.preffered_date !== undefined ||
+				input.preffered_time !== undefined ||
+				input.confirmed_date !== undefined ||
+				input.confirmed_time !== undefined
+			) {
+				const itemUpdate: any = {};
+				if (input.preffered_date !== undefined) itemUpdate.preffered_date = input.preffered_date;
+				if (input.preffered_time !== undefined) itemUpdate.preffered_timeslot = input.preffered_time;
+				if (input.confirmed_date !== undefined) itemUpdate.confirmed_date = input.confirmed_date;
+				if (input.confirmed_time !== undefined) itemUpdate.confirmed_timeslot = input.confirmed_time;
+
+				await this.supabase.from("booking_items").update(itemUpdate).eq("booking_id", id);
 			}
 
-			if (input.customer_email !== undefined) {
-				payload.customer_email = input.customer_email;
-			}
-
-			if (input.customer_phone !== undefined) {
-				payload.customer_phone = input.customer_phone;
-			}
-
-			if (input.preffered_date !== undefined) {
-				payload.preferred_date = input.preffered_date;
-			}
-
-			if (input.preffered_time !== undefined) {
-				payload.preferred_timeslot = input.preffered_time;
-			}
-
-			if (input.confirmed_date !== undefined) {
-				payload.confirmed_date = input.confirmed_date;
-			}
-
-			if (input.confirmed_time !== undefined) {
-				payload.confirmed_timeslot = input.confirmed_time;
-			}
-
-			if (input.admin_note !== undefined) {
-				payload.admin_note = input.admin_note;
-			}
-
-			let subtotal_amount = currentBooking.subtotal_amount;
-			let discount = currentBooking.discount;
-			let taxes = currentBooking.taxes;
-			let total = currentBooking.total;
-
-			// Handle participants updates and subtotal recalc
+			// 6. Participants pricing updates
 			if (input.participants_unit_prices && input.participants_unit_prices.length > 0) {
-				payload.price_overriden = true;
-
 				for (const p of input.participants_unit_prices) {
-					const { error: updateError } = await this.supabase
-						.from(this.BOOKING_PARTICIPANTS_TABLE)
+					await this.supabase
+						.from("booking_participants_new")
 						.update({
 							quantity: p.quantity,
 							unit_price: p.unit_price,
 						})
 						.eq("id", p.booking_participant_id);
-
-					if (updateError) {
-						throw new ApiError("Failed to update participant", 500, []);
-					}
 				}
 
-				// Recalc subtotal from updated participants
-				const { data: updatedParticipants, error: fetchPartsError } = await this.supabase
-					.from(this.BOOKING_PARTICIPANTS_TABLE)
+				// Recalculate subtotal from all participants
+				const { data: allParts } = await this.supabase
+					.from("booking_participants_new")
 					.select("quantity, unit_price")
-					.eq("booking_id", id);
+					.in(
+						"booking_item_id",
+						booking.booking_items.map((i: any) => i.id),
+					);
 
-				if (fetchPartsError) {
-					throw new ApiError("Failed to fetch updated participants", 500, []);
-				}
+				const newSubtotal = (allParts || []).reduce(
+					(sum: number, p) => sum + p.quantity * p.unit_price,
+					0,
+				);
 
-				subtotal_amount = updatedParticipants.reduce((sum, p) => sum + p.quantity * p.unit_price, 0);
-				payload.subtotal_amount = subtotal_amount;
+				bookingPayload.subtotal_amount = newSubtotal;
+				bookingPayload.total =
+					newSubtotal - (input.discount ?? booking.discount) + (input.taxes ?? booking.taxes);
 			}
 
-			// Discount & Taxes
-			if (input.discount !== undefined) {
-				discount = input.discount;
-				payload.discount = discount;
-			}
-
-			if (input.taxes !== undefined) {
-				taxes = input.taxes;
-				payload.taxes = taxes;
-			}
-
-			// Recalc total if any pricing changed
-			if (input.participants_unit_prices || input.discount !== undefined || input.taxes !== undefined) {
-				total = subtotal_amount - discount + taxes;
-				payload.total = total;
-
-				// If total is changed then session_id needs to be reset to force a new checkout session
-				payload.checkout_session_id = null;
-			}
-
-			// console.log(payload);
-
-			// Perform update if payload has changes
-			if (Object.keys(payload).length > 0) {
-				const { error: updateError } = await this.supabase
-					.from(this.BOOKINGS_TABLE)
-					.update(payload)
+			// 7. Update bookings_new if anything changed
+			if (Object.keys(bookingPayload).length > 0) {
+				const { error: updateErr } = await this.supabase
+					.from("bookings_new")
+					.update(bookingPayload)
 					.eq("id", id);
 
-				if (updateError) {
-					throw new ApiError("Failed to update booking", 500, []);
-				}
+				if (updateErr) throw new ApiError("Failed to update booking", 500, []);
 			}
 
-			if (
-				input.payment_status === "CANCELLED" &&
-				currentBooking.payment_ref !== null &&
-				currentBooking.payment_ref.length > 0
-			) {
-				const stripeSvc = new StripeServerService();
-				await stripeSvc.cancelPayment(currentBooking.payment_ref);
+			// 8. Update payments table if payment status changed
+			if (Object.keys(paymentPayload).length > 0 && booking.payment_id) {
+				await this.supabase.from("payments").update(paymentPayload).eq("id", booking.payment_id);
 			}
 		} catch (error) {
 			throw error instanceof ApiError ? error : new ApiError("Failed to update booking", 500, []);
