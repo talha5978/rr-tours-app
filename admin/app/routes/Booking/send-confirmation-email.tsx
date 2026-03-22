@@ -1,12 +1,4 @@
-import {
-	Form,
-	FormControl,
-	FormDescription,
-	FormField,
-	FormItem,
-	FormLabel,
-	FormMessage,
-} from "~/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/components/ui/form";
 import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -32,12 +24,13 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import type { ActionResponse } from "@workspace/shared/types/action-data";
 import { emailService } from "@workspace/shared/services/emails.service";
+import { format } from "date-fns";
 
 const fileToBase64 = (file: File): Promise<string> =>
 	new Promise((resolve, reject) => {
 		const reader = new FileReader();
 		reader.readAsDataURL(file);
-		reader.onload = () => resolve((reader.result as string).split(",")[1]); // remove data:url prefix
+		reader.onload = () => resolve((reader.result as string).split(",")[1]);
 		reader.onerror = (error) => reject(error);
 	});
 
@@ -46,22 +39,6 @@ const MAX_SIZE = 35 * 1024 * 1024;
 const emailSchema = z.object({
 	customer_name: z.string(),
 	customer_email: z.string().email(),
-	confirmed_timeslot: z
-		.string({ required_error: "Confirmed timeslot is required" })
-		.min(1, "Confirmed timeslot is required")
-		.refine((value) => value.trim().length > 0, {
-			message: "Confirmed timeslot is required",
-		}),
-	confirmed_date: z
-		.string({ required_error: "Confirmed date is required" })
-		.min(1, "Confirmed date is required")
-		.refine((value) => value.trim().length > 0, {
-			message: "Confirmed date is required",
-		}),
-	tour_name: z.string(),
-	tour_option_name: z.string(),
-	total_amount: z.string(),
-	number_of_participants: z.string(),
 	meeting_point: z.string().optional().nullable(),
 	important_notes: z.string().optional().nullable(),
 	attachments: z
@@ -119,6 +96,7 @@ export default function SendConfirmationEmail() {
 	const submit = useSubmit();
 
 	const navigate = useNavigate();
+
 	const form = useForm<emailFormData>({
 		disabled: isSending,
 		resolver: zodResolver(emailSchema),
@@ -126,12 +104,6 @@ export default function SendConfirmationEmail() {
 		defaultValues: {
 			customer_name: loaderData.booking?.customer_name ?? "",
 			customer_email: loaderData.booking?.customer_email ?? "",
-			confirmed_timeslot: loaderData.booking?.confirmed_timeslot ?? "",
-			confirmed_date: loaderData.booking?.confirmed_date ?? "",
-			tour_name: loaderData.booking?.tour_name ?? "",
-			tour_option_name: loaderData.booking?.tour_option_name ?? "",
-			total_amount: loaderData.booking?.total_amount ?? "",
-			number_of_participants: loaderData.booking?.number_of_participants.toString() ?? "N/A",
 			meeting_point: "",
 			important_notes: "",
 			attachments: [],
@@ -170,20 +142,30 @@ export default function SendConfirmationEmail() {
 				attachments = await Promise.all(base64Promises);
 			}
 
-			// Build final payload
+			// Build final payload with full tours array
 			const payload: BookingConfirmationPayload = {
 				booking_ref: loaderData.booking?.booking_ref ?? "N/A",
 				customer_name: data.customer_name,
 				customer_email: data.customer_email,
 				customer_phone: loaderData.booking?.customer_phone ?? "",
-				confirmed_timeslot: data.confirmed_timeslot,
-				confirmed_date: data.confirmed_date,
-				tour_name: data.tour_name,
-				tour_option_name: data.tour_option_name || undefined,
-				total_amount: Number(data.total_amount) || 0,
-				number_of_participants: Number(data.number_of_participants) || 0,
 				meeting_point: data.meeting_point || undefined,
 				important_notes: data.important_notes || undefined,
+				tours:
+					loaderData.booking?.tours?.map((t) => {
+						return {
+							tour_name: t.tour_name ?? "N/A",
+							tour_option_name: t.tour_option_name ?? "N/A",
+							preffered_date: t.preffered_date ?? "N/A",
+							preffered_timeslot: t.preffered_timeslot ?? "N/A",
+							confirmed_date: t.confirmed_date ?? "N/A",
+							confirmed_timeslot: t.confirmed_timeslot ?? "N/A",
+							participant_count: t.participant_count,
+						};
+					}) || [],
+				subtotal: Number(loaderData.booking?.subtotal) || 0,
+				discount: Number(loaderData.booking?.discount) || 0,
+				taxes: Number(loaderData.booking?.taxes) || 0,
+				total: Number(loaderData.booking?.total) || 0,
 				attachments,
 			};
 
@@ -202,28 +184,25 @@ export default function SendConfirmationEmail() {
 
 	return (
 		<Dialog open={true} onOpenChange={() => navigate(-1)}>
-			<DialogContent className="overflow-y-auto max-h-[80vh]">
-				<DialogHeader className="max-sm:mt-6">
+			<DialogContent className="overflow-y-auto max-h-[85vh] max-w-3xl">
+				<DialogHeader>
 					<DialogTitle>
 						Send Confirmation Email #{loaderData.booking?.booking_ref ?? "N/A"}
 					</DialogTitle>
 					<DialogDescription>
-						Add tickets, vouchers and other details and send a confirmation email.
+						Review all tours and send confirmation with attachments.
 					</DialogDescription>
 				</DialogHeader>
 
 				{loaderData.booking == null && loaderData.error != null ? (
-					<div className="p-4 bg-warning/40 border-2 rounded-lg border-warning">
-						<p>{loaderData.error?.message ?? "Unknown error"}</p>
+					<div className="p-4 bg-destructive/10 border border-destructive rounded-lg text-destructive">
+						{loaderData.error?.message ?? "Unknown error"}
 					</div>
 				) : (
 					<Form {...form}>
-						<form
-							method="POST"
-							className="space-y-4"
-							onSubmit={handleSubmit(handleFormSubmittion)}
-						>
-							<div className="grid sm:grid-cols-2 grid-cols-1 gap-4">
+						<form className="space-y-6" onSubmit={handleSubmit(handleFormSubmittion)}>
+							{/* Customer Info */}
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 								<FormField
 									control={control}
 									name="customer_name"
@@ -231,13 +210,7 @@ export default function SendConfirmationEmail() {
 										<FormItem>
 											<FormLabel>Customer Name</FormLabel>
 											<FormControl>
-												<Input
-													placeholder="Name"
-													disabled
-													min={1}
-													type="text"
-													{...field}
-												/>
+												<Input disabled {...field} />
 											</FormControl>
 											<FormMessage />
 										</FormItem>
@@ -250,13 +223,7 @@ export default function SendConfirmationEmail() {
 										<FormItem>
 											<FormLabel>Customer Email</FormLabel>
 											<FormControl>
-												<Input
-													placeholder="Email"
-													disabled
-													min={1}
-													type="email"
-													{...field}
-												/>
+												<Input disabled type="email" {...field} />
 											</FormControl>
 											<FormMessage />
 										</FormItem>
@@ -264,62 +231,62 @@ export default function SendConfirmationEmail() {
 								/>
 							</div>
 
-							<FormField
-								control={control}
-								name="tour_name"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>Selected Tour</FormLabel>
-										<FormControl>
-											<Input placeholder="Tour" min={1} disabled {...field} />
-										</FormControl>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
-
-							<FormField
-								control={control}
-								name="tour_option_name"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>Selected Option</FormLabel>
-										<FormControl>
-											<Input placeholder="Option" min={1} disabled {...field} />
-										</FormControl>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
-
-							<div className="grid sm:grid-cols-2 grid-cols-1 gap-4">
-								<FormField
-									control={control}
-									name="confirmed_date"
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel>Confirmed Date</FormLabel>
-											<FormControl>
-												<Input placeholder="Confirmed Date" min={1} {...field} />
-											</FormControl>
-											<FormMessage />
-										</FormItem>
-									)}
-								/>
-								<FormField
-									control={control}
-									name="confirmed_timeslot"
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel>Confirmed Timeslot</FormLabel>
-											<FormControl>
-												<Input placeholder="Confirmed Timeslot" min={1} {...field} />
-											</FormControl>
-											<FormMessage />
-										</FormItem>
-									)}
-								/>
+							{/* All Tours List */}
+							<div className="space-y-4">
+								<h3 className="text-sm font-medium">
+									Booked Tours ({loaderData.booking?.tours.length || 0})
+								</h3>
+								<div className="space-y-4">
+									{loaderData.booking?.tours.map((tour, idx) => (
+										<div key={idx} className="border rounded-lg p-4 bg-muted/30">
+											<div className="font-medium">{tour.tour_name}</div>
+											{tour.tour_option_name && (
+												<div className="text-sm text-muted-foreground mt-0.5">
+													{tour.tour_option_name}
+												</div>
+											)}
+											<div className="grid grid-cols-2 gap-4 mt-3 text-sm">
+												<div>
+													<span className="text-muted-foreground">Preferred:</span>{" "}
+													{tour.preffered_date
+														? format(new Date(tour.preffered_date), "PPP")
+														: "N/A"}{" "}
+													• {tour.preffered_timeslot || "—"}
+												</div>
+												<div>
+													<span className="text-muted-foreground">Confirmed:</span>{" "}
+													{tour.confirmed_date
+														? format(new Date(tour.confirmed_date), "PPP")
+														: "N/A"}{" "}
+													• {tour.confirmed_timeslot || "—"}
+												</div>
+											</div>
+											<div className="mt-3 text-xs text-muted-foreground">
+												{tour.participant_count} participants
+											</div>
+										</div>
+									))}
+								</div>
 							</div>
+
+							{/* Notes & Meeting Point */}
+							<FormField
+								control={control}
+								name="meeting_point"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Meeting Point</FormLabel>
+										<FormControl>
+											<Input
+												placeholder="Meeting point / pickup location"
+												{...field}
+												value={field.value ?? ""}
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
 
 							<FormField
 								control={control}
@@ -329,7 +296,7 @@ export default function SendConfirmationEmail() {
 										<FormLabel>Important Notes</FormLabel>
 										<FormControl>
 											<Textarea
-												placeholder="Important Notes"
+												placeholder="Any special instructions or notes for the customer..."
 												className="h-28 resize-none"
 												{...field}
 												value={field.value ?? ""}
@@ -340,24 +307,7 @@ export default function SendConfirmationEmail() {
 								)}
 							/>
 
-							<FormField
-								control={control}
-								name="meeting_point"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>Meeting Point</FormLabel>
-										<FormControl>
-											<Input
-												placeholder="Meeting Point"
-												{...field}
-												value={field.value ?? ""}
-											/>
-										</FormControl>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
-
+							{/* Attachments */}
 							<FormField
 								control={control}
 								name="attachments"
@@ -404,35 +354,28 @@ export default function SendConfirmationEmail() {
 														type="file"
 														accept="application/pdf"
 														multiple
-														className={`cursor-pointer hover:border-primary transition-colors duration-150 ease-in`}
 														onChange={handleFilesChange}
+														disabled={selectedFiles.length >= 5}
 														{...field}
 														value={undefined}
-														disabled={selectedFiles.length >= 5}
 													/>
 
 													{selectedFiles.length > 0 && (
 														<div className="border rounded-md p-3 bg-muted/30 space-y-2">
-															<p className="text-sm font-medium">
-																Selected files ({selectedFiles.length}/5)
-															</p>
-
 															{selectedFiles.map((file, index) => (
 																<div
 																	key={index}
-																	className="flex items-center justify-between text-sm bg-background border rounded px-3 py-2"
+																	className="flex justify-between items-center bg-background border rounded px-3 py-2"
 																>
-																	<div className="flex items-center gap-2 truncate flex-1">
-																		<span className="text-muted-foreground">
-																			📄
-																		</span>
-																		<span className="truncate max-w-25 sm:max-w-55">
-																			{file?.name ?? "File N/A"}
+																	<div className="flex items-center gap-2 truncate">
+																		<span>📄</span>
+																		<span className="truncate">
+																			{file.name}
 																		</span>
 																		<span className="text-xs text-muted-foreground">
 																			(
 																			{(
-																				(file?.size ?? 0) /
+																				file.size /
 																				(1024 * 1024)
 																			).toFixed(2)}{" "}
 																			MB)
@@ -442,30 +385,17 @@ export default function SendConfirmationEmail() {
 																		type="button"
 																		variant="ghost"
 																		size="icon"
-																		className="h-8 w-8 p-0 text-destructive hover:text-destructive/80 hover:bg-destructive/10"
 																		onClick={() => removeFile(index)}
 																	>
-																		<Trash2 />
+																		<Trash2 className="h-4 w-4" />
 																	</Button>
 																</div>
 															))}
-
-															{/* Total size info */}
-															<p className="text-xs text-muted-foreground mt-2">
-																Total size: {totalSizeMB} MB{" "}
-																{Number(totalSizeMB) > 35
-																	? "(exceeds limit)"
-																	: "/ 35 MB max"}
+															<p className="text-xs text-muted-foreground">
+																Total: {totalSizeMB} MB / 35 MB max
 															</p>
 														</div>
 													)}
-
-													{/* Description */}
-													<FormDescription>
-														Upload up to 5 PDF files. Total size must not exceed
-														35MB. These will be attached to the confirmation
-														email.
-													</FormDescription>
 												</div>
 											</FormControl>
 											<FormMessage />
@@ -474,10 +404,10 @@ export default function SendConfirmationEmail() {
 								}}
 							/>
 
-							<div className="mt-2 w-fit ml-auto">
-								<Button type="submit" className="w-fit" disabled={isSending}>
-									{isSending && <Loader2 className="animate-spin mr-1" />}
-									<span>{isSending ? "Sending..." : "Send"}</span>
+							<div className="pt-4 flex justify-end">
+								<Button type="submit" disabled={isSending} className="min-w-32">
+									{isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+									{isSending ? "Sending..." : "Send Confirmation Email"}
 								</Button>
 							</div>
 						</form>

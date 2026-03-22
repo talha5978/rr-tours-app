@@ -115,7 +115,22 @@ class EmailService {
 
 	/** Send confirmation email to customer */
 	public async sendBookingConfirmation(payload: BookingConfirmationPayload) {
-		const { booking_ref, tour_name, customer_name } = payload;
+		const { booking_ref, customer_name, customer_email } = payload;
+
+		// Build plain text email body with all tours
+		const tourLines = payload.tours
+			.map((tour, index) => {
+				return [
+					`Tour ${index + 1}: ${tour.tour_name}`,
+					tour.tour_option_name ? `   Option: ${tour.tour_option_name}` : "",
+					`   Confirmed: ${tour.confirmed_date || "N/A"} at ${tour.confirmed_timeslot || "N/A"}`,
+					`   Participants: ${tour.participant_count}`,
+					"",
+				]
+					.filter(Boolean)
+					.join("\n");
+			})
+			.join("\n");
 
 		const resendAttachments =
 			payload.attachments?.map((att) => ({
@@ -126,19 +141,29 @@ class EmailService {
 
 		return this.sendEmail({
 			from: `WanderNest <bookings@wandernest.com>`,
-			to: payload.customer_email,
+			to: customer_email,
 			cc: EMAIL_ADDRESS_1,
-			subject: `Booking Confirmed – ${tour_name} #${booking_ref}`,
+			subject: `Booking Confirmed – #${booking_ref}`,
 			text: [
 				`Dear ${customer_name},`,
 				``,
-				`Your booking #${booking_ref} is confirmed!`,
-				`Tour: ${tour_name}`,
-				`Date: ${payload.confirmed_date} at ${payload.confirmed_timeslot}`,
-				`Total: AED ${payload.total_amount.toFixed(2)}`,
+				`Your booking #${booking_ref} has been confirmed!`,
 				``,
-				`Tickets attached.`,
+				`📍 Booked Tours:`,
+				``,
+				tourLines,
+				`Grand Total: AED ${payload.total.toFixed(2)}`,
+				``,
+				payload.meeting_point ? `📍 Meeting Point: ${payload.meeting_point}` : "",
+				payload.important_notes ? `\n📌 Important Notes:\n${payload.important_notes}\n` : "",
+				``,
+				`Your tickets and vouchers are attached.`,
+				``,
 				`Thank you for choosing WanderNest!`,
+				`We look forward to seeing you soon.`,
+				``,
+				`Best regards,`,
+				`WanderNest Team`,
 			].join("\n"),
 			react: BookingConfirmationEmail(payload),
 			attachments: resendAttachments.length > 0 ? resendAttachments : undefined,

@@ -27,14 +27,21 @@ export interface BookingConfirmationPayload {
 	customer_name: string;
 	customer_email: string;
 	customer_phone: string;
-	confirmed_timeslot: string;
-	confirmed_date: string;
-	tour_name: string;
-	tour_option_name?: string;
-	total_amount: number;
-	number_of_participants: number;
 	meeting_point?: string;
 	important_notes?: string;
+	tours: Array<{
+		tour_name: string;
+		tour_option_name?: string;
+		preffered_date?: string;
+		preffered_timeslot?: string;
+		confirmed_date?: string;
+		confirmed_timeslot?: string;
+		participant_count: number;
+	}>;
+	subtotal: number;
+	discount: number;
+	taxes: number;
+	total: number;
 	attachments?: Array<{
 		filename: string;
 		content: Buffer | string; // Buffer from fetch or string (base64)

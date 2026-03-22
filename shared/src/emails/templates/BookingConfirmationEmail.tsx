@@ -3,31 +3,29 @@ import { EmailHeader } from "@workspace/shared/emails/components/EmailHeader";
 import { EmailFooter } from "@workspace/shared/emails/components/EmailFooter";
 import type { BookingConfirmationPayload } from "@workspace/shared/types/emails";
 import { CONTACT_NUMBER_1 } from "@workspace/shared/constants/constants";
+import { format } from "date-fns";
 
 export default function BookingConfirmationEmail(props: BookingConfirmationPayload) {
 	const {
 		booking_ref,
 		customer_name,
-		confirmed_timeslot,
-		confirmed_date,
-		tour_name,
-		tour_option_name,
-		total_amount,
-		number_of_participants,
+		total,
 		meeting_point,
 		important_notes,
+		tours = [],
+		subtotal,
+		discount,
+		taxes,
 		attachments,
 	} = props;
 
 	const formatCurrency = (amount: number) =>
-		`AED ${amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+		`AED ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 	return (
 		<Html lang="en" suppressHydrationWarning>
 			<Head />
-			<Preview>
-				Your booking is confirmed – {tour_name} #{booking_ref}
-			</Preview>
+			<Preview>Your booking is confirmed! #{booking_ref}</Preview>
 
 			<Container
 				style={{
@@ -41,7 +39,7 @@ export default function BookingConfirmationEmail(props: BookingConfirmationPaylo
 				<EmailHeader title="Booking Confirmed!" />
 
 				<Section style={{ padding: "0 24px 32px", marginTop: "1rem" }}>
-					{/* Greeting + Confirmation Message */}
+					{/* Greeting */}
 					<Text
 						style={{
 							fontSize: "18px",
@@ -86,37 +84,72 @@ export default function BookingConfirmationEmail(props: BookingConfirmationPaylo
 						</Column>
 					</Row>
 
+					{/* Multi-Tour List */}
 					<Row style={{ marginBottom: "16px" }}>
-						<Column style={{ width: "140px", paddingRight: "16px" }}>
-							<Text style={labelStyle}>Tour</Text>
+						<Column style={{ width: "140px", paddingRight: "16px", verticalAlign: "top" }}>
+							<Text style={labelStyle}>Tours</Text>
 						</Column>
 						<Column>
-							<Text style={valueStyle}>{tour_name}</Text>
-							{tour_option_name && (
-								<Text style={{ ...valueStyle, fontSize: "14px", marginTop: "4px" }}>
-									Option: {tour_option_name}
-								</Text>
-							)}
-						</Column>
-					</Row>
+							<div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+								{tours.length === 0 ? (
+									<Text style={{ ...valueStyle, color: "#9ca3af" }}>No tours found</Text>
+								) : (
+									tours.map((tour, index) => (
+										<div key={index}>
+											<Text
+												style={{
+													...valueStyle,
+													fontWeight: 600,
+													marginBottom: "4px",
+												}}
+											>
+												{tour.tour_name}
+												{tour.tour_option_name && (
+													<span style={{ fontWeight: 400, color: "#6b7280" }}>
+														{" "}
+														— {tour.tour_option_name}
+													</span>
+												)}
+											</Text>
 
-					<Row style={{ marginBottom: "16px" }}>
-						<Column style={{ width: "140px", paddingRight: "16px" }}>
-							<Text style={labelStyle}>Date & Time</Text>
-						</Column>
-						<Column>
-							<Text style={valueStyle}>
-								{confirmed_date} • {confirmed_timeslot}
-							</Text>
-						</Column>
-					</Row>
+											<div
+												style={{
+													fontSize: "14px",
+													color: "#4b5563",
+													lineHeight: "1.5",
+												}}
+											>
+												<div>
+													Confirmed:{" "}
+													<span style={{ color: "#111827" }}>
+														{tour.confirmed_date
+															? format(new Date(tour.confirmed_date), "PPP")
+															: "N/A"}{" "}
+														• {tour.confirmed_timeslot || "—"}
+													</span>
+												</div>
+												<div>
+													Preferred:{" "}
+													<span style={{ color: "#111827" }}>
+														{tour.preffered_date
+															? format(new Date(tour.preffered_date), "PPP")
+															: "N/A"}{" "}
+														• {tour.preffered_timeslot || "—"}
+													</span>
+												</div>
+												<div style={{ marginTop: "4px" }}>
+													{tour.participant_count} participant
+													{tour.participant_count !== 1 ? "s" : ""}
+												</div>
+											</div>
 
-					<Row style={{ marginBottom: "16px" }}>
-						<Column style={{ width: "140px", paddingRight: "16px" }}>
-							<Text style={labelStyle}>Participants</Text>
-						</Column>
-						<Column>
-							<Text style={valueStyle}>{number_of_participants} people</Text>
+											{index < tours.length - 1 && (
+												<Hr style={{ borderColor: "#e5e7eb", margin: "16px 0" }} />
+											)}
+										</div>
+									))
+								)}
+							</div>
 						</Column>
 					</Row>
 
@@ -133,7 +166,7 @@ export default function BookingConfirmationEmail(props: BookingConfirmationPaylo
 
 					<Hr style={{ borderColor: "#e5e7eb", margin: "24px 0" }} />
 
-					{/* Pricing */}
+					{/* Payment Summary */}
 					<Text
 						style={{
 							fontSize: "18px",
@@ -145,10 +178,43 @@ export default function BookingConfirmationEmail(props: BookingConfirmationPaylo
 						Payment Summary
 					</Text>
 
-					<Row style={{ marginTop: "16px", paddingTop: "12px", borderTop: "1px solid #e5e7eb" }}>
+					<Row style={{ marginBottom: "8px" }}>
+						<Column style={{ width: "140px", paddingRight: "16px" }}>
+							<Text style={labelStyle}>Subtotal</Text>
+						</Column>
+						<Column>
+							<Text style={valueStyle}>{formatCurrency(subtotal)}</Text>
+						</Column>
+					</Row>
+
+					{discount > 0 && (
+						<Row style={{ marginBottom: "8px" }}>
+							<Column style={{ width: "140px", paddingRight: "16px" }}>
+								<Text style={labelStyle}>Discount</Text>
+							</Column>
+							<Column>
+								<Text style={{ ...valueStyle, color: "#dc2626" }}>
+									-{formatCurrency(discount)}
+								</Text>
+							</Column>
+						</Row>
+					)}
+
+					{taxes > 0 && (
+						<Row style={{ marginBottom: "8px" }}>
+							<Column style={{ width: "140px", paddingRight: "16px" }}>
+								<Text style={labelStyle}>Taxes</Text>
+							</Column>
+							<Column>
+								<Text style={valueStyle}>{formatCurrency(taxes)}</Text>
+							</Column>
+						</Row>
+					)}
+
+					<Row style={{ paddingTop: "12px", borderTop: "1px solid #e5e7eb" }}>
 						<Column style={{ width: "140px", paddingRight: "16px" }}>
 							<Text style={{ ...labelStyle, fontSize: "16px", fontWeight: 600 }}>
-								Total Paid
+								Grand Total
 							</Text>
 						</Column>
 						<Column>
@@ -160,12 +226,12 @@ export default function BookingConfirmationEmail(props: BookingConfirmationPaylo
 									margin: 0,
 								}}
 							>
-								{formatCurrency(total_amount)}
+								{formatCurrency(total)}
 							</Text>
 						</Column>
 					</Row>
 
-					{/* Attachments / Tickets Notice */}
+					{/* Attachments Notice */}
 					{attachments && attachments.length > 0 && (
 						<Section style={{ marginTop: "32px" }}>
 							<Text
@@ -176,7 +242,7 @@ export default function BookingConfirmationEmail(props: BookingConfirmationPaylo
 									margin: "0 0 12px",
 								}}
 							>
-								Your Tickets
+								Your Tickets & Vouchers
 							</Text>
 							<Text
 								style={{
@@ -185,12 +251,14 @@ export default function BookingConfirmationEmail(props: BookingConfirmationPaylo
 									lineHeight: "1.6",
 								}}
 							>
-								Please find your booking voucher(s) and ticket(s) attached to this email. You
-								may bring a printed or digital copy on the day of your tour.
+								Please find your booking voucher(s), ticket(s), and any additional documents
+								attached to this email. Bring a printed or digital copy on the day of your
+								tour.
 							</Text>
 						</Section>
 					)}
 
+					{/* Important Notes */}
 					{important_notes && (
 						<>
 							<Hr style={{ borderColor: "#e5e7eb", margin: "32px 0 24px" }} />
@@ -239,7 +307,8 @@ export default function BookingConfirmationEmail(props: BookingConfirmationPaylo
 							textAlign: "center",
 						}}
 					>
-						If you have any questions, send us a query or contact us at +{CONTACT_NUMBER_1}.
+						If you have any questions, feel free to reply to this email or contact us at +
+						{CONTACT_NUMBER_1}.
 					</Text>
 				</Section>
 

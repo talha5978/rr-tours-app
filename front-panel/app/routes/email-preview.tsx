@@ -1,22 +1,58 @@
 import { render } from "@react-email/render";
 import { Await, useLoaderData } from "react-router";
 import { Suspense } from "react";
-import WelcomeEmail from "@workspace/shared/emails/templates/WelcomeEmail";
+import BookingConfirmationEmail from "@workspace/shared/emails/templates/BookingConfirmationEmail";
+import { BookingConfirmationPayload } from "@workspace/shared/types/emails";
 
 export const loader = async () => {
-	const sampleData = {
-		full_name: "Test User",
-		email: "test@example.com",
-		subject: "Test Subject",
-		message: "This is a sample message.\nWith multiple lines.\n\nLooks good?",
+	if (process.env.VITE_ENV !== "development") throw new Error("Email preview is disabled in production.");
+	const samplePayload: BookingConfirmationPayload = {
+		booking_ref: "WN-ABC123",
+		customer_name: "Talha Khan",
+		customer_email: "talha@example.com",
+		customer_phone: "+923001234567",
+		total: 1250.0,
+		subtotal: 1000.0,
+		taxes: 250.0,
+		discount: 0,
+		meeting_point: "Hotel lobby, Burj Al Arab entrance at 8:45 AM",
+		important_notes:
+			"Please bring sunscreen and water bottle.\nNo outside food allowed inside the venue.",
+		tours: [
+			{
+				tour_name: "National Aquarium Abu Dhabi",
+				tour_option_name: "Standard Tickets",
+				preffered_date: "2026-03-15",
+				preffered_timeslot: "10:00 AM",
+				confirmed_date: "2026-03-15",
+				confirmed_timeslot: "10:30 AM",
+				participant_count: 3,
+			},
+			{
+				tour_name: "The Green Planet Dubai",
+				tour_option_name: "Family Package",
+				preffered_date: "2026-03-16",
+				preffered_timeslot: "2:00 PM",
+				confirmed_date: "2026-03-16",
+				confirmed_timeslot: "2:00 PM",
+				participant_count: 2,
+			},
+		],
+		attachments: [
+			{
+				filename: "booking-voucher.pdf",
+				content: "base64stringhere...",
+				contentType: "application/pdf",
+			},
+		],
 	};
 
 	// Render to HTML string (for <div dangerouslySetInnerHTML>)
-	const html = render(<WelcomeEmail email="hello@gmail.com" firstName="Talha" loginUrl="loginurl" />, {
+	const html = render(<BookingConfirmationEmail {...samplePayload} />, {
 		pretty: true,
 	});
 
-	return { html, sampleData };
+	return { html, samplePayload };
 };
 
 export default function EmailPreview() {

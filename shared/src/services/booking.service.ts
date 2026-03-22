@@ -456,31 +456,47 @@ export class BookingService extends Service {
 		};
 	}
 
-	/** get booking details for confirmation email dialog */
+	/**
+	 * Get booking details for confirmation email / front-end confirmation page
+	 * Fully multi-tour aware — no root-level confirmed_date/timeslot anymore
+	 */
 	async getBookingForConfirmation(booking_id: string): Promise<GetBookingDetailsForConfirm> {
 		if (!booking_id || booking_id === "") {
 			throw new ApiError("Missing booking id", 400, []);
 		}
 
 		const { data, error } = await this.supabase
-			.from(this.BOOKINGS_TABLE)
+			.from("bookings_new")
 			.select(
 				`
-					booking_ref,
-					customer_name,
-					customer_email,
-					customer_phone,
+				booking_ref,
+				customer_name,
+				customer_email,
+				customer_phone,
+				total,
+				subtotal_amount,
+				discount,
+				taxes,
+				booking_items (
+					preffered_date,
+					preffered_timeslot,
 					confirmed_date,
 					confirmed_timeslot,
-					tour_name,
-					tour_option_name,
-					total_amount:total.sum(),
-					${this.BOOKING_PARTICIPANTS_TABLE}!inner(id)
-				`,
+					${this.TOUR_OPTIONS_TABLE}!inner (
+						name,
+						${this.TOURS_TABLE}!inner (
+							name
+						)
+					),
+					booking_participants_new (
+						quantity,
+						unit_price
+					)
+				)
+			`,
 			)
 			.eq("id", booking_id)
-			.limit(1)
-			.maybeSingle();
+			.single();
 
 		if (error) {
 			return {
@@ -489,24 +505,45 @@ export class BookingService extends Service {
 			};
 		}
 
-		let payload: GetBookingDetailsForConfirm["booking"] = {
-			confirmed_date: data?.confirmed_date ?? "N/A",
-			confirmed_timeslot: data?.confirmed_timeslot ?? "N/A",
-			customer_email: data?.customer_email ?? "N/A",
-			customer_name: data?.customer_name ?? "N/A",
-			customer_phone: data?.customer_phone ?? "N/A",
-			tour_name: data?.tour_name ?? "N/A",
-			tour_option_name: data?.tour_option_name ?? "N/A",
-			booking_ref: data?.booking_ref ?? "N/A",
-			number_of_participants:
-				data?.booking_participants && data?.booking_participants.length > 0
-					? data?.booking_participants.length
-					: 0,
-			total_amount: data?.total_amount.toString() ?? "N/A",
+		if (!data) {
+			return {
+				booking: null,
+				error: new ApiError("Booking not found", 404, []),
+			};
+		}
+
+		// Build tours array with per-tour calculations
+		const tours = (data.booking_items || []).map((item) => {
+			const participants = item.booking_participants_new || [];
+
+			const participantCount = participants.reduce((sum: number, p) => sum + (p.quantity || 0), 0);
+
+			return {
+				tour_name: item.tour_options?.tours?.name || "Untitled Tour",
+				tour_option_name: item.tour_options?.name || null,
+				preffered_date: item.preffered_date || null,
+				preffered_timeslot: item.preffered_timeslot || null,
+				confirmed_date: item.confirmed_date || null,
+				confirmed_timeslot: item.confirmed_timeslot || null,
+				participant_count: participantCount,
+			};
+		});
+
+		const payload = {
+			booking_ref: data.booking_ref ?? "N/A",
+			customer_name: data.customer_name ?? null,
+			customer_email: data.customer_email ?? null,
+			customer_phone: data.customer_phone ?? null,
+			total_amount: data.total?.toFixed(2) ?? "0.00",
+			tours,
+			subtotal: data.subtotal_amount ?? 0,
+			discount: data.discount ?? 0,
+			taxes: data.taxes ?? 0,
+			total: data.total ?? 0,
 		};
 
 		return {
-			booking: payload ?? null,
+			booking: payload,
 			error: null,
 		};
 	}

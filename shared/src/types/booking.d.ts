@@ -87,15 +87,23 @@ export type GetBookingDetailByID = {
 export type GetBookingDetailsForConfirm = {
 	booking: {
 		booking_ref: string;
-		customer_name: string;
-		customer_email: string;
-		customer_phone: string;
-		confirmed_timeslot: string;
-		confirmed_date: string;
-		tour_name: string;
-		tour_option_name?: string;
+		customer_name: string | null;
+		customer_email: string | null;
+		customer_phone: string | null;
 		total_amount: string;
-		number_of_participants: number;
+		tours: Array<{
+			tour_name: string;
+			tour_option_name: string | null;
+			preffered_date: string | null;
+			preffered_timeslot: string | null;
+			confirmed_date: string | null;
+			confirmed_timeslot: string | null;
+			participant_count: number;
+		}>;
+		total: number;
+		subtotal: number;
+		discount: number;
+		taxes: number;
 	} | null;
 	error: ApiError | null;
 };
