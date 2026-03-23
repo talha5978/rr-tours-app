@@ -11,7 +11,7 @@ import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "~/components/ui/dialog";
-import { ArrowRight, Check, ChevronLeft, ChevronRight, Clock, Loader2, Plus, Star } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Loader2, Plus, Star } from "lucide-react";
 import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
 import { currentFullUserQuery } from "~/queries/auth.q";
 import { queryClient } from "@workspace/shared/utils/query-client";
@@ -81,7 +81,8 @@ export default function MyReviewsPage() {
 	const { bookings, total } = reviewsData;
 	const totalPages = Math.ceil(total / PAGE_SIZE);
 	const [addReviewBookingId, setAddReviewBookingId] = useState<string | null>(null);
-	const [deletingReviewId, setDeletingReviewId] = useState<string | null>(null);
+	const [deletingReviewId, setDeletingReviewId] = useState<number | null>(null);
+	const [addReviewTourId, setAddReviewTourId] = useState<string | null>(null);
 	const fetcher = useFetcher();
 	const isDeletingReview = fetcher.state === "submitting" && fetcher.formAction === "/delete-review";
 
@@ -109,15 +110,15 @@ export default function MyReviewsPage() {
 		}
 	}, [fetcher.data]);
 
-	function handleDeleteClick(tour_id: string, review_id: string) {
+	function handleDeleteClick(tour_id: string, review_id: number) {
 		if (tour_id == null || review_id == null) {
 			toast.error("Something went wrong!");
 			return;
 		}
-
+		setDeletingReviewId(review_id);
 		const formData = new FormData();
 		formData.set("tour_id", tour_id);
-		formData.set("review_id", review_id);
+		formData.set("review_id", String(review_id));
 		fetcher.submit(formData, { method: "post", action: "/delete-review", preventScrollReset: true });
 	}
 
@@ -188,191 +189,149 @@ export default function MyReviewsPage() {
 				<div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
 					{bookings.map((booking) => (
 						<Card key={booking.id} className="flex flex-col overflow-hidden">
+							{/* Booking header */}
 							<div className="p-4 bg-primary/5">
-								<h3 className="font-semibold text-lg truncate">
-									{booking.tour_name || "Tour"}
-								</h3>
-								<p className="text-sm text-muted-foreground truncate">
-									{booking.tour_option_name || "Standard Option"}
-								</p>
+								<h3 className="font-semibold text-lg">Booking #{booking.booking_ref}</h3>
 							</div>
 
-							<div className="p-4 pt-2 space-y-4 flex-1">
-								<div className="flex justify-between items-center text-sm">
-									<div className="flex items-center gap-3">
-										<Clock className="h-4 w-4 text-muted-foreground" />
-										<div className="flex flex-col">
-											<span className="text-muted-foreground">
-												{booking.confirmed_date || booking.preffered_date || "N/A"}
-											</span>
-											<span className="text-muted-foreground text-xs">
-												{booking.confirmed_timeslot ||
-													booking.preffered_timeslot ||
-													"N/A"}
-											</span>
+							<div className="p-4 flex-1 space-y-6">
+								{/* Per-tour sections */}
+								{booking.tours.map((tour) => (
+									<div key={tour.tour_id} className="border rounded-lg p-4">
+										<div className="flex justify-between items-start mb-3">
+											<div>
+												<h4 className="font-medium">{tour.tour_name}</h4>
+												{tour.tour_option_name && (
+													<p className="text-sm text-muted-foreground">
+														{tour.tour_option_name}
+													</p>
+												)}
+											</div>
+											<Badge variant="outline" className="text-xs">
+												{tour.confirmed_date ? "Confirmed" : "Preferred"}
+											</Badge>
 										</div>
-									</div>
-									<Badge variant="outline" className="text-xs">
-										{booking.booking_ref}
-									</Badge>
-								</div>
 
-								<div className="flex flex-wrap gap-2">
-									{booking.booking_status === "CONFIRMED" && (
-										<Badge>
-											<Check />
-											Booking Confirmed
-										</Badge>
-									)}
-									{(booking.payment_status === "PAID" ||
-										booking.payment_status === "PARTIAL") && (
-										<Badge
-											variant={
-												booking.payment_status === "PAID" ? "default" : "warning"
-											}
-										>
-											<Check />
-											{booking.payment_status === "PAID" ? "Paid" : "Partially Paid"}
-										</Badge>
-									)}
-								</div>
-							</div>
+										<div className="text-sm text-muted-foreground mb-4">
+											Confirmed:{" "}
+											{tour.confirmed_date
+												? format(new Date(tour.confirmed_date), "PPP")
+												: "—"}{" "}
+											• {tour.confirmed_timeslot || "—"}
+											<br />
+											Preferred:{" "}
+											{tour.preffered_date
+												? format(new Date(tour.preffered_date), "PPP")
+												: "—"}{" "}
+											• {tour.preffered_timeslot || "—"}
+										</div>
 
-							<div className="p-4 border-t bg-muted/5">
-								<div className="flex items-center justify-between mb-3">
-									<h4 className="font-medium text-sm">
-										Reviews ({booking.reviews.length}/5)
-									</h4>
-									{booking.reviews.length < 5 && (
-										<Dialog
-											open={addReviewBookingId === booking.id}
-											onOpenChange={(open) => {
-												if (!open) setAddReviewBookingId(null);
-											}}
-										>
-											<DialogTrigger onClick={() => setAddReviewBookingId(booking.id)}>
-												<Button variant="ghost" size="icon">
-													<Plus className="h-4 w-4" />
-												</Button>
-											</DialogTrigger>
-											<DialogContent className="sm:max-w-md">
-												<DialogHeader className="mt-6">
-													<DialogTitle>
-														Add Review for {booking.tour_name} - #
-														{booking.booking_ref}
-													</DialogTitle>
-												</DialogHeader>
-												<AddReviewForm
-													booking_id={booking.id}
-													tour_id={booking.tour_id!}
-													setAddReviewDialog={() => setAddReviewBookingId(null)}
-												/>
-											</DialogContent>
-										</Dialog>
-									)}
-								</div>
-
-								{booking.reviews.length === 0 ? (
-									<p className="text-sm text-muted-foreground text-center pb-2 pt-4">
-										No reviews yet
-									</p>
-								) : (
-									<div className="space-y-4 max-h-48 overflow-y-auto pr-2">
-										{booking.reviews.map((review, index) => (
-											<Fragment key={review.id}>
-												<div className="space-y-2">
-													<div className="flex justify-between items-center">
-														<div className="flex items-center gap-2">
-															<StarRating rating={review.rating} />
-															<span className="text-xs text-muted-foreground">
-																{format(
-																	new Date(review.created_at),
-																	"MMM dd, yyyy",
-																)}
-															</span>
-														</div>
-														<Dialog
-															open={deletingReviewId === review.id}
-															onOpenChange={(open) => {
-																if (!open) setDeletingReviewId(null);
-															}}
-														>
-															<DialogTrigger>
+										{/* Reviews for this tour */}
+										{tour.reviews.length === 0 ? (
+											<p className="text-sm text-muted-foreground text-center py-6">
+												No reviews yet
+											</p>
+										) : (
+											<div className="space-y-4">
+												{tour.reviews.map((review, idx) => (
+													<Fragment key={review.id}>
+														<div className="space-y-2">
+															<div className="flex justify-between">
+																<StarRating rating={review.rating} />
+																<span className="text-xs text-muted-foreground">
+																	{format(
+																		new Date(review.created_at),
+																		"MMM dd, yyyy",
+																	)}
+																</span>
+															</div>
+															{review.comment && (
+																<p className="text-sm">{review.comment}</p>
+															)}
+															<div className="mt-1 flex justify-end">
 																<Button
 																	variant={"link"}
 																	size={"sm"}
-																	className="p-0 m-0 text-destructive"
+																	className="text-destructive px-0"
 																	onClick={() =>
-																		setDeletingReviewId(review.id)
+																		handleDeleteClick(
+																			tour.tour_id,
+																			review.id,
+																		)
+																	}
+																	disabled={
+																		isDeletingReview &&
+																		deletingReviewId == review.id
 																	}
 																>
+																	{isDeletingReview &&
+																		deletingReviewId === review.id && (
+																			<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+																		)}
 																	Delete
 																</Button>
-															</DialogTrigger>
-															<DialogContent>
-																<div className="mt-1">
-																	<h2 className="font-bold text-xl">
-																		Delete Review
-																	</h2>
-																	<p>
-																		Are you sure you want to delete this
-																		review?
-																	</p>
-																	<div className="mt-4 w-fit ml-auto flex gap-2 flex-row">
-																		<Button
-																			size="sm"
-																			variant={"outline"}
-																			onClick={() =>
-																				setDeletingReviewId(null)
-																			}
-																			disabled={isDeletingReview}
-																		>
-																			Cancel
-																		</Button>
-																		<Button
-																			size="sm"
-																			className="text-destructive-foreground bg-destructive hover:bg-destructive"
-																			onClick={() =>
-																				handleDeleteClick(
-																					booking.tour_id!,
-																					review.id,
-																				)
-																			}
-																			disabled={isDeletingReview}
-																		>
-																			{isDeletingReview && (
-																				<Loader2 className="animate-spin" />
-																			)}
-																			Delete
-																		</Button>
-																	</div>
-																</div>
-															</DialogContent>
-														</Dialog>
-													</div>
-													{review.comment && (
-														<p className="text-sm text-muted-foreground line-clamp-3">
-															{review.comment}
-														</p>
-													)}
-												</div>
-												<Separator
-													hidden={
-														booking.reviews.length === 1 ||
-														index === booking.reviews.length - 1
+															</div>
+														</div>
+														{idx < tour.reviews.length - 1 && <Separator />}
+													</Fragment>
+												))}
+											</div>
+										)}
+
+										{/* Add review button per tour */}
+										{tour.reviews.length < 5 && (
+											<Dialog
+												open={
+													addReviewBookingId === booking.id &&
+													addReviewTourId === tour.tour_id
+												}
+												onOpenChange={(open) => {
+													if (!open) {
+														setAddReviewBookingId(null);
+														setAddReviewTourId(null);
 													}
-												/>
-											</Fragment>
-										))}
+												}}
+											>
+												<DialogTrigger asChild>
+													<Button
+														variant="ghost"
+														size="sm"
+														className="w-full mt-4"
+														onClick={() => {
+															setAddReviewBookingId(booking.id);
+															setAddReviewTourId(tour.tour_id);
+														}}
+													>
+														<Plus className="mr-2 h-4 w-4" />
+														Add Review for this tour
+													</Button>
+												</DialogTrigger>
+												<DialogContent>
+													<DialogHeader>
+														<DialogTitle>
+															Add Review — {tour.tour_name} (#
+															{booking.booking_ref})
+														</DialogTitle>
+													</DialogHeader>
+													<AddReviewForm
+														booking_id={booking.id}
+														tour_id={tour.tour_id}
+														setAddReviewDialog={() => {
+															setAddReviewBookingId(null);
+															setAddReviewTourId(null);
+														}}
+													/>
+												</DialogContent>
+											</Dialog>
+										)}
 									</div>
-								)}
+								))}
 							</div>
 
 							<div className="p-4 border-t flex justify-end">
 								<Link
 									to={`/track-booking?ref=${booking.booking_ref}`}
 									className="text-sm text-primary hover:underline flex items-center gap-1"
-									viewTransition
 								>
 									View Booking <ArrowRight className="h-3 w-3" />
 								</Link>

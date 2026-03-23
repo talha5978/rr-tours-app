@@ -1024,7 +1024,7 @@ export type Database = {
 						foreignKeyName: "tour_reviews_booking_id_fkey";
 						columns: ["booking_id"];
 						isOneToOne: false;
-						referencedRelation: "bookings";
+						referencedRelation: "bookings_new";
 						referencedColumns: ["id"];
 					},
 					{

@@ -6,8 +6,10 @@ import type {
 	GetTourReviewsResp,
 	HomePageReviewsResp,
 	HomePageTourReview,
+	MyReview,
 	MyReviewsBooking,
 	MyReviewsBookings,
+	MyReviewTour,
 	TourReview,
 } from "@workspace/shared/types/tour-reviews";
 import { AuthService } from "@workspace/shared/services/auth.service";
@@ -15,46 +17,6 @@ import { ApiError } from "@workspace/shared/utils/ApiError";
 
 @UseClassMiddleware(loggerMiddleware)
 export class ReviewsService extends Service {
-	private readonly MAX_ALLOWED_REVIEWS = 5; // PER USER
-
-	/** Check if the user has the added the review or not on the tour */
-	async isAddingReviewAvailable(tour_id: string): Promise<boolean> {
-		if (!this.currentUser?.id) {
-			return false;
-		}
-
-		const { data: existingReviews, error: reviewError } = await this.supabase
-			.from(this.REVIEWS_TABLE)
-			.select("id")
-			.eq("tour_id", tour_id)
-			.eq("user_id", this.currentUser.id)
-			.limit(this.MAX_ALLOWED_REVIEWS);
-
-		if (reviewError) {
-			console.error(reviewError);
-			return false;
-		}
-
-		if (existingReviews && existingReviews.length >= this.MAX_ALLOWED_REVIEWS) {
-			return false;
-		}
-
-		const { data: bookings, error: bookingError } = await this.supabase
-			.from(this.BOOKINGS_TABLE)
-			.select("id, status")
-			.eq("tour_id", tour_id)
-			.eq("user_id", this.currentUser.id)
-			.eq("status", "CONFIRMED")
-			.limit(1);
-
-		if (bookingError) {
-			console.error(bookingError);
-			return false;
-		}
-
-		return !!bookings && bookings.length > 0;
-	}
-
 	/** Get reviews for a tour */
 	async getTourReviews(tour_id: string, options: GetTourReviewsOptions = {}): Promise<GetTourReviewsResp> {
 		const { limit = 10, offset = 0, filters = {} } = options;
@@ -262,30 +224,34 @@ export class ReviewsService extends Service {
 
 		try {
 			let query = this.supabase
-				.from(this.BOOKINGS_TABLE)
+				.from("bookings_new")
 				.select(
 					`
+					id,
+					booking_ref,
+					booking_status,
+					payment:${this.PAYMENTS_TABLE}(payment_status),
+					created_at,
+					customer_name,
+					booking_items (
 						id,
-						booking_ref,
-						booking_status,
-						payment_status,
-						tour_id,
-						tour_name,
-						tour_option_name,
-						preferred_date,
-						preferred_timeslot,
+						preffered_date,
+						preffered_timeslot,
 						confirmed_date,
 						confirmed_timeslot,
-						created_at,
-						confirmed_at,
-						customer_name,
-						reviews:${this.REVIEWS_TABLE}(
-							id,
-							rating,
-							comment,
-							created_at
+						${this.TOUR_OPTIONS_TABLE} (
+							name,
+							${this.TOURS_TABLE} (id, name)
 						)
-					`,
+					),
+					${this.REVIEWS_TABLE} (
+						id,
+						rating,
+						comment,
+						created_at,
+						tour_id
+					)
+				`,
 					{ count: "exact" },
 				)
 				.eq("booking_status", "CONFIRMED")
@@ -294,7 +260,9 @@ export class ReviewsService extends Service {
 				.range(from, to);
 
 			if (searchQuery.trim().length > 0) {
-				query = query.or(`booking_ref.ilike.%${searchQuery}%,tour_name.ilike.%${searchQuery}%`);
+				query = query.or(
+					`booking_ref.ilike.%${searchQuery}%,tour_reviews.comment.ilike.%${searchQuery}%`,
+				);
 			}
 
 			const { data, error, count } = await query;
@@ -303,35 +271,44 @@ export class ReviewsService extends Service {
 				throw new ApiError("Failed to fetch your bookings and reviews", 500, [error.message]);
 			}
 
-			const bookings: MyReviewsBooking[] = (data ?? []).map((b) => ({
-				id: b.id,
-				booking_ref: b.booking_ref,
-				booking_status: b.booking_status,
-				payment_status: b.payment_status,
-				tour_id: b.tour_id,
-				tour_name: b.tour_name,
-				tour_option_name: b.tour_option_name,
-				preffered_date: b.preferred_date,
-				preffered_timeslot: b.preferred_timeslot,
-				confirmed_date: b.confirmed_date,
-				confirmed_timeslot: b.confirmed_timeslot,
-				created_at: b.created_at,
-				confirmed_at: b.confirmed_at,
-				customer_name: b.customer_name ?? undefined,
-				reviews: Array.isArray(b.reviews)
-					? b.reviews
-							.sort(
-								(r1, r2) =>
-									new Date(r2.created_at).getTime() - new Date(r1.created_at).getTime(),
-							)
-							.map((r) => ({
-								id: r.id.toString(),
-								rating: r.rating,
-								comment: r.comment,
-								created_at: r.created_at,
-							}))
-					: [],
-			}));
+			const bookings: MyReviewsBooking[] = (data ?? []).map((b) => {
+				// Group reviews by tour_id
+				const reviewsByTour = new Map<string, MyReview[]>();
+				(b.tour_reviews || []).forEach((r) => {
+					if (!reviewsByTour.has(r.tour_id)) reviewsByTour.set(r.tour_id, []);
+					reviewsByTour.get(r.tour_id)!.push({
+						id: r.id,
+						rating: r.rating,
+						comment: r.comment,
+						created_at: r.created_at,
+					});
+				});
+
+				// Build tours array
+				const tours: MyReviewTour[] = (b.booking_items || []).map((item) => {
+					const tourId = item.tour_options?.tours?.id ?? "";
+					return {
+						tour_id: tourId,
+						tour_name: item.tour_options?.tours?.name ?? "Unknown Tour",
+						tour_option_name: item.tour_options?.name ?? null,
+						preffered_date: item.preffered_date,
+						preffered_timeslot: item.preffered_timeslot,
+						confirmed_date: item.confirmed_date,
+						confirmed_timeslot: item.confirmed_timeslot,
+						reviews: reviewsByTour.get(tourId) || [],
+					};
+				});
+
+				return {
+					id: b.id,
+					booking_ref: b.booking_ref,
+					booking_status: b.booking_status,
+					payment_status: b.payment?.payment_status ?? "PENDING",
+					created_at: b.created_at,
+					customer_name: b.customer_name ?? undefined,
+					tours: tours.sort((a, b) => a.tour_name.localeCompare(b.tour_name)),
+				};
+			});
 
 			return {
 				bookings,

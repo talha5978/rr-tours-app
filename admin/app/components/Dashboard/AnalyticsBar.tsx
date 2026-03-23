@@ -10,36 +10,23 @@ const getTopAnalytics = (
 		{
 			title: "Total Revenue (AED)",
 			value: formatCurrencyCompact(Number(total_revenue)),
-			footer: "Using data of all bookings",
 		},
 		{
 			title: "Total Bookings",
 			value: total_bookings,
-			footer: "Using data from all time",
 		},
 		{
 			title: "Total Tours",
 			value: total_tours,
-			footer: "Using data from all time",
 		},
 		{
 			title: "Total Categories",
 			value: total_categories,
-			footer: "From your current database state",
 		},
 	];
 };
 
-const AnalyticsCard = ({
-	title,
-	value,
-	footer,
-	...props
-}: {
-	title: string;
-	value: string;
-	footer?: string;
-}) => {
+const AnalyticsCard = ({ title, value, ...props }: { title: string; value: string }) => {
 	return (
 		<Card className="@container/card" {...props}>
 			<CardHeader>
@@ -48,11 +35,6 @@ const AnalyticsCard = ({
 					{value}
 				</CardTitle>
 			</CardHeader>
-			{footer && (
-				<CardFooter className="text-sm">
-					<div className="text-muted-foreground">{footer}</div>
-				</CardFooter>
-			)}
 		</Card>
 	);
 };
@@ -73,7 +55,7 @@ export const TopAnalyticsBar = ({
 	return (
 		<div className="*:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid  shrink-0 gap-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:shadow-xs @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
 			{data.map((i, idx) => {
-				return <AnalyticsCard title={i.title} value={i.value} footer={i.footer} key={idx} />;
+				return <AnalyticsCard title={i.title} value={i.value} key={idx} />;
 			})}
 		</div>
 	);

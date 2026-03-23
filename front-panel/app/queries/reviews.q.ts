@@ -7,17 +7,6 @@ import type {
 	MyReviewsBookings,
 } from "@workspace/shared/types/tour-reviews";
 
-export const checkIfReviewAllowedQuery = ({ request, tour_id }: { request: Request; tour_id: string }) => {
-	return queryOptions<boolean>({
-		queryKey: ["check_if_review_allowed", `${tour_id}`],
-		queryFn: async () => {
-			const svc = new ReviewsService(request);
-			const result = await svc.isAddingReviewAvailable(tour_id);
-			return result;
-		},
-	});
-};
-
 export const tourReviewsQuery = ({
 	request,
 	tour_id,

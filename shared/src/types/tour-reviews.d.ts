@@ -60,10 +60,21 @@ export interface HomePageReviewsResp {
 }
 
 export type MyReview = {
-	id: string;
+	id: number;
 	rating: number;
 	comment: string | null;
 	created_at: string;
+};
+
+export type MyReviewTour = {
+	tour_id: string;
+	tour_name: string;
+	tour_option_name: string | null;
+	preffered_date: string | null;
+	preffered_timeslot: string | null;
+	confirmed_date: string | null;
+	confirmed_timeslot: string | null;
+	reviews: MyReview[];
 };
 
 export type MyReviewsBooking = {
@@ -71,17 +82,9 @@ export type MyReviewsBooking = {
 	booking_ref: string;
 	booking_status: Database["public"]["Enums"]["booking_status_enum"];
 	payment_status: Database["public"]["Enums"]["payment_status_enum"];
-	tour_id: string | null;
-	tour_name: string | null;
-	tour_option_name: string | null;
-	preffered_date: string | null;
-	preffered_timeslot: string | null;
-	confirmed_date: string | null;
-	confirmed_timeslot: string | null;
 	created_at: string;
-	confirmed_at: string | null;
 	customer_name?: string | null;
-	reviews: MyReview[];
+	tours: MyReviewTour[];
 };
 
 export type MyReviewsBookings = {
