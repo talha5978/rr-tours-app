@@ -1334,7 +1334,7 @@ export class ToursService extends Service {
 			available_seats: number;
 		}[]
 	> {
-		let weekday = await this.getDayOfWeek(date);
+		const weekday = await this.getDayOfWeek(date);
 
 		const { data: rules, error: ruleErr } = await this.supabase
 			.from(this.AVAILABILITY_RULES_TABLE)
@@ -1346,7 +1346,7 @@ export class ToursService extends Service {
 					label,
 					capacity
 				)
-				`,
+			`,
 			)
 			.eq("tour_option_id", tourOptionId)
 			.lte("start_date", date)
@@ -1354,11 +1354,12 @@ export class ToursService extends Service {
 			.contains("weekdays", [weekday]);
 
 		if (ruleErr || !rules?.length) {
-			throw new ApiError("No availability rules for this date", 404);
+			throw new ApiError("No availability rules found for this date", 404);
 		}
 
+		// Flatten all time slots from matching rules
 		const allTimeSlots = rules.flatMap((rule) =>
-			rule.time_slots.map((slot) => ({
+			(rule.time_slots || []).map((slot) => ({
 				...slot,
 				rule_id: rule.id,
 			})),
@@ -1371,26 +1372,32 @@ export class ToursService extends Service {
 		const timeSlotLabels = allTimeSlots.map((s) => s.label);
 
 		const { data: bookedData, error: bookedErr } = await this.supabase
-			.from(this.BOOKINGS_TABLE)
+			.from("booking_items")
 			.select(
 				`
-				id,
-				preferred_timeslot,
-				${this.BOOKING_PARTICIPANTS_TABLE} (quantity)
-				`,
+				preffered_timeslot,
+				booking_participants_new (quantity),
+				booking:bookings_new!inner(booking_status)
+			`,
 			)
 			.eq("tour_option_id", tourOptionId)
-			.eq("preferred_date", date)
-			.in("preferred_timeslot", timeSlotLabels)
-			.in("booking_status", ["PENDING", "CONFIRMED"]);
+			.eq("preffered_date", date)
+			.in("preffered_timeslot", timeSlotLabels)
+			.in("booking.booking_status", ["PENDING", "CONFIRMED"]);
 
-		if (bookedErr) throw new ApiError("Failed to fetch bookings", 500);
+		if (bookedErr) {
+			throw new ApiError("Failed to fetch booked capacity", 500);
+		}
 
+		// Aggregate booked quantity per timeslot label
 		const bookedByLabel = new Map<string, number>();
 
-		bookedData?.forEach((booking) => {
-			const label = booking.preferred_timeslot;
-			const qty = booking.booking_participants?.reduce((sum, p) => sum + (p.quantity || 0), 0) || 0;
+		bookedData?.forEach((item) => {
+			const label = item.preffered_timeslot;
+			const qty = (item.booking_participants_new || []).reduce(
+				(sum: number, p) => sum + (p.quantity || 0),
+				0,
+			);
 
 			bookedByLabel.set(label, (bookedByLabel.get(label) || 0) + qty);
 		});
@@ -1401,9 +1408,11 @@ export class ToursService extends Service {
 			.eq("tour_option_id", tourOptionId)
 			.eq("date", date);
 
-		if (overrideErr) throw new ApiError("Failed to fetch overrides", 500);
+		if (overrideErr) {
+			throw new ApiError("Failed to fetch availability overrides", 500);
+		}
 
-		const overridesBySlotId = new Map<number | null, any>();
+		const overridesBySlotId = new Map<number | null, (typeof overrides)[0]>();
 
 		overrides?.forEach((ov) => {
 			const key = ov.time_slot_id ?? null;
@@ -1417,6 +1426,7 @@ export class ToursService extends Service {
 			let effectiveCapacity = baseCapacity;
 			let isClosed = false;
 
+			// Slot-specific override
 			const slotOverride = overridesBySlotId.get(slot.id);
 			if (slotOverride) {
 				if (slotOverride.override_type === "CLOSE") {
@@ -1426,6 +1436,7 @@ export class ToursService extends Service {
 				}
 			}
 
+			// Whole-day override (time_slot_id = null)
 			const wholeDayOverride = overridesBySlotId.get(null);
 			if (wholeDayOverride) {
 				if (wholeDayOverride.override_type === "CLOSE") {
@@ -1436,7 +1447,6 @@ export class ToursService extends Service {
 			}
 
 			const booked = bookedByLabel.get(label) || 0;
-
 			let available = isClosed ? 0 : effectiveCapacity - booked;
 			available = Math.max(0, available);
 
