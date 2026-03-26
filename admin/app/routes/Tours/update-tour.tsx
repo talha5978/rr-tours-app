@@ -5,11 +5,11 @@ import {
 	type UpdateTourInput,
 	UpdateTourSchema,
 } from "@workspace/shared/schemas/tour.schema";
-import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
+import { cacheService } from "@workspace/shared/services/cache.service";
 import { ToursService } from "@workspace/shared/services/tours.service";
 import type { ActionResponse } from "@workspace/shared/types/action-data";
 import { ApiError } from "@workspace/shared/utils/ApiError";
-import { queryClient } from "@workspace/shared/utils/query-client";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { type Control, useForm, useWatch } from "react-hook-form";
@@ -113,21 +113,19 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 			tour_id,
 		);
 
-		await queryClient.invalidateQueries({ queryKey: ["high_level_tours"] });
-		await queryClient.invalidateQueries({ queryKey: ["highLvlCategories"] });
-		await queryClient.invalidateQueries({ queryKey: ["tour_details", tour_id] });
-		await queryClient.invalidateQueries({ queryKey: ["tour_details_update", tour_id] });
+		await cacheService.invalidatePattern(CACHE_KEYS.categories.highLevelAD() + `:*`);
+		await cacheService.invalidatePattern(CACHE_KEYS.tours.list("AD") + `:*`);
+		await cacheService.invalidatePattern(CACHE_KEYS.tours.highLevel("AD") + `:*`);
+		await cacheService.invalidate(CACHE_KEYS.tours.detailForUpdate(tour_id));
+		await cacheService.invalidate(CACHE_KEYS.tours.details("AD", tour_id));
+		await cacheService.invalidate(CACHE_KEYS.tours.details("FP", tour_id));
+		await cacheService.invalidatePattern(CACHE_KEYS.tours.highLevel("FP") + `:*`);
 
-		const cacheSvc = new CacheInvalidationService(request);
-		let invalidationKeys = [`fp_tour_details||${tour_id}`, "fp_tours"];
-		if (parseResult.data.tour_update?.city_id) {
-			invalidationKeys.push(`fp_city_tags||${parseResult.data.tour_update.city_id}`);
+		if (parseResult.data.tour_options_updates != null) {
+			await cacheService.invalidatePattern(
+				CACHE_KEYS.tours.slotAvailability(undefined, undefined, tour_id) + `:*`,
+			);
 		}
-
-		await cacheSvc.pushCacheInvalidationEvent({
-			keys: invalidationKeys,
-			target: "front",
-		});
 
 		return { success: true, tour_id };
 	} catch (error: any) {
@@ -144,13 +142,13 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 		throw new ApiError("Tour ID is required", 400, []);
 	}
 
-	const tour = await queryClient.fetchQuery(tourDetailsForUpdateQuery({ request, tour_id: params.id }));
-	const cancellation_policies = await queryClient.fetchQuery(cancellationPoliciesQuery({ request }));
-	const participants = await queryClient.fetchQuery(participantTypesQuery({ request }));
-	const cities = await queryClient.fetchQuery(citiesListQuery({ request }));
-	const tags = await queryClient.fetchQuery(allTagsQuery({ request }));
-	const categories = await queryClient.fetchQuery(categoryListQuery({ request }));
-	const providers = await queryClient.fetchQuery(allProvidersQuery({ request }));
+	const tour = await tourDetailsForUpdateQuery({ request, tour_id: params.id });
+	const cancellation_policies = await cancellationPoliciesQuery({ request });
+	const participants = await participantTypesQuery({ request });
+	const cities = await citiesListQuery({ request });
+	const tags = await allTagsQuery({ request });
+	const categories = await categoryListQuery({ request });
+	const providers = await allProvidersQuery({ request });
 
 	return {
 		cities,

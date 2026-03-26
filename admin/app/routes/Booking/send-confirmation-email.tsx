@@ -17,7 +17,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "~/components/ui/button";
 import { Loader2, Trash2 } from "lucide-react";
 import { ApiError } from "@workspace/shared/utils/ApiError";
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { getBookingForConfirmation } from "~/queries/bookings.q";
 import { BookingConfirmationPayload } from "@workspace/shared/types/emails";
 import { useEffect } from "react";
@@ -83,7 +82,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 		throw new ApiError("Booking ID is required", 400, []);
 	}
 
-	const data = await queryClient.fetchQuery(getBookingForConfirmation({ id: booking_id, request }));
+	const data = await getBookingForConfirmation({ id: booking_id, request });
 	return data;
 };
 

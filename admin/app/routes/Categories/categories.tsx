@@ -1,7 +1,6 @@
 import { ColumnDef, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { SUPABASE_IMAGE_BUCKET_PATH } from "@workspace/shared/constants/constants";
 import { HighLevelCategory } from "@workspace/shared/types/categories";
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { MoreHorizontal, PlusCircle, Search, TriangleAlert } from "lucide-react";
 import { useEffect } from "react";
 import {
@@ -39,7 +38,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 		request,
 	});
 
-	const data = await queryClient.fetchQuery(highLevelCategoriesQuery({ request, q, pageIndex, pageSize }));
+	const data = await highLevelCategoriesQuery({ request, q, pageIndex, pageSize });
 
 	return { data, query: q, pageIndex, pageSize };
 };

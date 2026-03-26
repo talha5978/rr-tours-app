@@ -6,11 +6,11 @@ import {
 	type UpdateCategoryInput,
 	UpdateCategorySchema,
 } from "@workspace/shared/schemas/category.schema";
-import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
+import { cacheService } from "@workspace/shared/services/cache.service";
 import { CategoryService } from "@workspace/shared/services/categories.service";
 import { ActionResponse } from "@workspace/shared/types/action-data";
 import { ApiError } from "@workspace/shared/utils/ApiError";
-import { queryClient } from "@workspace/shared/utils/query-client";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -87,15 +87,11 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 	// return;
 	try {
 		await svc.updateCategory(categoryId, parseResult.data);
-		await queryClient.invalidateQueries({ queryKey: ["highLvlCategories"] });
-		await queryClient.invalidateQueries({ queryKey: ["categoryList"] });
-		await queryClient.invalidateQueries({ queryKey: ["categoryDetailsForUpdate", Number(categoryId)] });
 
-		const cacheSvc = new CacheInvalidationService(request);
-		await cacheSvc.pushCacheInvalidationEvent({
-			target: "front",
-			keys: ["FP_highLvlCategories"],
-		});
+		await cacheService.invalidatePattern(CACHE_KEYS.categories.highLevelAD() + `:*`);
+		await cacheService.invalidate(CACHE_KEYS.categories.details(categoryId));
+		await cacheService.invalidate(CACHE_KEYS.categories.list());
+		await cacheService.invalidate(CACHE_KEYS.categories.highLevelFP());
 
 		return { success: true };
 	} catch (error: any) {
@@ -112,7 +108,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 		throw new Response("Category ID is required", { status: 400 });
 	}
 
-	const response = await queryClient.fetchQuery(categoryDetailsUpdateQuery(request, Number(categoryId)));
+	const response = await categoryDetailsUpdateQuery(request, Number(categoryId));
 	return response;
 };
 

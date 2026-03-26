@@ -1,9 +1,9 @@
-import { queryOptions } from "@tanstack/react-query";
 import { FPTourFilters } from "@workspace/shared/schemas/fp-tours-filter.schema";
+import { cacheService } from "@workspace/shared/services/cache.service";
 import { CollectionsService } from "@workspace/shared/services/collections.service";
-import type { CollectionRow, GetFpCollectionsResponse } from "@workspace/shared/types/collections";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 
-export const collectionsQuery = ({
+export const collectionsQuery = async ({
 	request,
 	isFeatured = true,
 	cityId = null,
@@ -16,28 +16,31 @@ export const collectionsQuery = ({
 	pageIndex: number;
 	pageSize: number;
 }) => {
-	return queryOptions<GetFpCollectionsResponse>({
-		queryKey: ["collections", isFeatured, cityId, pageIndex, pageSize],
-		queryFn: async () => {
-			const svc = new CollectionsService(request);
-			const result = await svc.getFpCollections(isFeatured, cityId, pageIndex, pageSize);
-			return result;
-		},
-	});
+	const queryFn = async () => {
+		const svc = new CollectionsService(request);
+		const resp = await svc.getFpCollections(isFeatured, cityId, pageIndex, pageSize);
+		return resp;
+	};
+
+	const result = await cacheService.get(
+		CACHE_KEYS.collections.listFP(isFeatured, cityId, pageIndex, pageSize),
+		queryFn,
+	);
+	return result;
 };
 
-export const collectionDetailsQuery = ({ request, id }: { request: Request; id: number }) => {
-	return queryOptions<CollectionRow | null>({
-		queryKey: ["collection", String(id)],
-		queryFn: async () => {
-			const svc = new CollectionsService(request);
-			const result = await svc.getCollectionById(id);
-			return result;
-		},
-	});
+export const collectionDetailsQuery = async ({ request, id }: { request: Request; id: number }) => {
+	const queryFn = async () => {
+		const svc = new CollectionsService(request);
+		const resp = await svc.getCollectionById(id);
+		return resp;
+	};
+
+	const result = await cacheService.get(CACHE_KEYS.collections.details("FP", id), queryFn);
+	return result;
 };
 
-export const collectionToursQuery = ({
+export const collectionToursQuery = async ({
 	request,
 	collectionId,
 	pageIndex = 0,
@@ -52,12 +55,15 @@ export const collectionToursQuery = ({
 	q?: string;
 	filters?: Partial<FPTourFilters>;
 }) => {
-	return queryOptions({
-		queryKey: ["collection-tours", String(collectionId), pageIndex, pageSize, q, filters],
-		queryFn: async () => {
-			const svc = new CollectionsService(request);
-			const result = await svc.getCollectionTours(collectionId, pageIndex, pageSize, q, filters);
-			return result;
-		},
-	});
+	const queryFn = async () => {
+		const svc = new CollectionsService(request);
+		const resp = await svc.getCollectionTours(collectionId, pageIndex, pageSize, q, filters);
+		return resp;
+	};
+
+	const result = await cacheService.get(
+		CACHE_KEYS.collections.tours(collectionId, pageIndex, pageSize, q, filters),
+		queryFn,
+	);
+	return result;
 };

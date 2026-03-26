@@ -1,15 +1,14 @@
 import { SUPABASE_IMAGE_BUCKET_PATH } from "@workspace/shared/constants/constants";
-import { allHeroSectionsQuery } from "@workspace/shared/queries/hero-sections.q";
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { Loader2, PencilLineIcon, PlusCircle, Trash } from "lucide-react";
 import { useEffect } from "react";
 import { Link, type LoaderFunctionArgs, Outlet, useFetcher, useLoaderData } from "react-router";
 import { toast } from "sonner";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
 import { Button } from "~/components/ui/button";
+import { allHeroSectionsQuery } from "~/queries/hero-sections.q";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-	const hero_sections = await queryClient.fetchQuery(allHeroSectionsQuery({ request }));
+	const hero_sections = await allHeroSectionsQuery({ request });
 	return hero_sections;
 };
 
@@ -25,7 +24,7 @@ export default function HeroSectionsPage() {
 				toast.error(fetcher.data.error);
 			}
 		}
-	}, [fetcher.data, queryClient]);
+	}, [fetcher.data]);
 
 	const handleDeleteClick = (id: number) => {
 		const formData = new FormData();

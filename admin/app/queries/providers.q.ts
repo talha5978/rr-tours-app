@@ -1,14 +1,14 @@
-import { queryOptions } from "@tanstack/react-query";
+import { cacheService } from "@workspace/shared/services/cache.service";
 import { TourProvidersService } from "@workspace/shared/services/providers.service";
-import type { GetAllProviders } from "@workspace/shared/types/providers";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 
-export const allProvidersQuery = ({ request }: { request: Request }) => {
-	return queryOptions<GetAllProviders>({
-		queryKey: ["allProviders"],
-		queryFn: async () => {
-			const svc = new TourProvidersService(request);
-			const result = await svc.getAllTourProviders();
-			return result;
-		},
-	});
+export const allProvidersQuery = async ({ request }: { request: Request }) => {
+	const queryFn = async () => {
+		const svc = new TourProvidersService(request);
+		const resp = await svc.getAllTourProviders();
+		return resp;
+	};
+
+	const result = await cacheService.get(CACHE_KEYS.tourProviders.list("AD"), queryFn);
+	return result;
 };

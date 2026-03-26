@@ -6,7 +6,6 @@ import {
 	UpdateBookingSchema,
 } from "@workspace/shared/schemas/booking.schema";
 import type { ActionResponse } from "@workspace/shared/types/action-data";
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
@@ -33,9 +32,10 @@ import { Label } from "~/components/ui/label";
 import { PhoneInput } from "~/components/Custom-Inputs/phone-number-input";
 import { format } from "date-fns";
 import { ApiError } from "@workspace/shared/utils/ApiError";
-import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
 import { BookingService } from "@workspace/shared/services/booking.service";
 import DatePicker from "~/components/Custom-Inputs/date-picker";
+import { cacheService } from "@workspace/shared/services/cache.service";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
 	const id = params.id as string;
@@ -71,16 +71,11 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 	try {
 		await svc.updateBooking(id, booking);
 
-		await queryClient.invalidateQueries({ queryKey: ["high_level_bookings"] });
-		await queryClient.invalidateQueries({ queryKey: ["booking", id] });
-		await queryClient.invalidateQueries({ queryKey: ["booking_for_confirmation", id] });
-		await queryClient.invalidateQueries({ queryKey: ["dashboard_main_stats"] });
-
-		const cacheSvc = new CacheInvalidationService(request);
-		await cacheSvc.pushCacheInvalidationEvent({
-			target: "front",
-			keys: [`fp_booking||${ref}`],
-		});
+		await cacheService.invalidatePattern(CACHE_KEYS.bookings.highLevel() + ":*");
+		await cacheService.invalidate(CACHE_KEYS.bookings.details("AD", id));
+		await cacheService.invalidate(CACHE_KEYS.bookings.forConfirmation(id));
+		await cacheService.invalidate(CACHE_KEYS.stats.dashboardMainStats());
+		await cacheService.invalidate(CACHE_KEYS.bookings.details("FP", ref));
 
 		return { success: true };
 	} catch (error: any) {
@@ -88,6 +83,13 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 			success: false,
 			error: error instanceof ApiError ? error.message : error.message || "Failed to update booking",
 		};
+	} finally {
+		const bookingData = await getBookingDetailById({ request, id });
+		if (bookingData.booking?.added_by) {
+			cacheService.invalidatePattern(
+				CACHE_KEYS.bookings.user_bookings(bookingData.booking?.added_by) + ":*",
+			);
+		}
 	}
 };
 
@@ -102,7 +104,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 		throw new Response("Booking reference ID is required", { status: 400 });
 	}
 
-	const response = await queryClient.fetchQuery(getBookingDetailById({ request, id }));
+	const response = await getBookingDetailById({ request, id });
 	// console.log(response?.booking);
 
 	return response;

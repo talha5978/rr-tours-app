@@ -5,11 +5,11 @@ import {
 	type UpdateCollectionSchema,
 	updateCollectionSchema,
 } from "@workspace/shared/schemas/collection.schema";
-import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
+import { cacheService } from "@workspace/shared/services/cache.service";
 import { CollectionsService } from "@workspace/shared/services/collections.service";
 import { ActionResponse } from "@workspace/shared/types/action-data";
 import { ApiError } from "@workspace/shared/utils/ApiError";
-import { queryClient } from "@workspace/shared/utils/query-client";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 import { Loader2, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Control, useForm } from "react-hook-form";
@@ -96,14 +96,14 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
 	try {
 		await svc.updateCollection(Number(id), parseResult.data);
-		await queryClient.invalidateQueries({ queryKey: ["highLvlCollections"] });
-		await queryClient.invalidateQueries({ queryKey: ["collection", id] });
 
-		const cacheSvc = new CacheInvalidationService(request);
-		await cacheSvc.pushCacheInvalidationEvent({
-			target: "front",
-			keys: ["collections", `collection||${id}`, `collection-tours||${id}`],
-		});
+		await cacheService.invalidatePattern(CACHE_KEYS.collections.highLevelAD() + `:*`);
+		await cacheService.invalidate(CACHE_KEYS.collections.details("AD", id));
+		cacheService.invalidatePattern(CACHE_KEYS.collections.listFP() + `:*`);
+		cacheService.invalidate(CACHE_KEYS.collections.details("FP", id));
+		if (parseResult.data?.added_tours?.length || parseResult.data?.removed_tours?.length) {
+			await cacheService.invalidatePattern(CACHE_KEYS.collections.tours() + `:*`);
+		}
 
 		return { success: true };
 	} catch (error: any) {
@@ -120,12 +120,10 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 		throw new ApiError("Collection id is required", 404);
 	}
 
-	const collection = await queryClient.fetchQuery(
-		collectionDetailsQuery({ request, id: Number(collection_id) }),
-	);
-	const cities = await queryClient.fetchQuery(citiesListQuery({ request }));
+	const collection = await collectionDetailsQuery({ request, id: Number(collection_id) });
+	const cities = await citiesListQuery({ request });
 	const { q, pageIndex, pageSize } = getPaginationQueryPayload({ request });
-	const tours = await queryClient.fetchQuery(toursListQuery({ request, q, pageIndex, pageSize }));
+	const tours = await toursListQuery({ request, q, pageIndex, pageSize });
 
 	return { cities, tours, collection };
 };

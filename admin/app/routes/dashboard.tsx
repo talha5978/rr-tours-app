@@ -1,4 +1,3 @@
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { useLoaderData, type LoaderFunctionArgs } from "react-router";
 import { TopAnalyticsBar } from "~/components/Dashboard/AnalyticsBar";
 import { RecentBookingsCard } from "~/components/Dashboard/RecentBookings";
@@ -7,8 +6,8 @@ import { highLevelBookingsQuery } from "~/queries/bookings.q";
 import { dashboardMainstatsQuery } from "~/queries/stats.q";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-	const dashboardMainStats = await queryClient.fetchQuery(dashboardMainstatsQuery({ request }));
-	const recentBookings = await queryClient.fetchQuery(highLevelBookingsQuery({ request, pageSize: 5 }));
+	const dashboardMainStats = await dashboardMainstatsQuery({ request });
+	const recentBookings = await highLevelBookingsQuery({ request, pageSize: 5 });
 
 	return { dashboardMainStats, recentBookings };
 };

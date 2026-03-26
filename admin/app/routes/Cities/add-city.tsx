@@ -5,11 +5,11 @@ import {
 	MAX_META_KEYWORDS,
 } from "@workspace/shared/constants/constants";
 import { AddCityActionSchema, AddCityInput, AddCitySchema } from "@workspace/shared/schemas/city.schema";
-import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
+import { cacheService } from "@workspace/shared/services/cache.service";
 import { CityService } from "@workspace/shared/services/cities.service";
 import type { ActionResponse } from "@workspace/shared/types/action-data";
 import { ApiError } from "@workspace/shared/utils/ApiError";
-import { queryClient } from "@workspace/shared/utils/query-client";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 import { Info, Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -62,14 +62,10 @@ export const action = async ({ request }: { request: Request }) => {
 	// return;
 	try {
 		await svc.addCity(parseResult.data);
-		await queryClient.invalidateQueries({ queryKey: ["highLvlCities"] });
-		await queryClient.invalidateQueries({ queryKey: ["citiesList"] });
 
-		const cacheSvc = new CacheInvalidationService(request);
-		await cacheSvc.pushCacheInvalidationEvent({
-			target: "front",
-			keys: ["FP_highLvlCities"],
-		});
+		cacheService.invalidate(CACHE_KEYS.cities.highLevel("FP"));
+		cacheService.invalidate(CACHE_KEYS.cities.list());
+		await cacheService.invalidate(CACHE_KEYS.cities.highLevel("AD"));
 
 		return { success: true };
 	} catch (error: any) {

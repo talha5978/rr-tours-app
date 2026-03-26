@@ -1,11 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { TAG_IMG_DIMENSIONS } from "@workspace/shared/constants/constants";
 import { AddTagInput, AddTagSchema } from "@workspace/shared/schemas/tag.schema";
-import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
+import { cacheService } from "@workspace/shared/services/cache.service";
 import { TourTagsService } from "@workspace/shared/services/tags.service";
 import type { ActionResponse } from "@workspace/shared/types/action-data";
 import { ApiError } from "@workspace/shared/utils/ApiError";
-import { queryClient } from "@workspace/shared/utils/query-client";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 import { Info, Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -50,13 +50,9 @@ export const action = async ({ request }: { request: Request }) => {
 	// return;
 	try {
 		await svc.addTag(parseResult.data);
-		await queryClient.invalidateQueries({ queryKey: ["tour_tags"] });
 
-		const cacheSvc = new CacheInvalidationService(request);
-		await cacheSvc.pushCacheInvalidationEvent({
-			keys: ["fp_tour_tags"],
-			target: "front",
-		});
+		await cacheService.invalidate(CACHE_KEYS.tags.tags("AD"));
+		cacheService.invalidate(CACHE_KEYS.tags.tags("FP"));
 
 		return { success: true };
 	} catch (error: any) {

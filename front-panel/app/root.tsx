@@ -6,8 +6,6 @@ import { TopLoadingBar } from "~/components/Loaders/TopLoadingBar";
 import { Toaster } from "~/components/ui/sonner";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@workspace/shared/utils/query-client";
-import { getCacheInvalidationEvents } from "@workspace/shared/queries/cache-events.q";
-import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
 import { GetFullCurrentUser } from "@workspace/shared/types/auth";
 import { currentFullUserQuery } from "~/queries/auth.q";
 
@@ -25,44 +23,6 @@ export const links: Route.LinksFunction = () => [
 ];
 
 export async function loader({ request }: Route.LoaderArgs) {
-	const cacheEvents = await queryClient.fetchQuery(
-		getCacheInvalidationEvents({ request, target: "front" }),
-	);
-
-	if (cacheEvents.length > 0) {
-		const uniqueSerializedKeys = new Set<string>();
-		const eventIdsToMark: string[] = [];
-
-		for (const event of cacheEvents) {
-			eventIdsToMark.push(event.id);
-
-			for (const serializedKey of event.keys) {
-				uniqueSerializedKeys.add(serializedKey);
-			}
-		}
-
-		for (const serializedKey of uniqueSerializedKeys) {
-			if (serializedKey.includes("||")) {
-				// e.g., "fp_tour_details||459"
-				const parts = serializedKey.split("||");
-				queryClient.invalidateQueries({
-					queryKey: parts, // ["fp_tour_details", "123"]
-					exact: false,
-				});
-			} else {
-				// simple key like "fp_tours"
-				queryClient.invalidateQueries({
-					queryKey: [serializedKey],
-				});
-			}
-		}
-
-		if (eventIdsToMark.length > 0) {
-			const cacheSvc = new CacheInvalidationService(request);
-			await cacheSvc.markEventsAsProcessed(eventIdsToMark);
-		}
-	}
-
 	const url = new URL(request.url);
 	const pathname = url.pathname;
 

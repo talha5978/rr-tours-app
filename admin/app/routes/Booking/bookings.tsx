@@ -1,6 +1,5 @@
 import { ColumnDef, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { HighLevelBooking } from "@workspace/shared/types/booking";
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { Loader2, MoreHorizontal, Search } from "lucide-react";
 import { useState } from "react";
 import {
@@ -44,7 +43,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 		request,
 	});
 
-	const data = await queryClient.fetchQuery(highLevelBookingsQuery({ request, q, pageIndex, pageSize }));
+	const data = await highLevelBookingsQuery({ request, pageSize, q, pageIndex });
 
 	return { data, query: q, pageIndex, pageSize };
 };

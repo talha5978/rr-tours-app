@@ -22,7 +22,6 @@ import { type HTMLAttributes, type HtmlHTMLAttributes, memo, useMemo, useState }
 import DatePicker from "~/components/Custom-Inputs/date-picker";
 import TourImageCarousel from "~/components/Tour/TourImageCarousel";
 import { Separator } from "~/components/ui/separator";
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { tourDetailsQuery } from "~/queries/tours.q";
 import type { GetTourDetails, TourDetailOption } from "@workspace/shared/types/tours";
 import { cn, formatTourDurationHours } from "@workspace/shared/utils/ui";
@@ -51,7 +50,7 @@ type DialogSteps = "date" | "time" | "participants";
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 	if (!params.id || params.id === "") return null;
 
-	const data = await queryClient.fetchQuery(tourDetailsQuery({ request, tour_id: params.id }));
+	const data = await tourDetailsQuery({ request, tour_id: params.id });
 	if (data != null && data.isActive) {
 		return null;
 	}

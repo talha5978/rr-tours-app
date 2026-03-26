@@ -31,6 +31,8 @@ import { queryClient } from "@workspace/shared/utils/query-client";
 import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
 import { currentUserQuery } from "@workspace/shared/queries/auth.q";
 import { myCartQuery } from "~/queries/cart.q";
+import { cacheService } from "@workspace/shared/services/cache.service";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 // import { emailService } from "@workspace/shared/services/emails.service";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -61,7 +63,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 			};
 		}
 
-		await queryClient.invalidateQueries({ queryKey: ["my_bookings"] });
+		await cacheService.invalidatePattern(CACHE_KEYS.bookings.user_bookings(rawBody.added_by!) + ":*");
 
 		const cacheSvc = new CacheInvalidationService(request);
 		await cacheSvc.pushCacheInvalidationEvent({
@@ -98,9 +100,7 @@ export const loader = async ({ request }: { request: Request }) => {
 	let myCart = null;
 
 	if (userData && userData.user) {
-		myCart = await queryClient.fetchQuery(
-			myCartQuery({ request, user_id: userData.user?.id, page, limit: 30 }),
-		);
+		myCart = await myCartQuery({ request, user_id: userData.user?.id, page, limit: 30 });
 	}
 
 	// console.log(myCart);

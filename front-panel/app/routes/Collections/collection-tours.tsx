@@ -1,4 +1,3 @@
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
 import { LoaderFunctionArgs, useLoaderData, useNavigate, useSearchParams } from "react-router";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -58,13 +57,16 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 		categories,
 	};
 
-	const collectionResp = await queryClient.fetchQuery(
-		collectionDetailsQuery({ request, id: collectionId }),
-	);
-	const toursResp = await queryClient.fetchQuery(
-		collectionToursQuery({ request, collectionId, pageIndex: page - 1, pageSize: PAGE_SIZE, q, filters }),
-	);
-	const categoriesResp = await queryClient.fetchQuery(FPhighLevelCategoriesQuery({ request }));
+	const collectionResp = await collectionDetailsQuery({ request, id: collectionId });
+	const toursResp = await collectionToursQuery({
+		request,
+		collectionId,
+		pageIndex: page - 1,
+		pageSize: PAGE_SIZE,
+		q,
+		filters,
+	});
+	const categoriesResp = await FPhighLevelCategoriesQuery({ request });
 
 	return { collectionResp, toursResp, categoriesResp };
 };

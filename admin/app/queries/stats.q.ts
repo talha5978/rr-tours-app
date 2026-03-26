@@ -1,14 +1,14 @@
-import { queryOptions } from "@tanstack/react-query";
+import { cacheService } from "@workspace/shared/services/cache.service";
 import { StatsService } from "@workspace/shared/services/stats.service";
-import type { DashboardMainStats } from "@workspace/shared/types/stats";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 
-export const dashboardMainstatsQuery = ({ request }: { request: Request }) => {
-	return queryOptions<DashboardMainStats>({
-		queryKey: ["dashboard_main_stats"],
-		queryFn: async () => {
-			const svc = new StatsService(request);
-			const result = await svc.getDashboardMainStats();
-			return result;
-		},
-	});
+export const dashboardMainstatsQuery = async ({ request }: { request: Request }) => {
+	const queryFn = async () => {
+		const svc = new StatsService(request);
+		const resp = await svc.getDashboardMainStats();
+		return resp;
+	};
+
+	const result = await cacheService.get(CACHE_KEYS.stats.dashboardMainStats(), queryFn);
+	return result;
 };

@@ -1,4 +1,3 @@
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { useLoaderData, type LoaderFunctionArgs } from "react-router";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
 import { TourCard } from "~/components/Tour/TourCard";
@@ -7,7 +6,7 @@ import { toursQuery } from "~/queries/tours.q";
 import { useFavourites } from "~/utils/favourites.utils";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-	const allTours = await queryClient.fetchQuery(toursQuery({ request, pageSize: 150 }));
+	const allTours = await toursQuery({ request, pageSize: 150 });
 	return allTours.tours ?? [];
 };
 

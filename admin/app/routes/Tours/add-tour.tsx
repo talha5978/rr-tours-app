@@ -1,11 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { MAX_META_KEYWORDS } from "@workspace/shared/constants/constants";
 import { AddTourActionSchema, type AddTourInput, AddTourSchema } from "@workspace/shared/schemas/tour.schema";
-import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
+import { cacheService } from "@workspace/shared/services/cache.service";
 import { ToursService } from "@workspace/shared/services/tours.service";
 import type { ActionResponse } from "@workspace/shared/types/action-data";
 import { ApiError } from "@workspace/shared/utils/ApiError";
-import { queryClient } from "@workspace/shared/utils/query-client";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { type Control, useForm, useWatch } from "react-hook-form";
@@ -93,15 +93,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 		const tours_svc = new ToursService(request);
 		const tour_id = await tours_svc.addTour(parseResult.data);
 
-		await queryClient.invalidateQueries({ queryKey: ["high_level_tours"] });
-		await queryClient.invalidateQueries({ queryKey: ["highLvlCategories"] });
-		await queryClient.invalidateQueries({ queryKey: ["dashboard_main_stats"] });
-
-		const cacheSvc = new CacheInvalidationService(request);
-		await cacheSvc.pushCacheInvalidationEvent({
-			keys: ["fp_tours", `fp_city_tags||${parseResult.data.city_id}`],
-			target: "front",
-		});
+		await cacheService.invalidatePattern(CACHE_KEYS.categories.highLevelAD() + `:*`);
+		await cacheService.invalidatePattern(CACHE_KEYS.tours.list("AD") + `:*`);
+		await cacheService.invalidatePattern(CACHE_KEYS.tours.highLevel("AD") + `:*`);
+		await cacheService.invalidate(CACHE_KEYS.stats.dashboardMainStats());
+		await cacheService.invalidatePattern(CACHE_KEYS.tours.highLevel("FP") + `:*`);
 
 		return { success: true, tour_id };
 	} catch (error: any) {
@@ -114,12 +110,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-	const cancellation_policies = await queryClient.fetchQuery(cancellationPoliciesQuery({ request }));
-	const participants = await queryClient.fetchQuery(participantTypesQuery({ request }));
-	const cities = await queryClient.fetchQuery(citiesListQuery({ request }));
-	const tags = await queryClient.fetchQuery(allTagsQuery({ request }));
-	const categories = await queryClient.fetchQuery(categoryListQuery({ request }));
-	const providers = await queryClient.fetchQuery(allProvidersQuery({ request }));
+	const cancellation_policies = await cancellationPoliciesQuery({ request });
+	const participants = await participantTypesQuery({ request });
+	const cities = await citiesListQuery({ request });
+	const tags = await allTagsQuery({ request });
+	const categories = await categoryListQuery({ request });
+	const providers = await allProvidersQuery({ request });
 
 	return {
 		cities,

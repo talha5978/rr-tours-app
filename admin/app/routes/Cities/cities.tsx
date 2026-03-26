@@ -1,6 +1,5 @@
 import { SUPABASE_IMAGE_BUCKET_PATH } from "@workspace/shared/constants/constants";
 import type { HighLevelCity } from "@workspace/shared/types/cities";
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { formatDistanceToNow } from "date-fns";
 import { PenBox, PlusCircle } from "lucide-react";
 import { memo, useEffect } from "react";
@@ -13,7 +12,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip
 import { highLevelCitiesQuery } from "~/queries/cities.q";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-	const data = await queryClient.fetchQuery(highLevelCitiesQuery({ request }));
+	const data = await highLevelCitiesQuery({ request });
 	return data;
 };
 
@@ -71,7 +70,7 @@ const createdAtLabel = (date: string | null) => {
 
 const CityCard = memo(({ city }: { city: HighLevelCity }) => {
 	return (
-		<Link to={`/tours?cities=${city.id}`} prefetch="intent" viewTransition>
+		<Link to={`/tours?cities=${city.id}`} prefetch="intent" key={city.id} viewTransition>
 			<div className="h-88 flex flex-col max-w-60 rounded-xl shadow-lg overflow-hidden relative group">
 				<div className="flex-1 w-full relative overflow-hidden">
 					<img

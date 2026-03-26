@@ -1,4 +1,3 @@
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { toursQuery } from "~/queries/tours.q";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
 import {
@@ -38,7 +37,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 		throw new Response("City ID is required", { status: 400 });
 	}
 
-	const cityData = await queryClient.fetchQuery(cityDetailsQuery(request, parseInt(id)));
+	const cityData = await cityDetailsQuery({ request, cityId: Number(id) });
 
 	const url = new URL(request.url);
 
@@ -46,24 +45,26 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 	const sortType =
 		(url.searchParams.get("sortType") as FPTourFilters["sortType"]) || fpDefaultTourSortTypeFilter;
 
-	const toursData = await queryClient.fetchQuery(
-		toursQuery({
-			request,
-			filters: {
-				cities: [id],
-				sortBy: sortBy != "recommended" ? sortBy : undefined,
-				sortType: sortBy != "recommended" ? sortType : undefined,
-			},
-			pageSize,
-			q: url.searchParams.get("q")?.trim() ?? "",
-		}),
-	);
+	const toursData = await toursQuery({
+		request,
+		filters: {
+			cities: [id],
+			sortBy: sortBy != "recommended" ? sortBy : undefined,
+			sortType: sortBy != "recommended" ? sortType : undefined,
+		},
+		pageSize,
+		q: url.searchParams.get("q")?.trim() ?? "",
+	});
 
-	const collectionsResp = await queryClient.fetchQuery(
-		collectionsQuery({ request, isFeatured: false, cityId: Number(id), pageIndex: 0, pageSize: 10 }),
-	);
+	const collectionsResp = await collectionsQuery({
+		request,
+		isFeatured: false,
+		cityId: Number(id),
+		pageIndex: 0,
+		pageSize: 10,
+	});
 
-	const cityTags = await queryClient.fetchQuery(cityTagsQuery({ request, cityId: Number(id) }));
+	const cityTags = await cityTagsQuery({ request, cityId: Number(id) });
 
 	return { toursData, cityData, cityTags, collectionsResp };
 };

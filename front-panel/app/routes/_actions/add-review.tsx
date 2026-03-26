@@ -1,5 +1,7 @@
+import { cacheService } from "@workspace/shared/services/cache.service";
 import { ReviewsService } from "@workspace/shared/services/reviews.service";
 import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 import { queryClient } from "@workspace/shared/utils/query-client";
 import type { ActionFunctionArgs } from "react-router";
 import { currentFullUserQuery } from "~/queries/auth.q";
@@ -37,9 +39,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 			userData.user.id,
 		);
 
-		await queryClient.invalidateQueries({ queryKey: ["tour_reviews", data.tour_id] });
-		await queryClient.invalidateQueries({ queryKey: ["home_tour_reviews"] });
-		await queryClient.invalidateQueries({ queryKey: ["my_reviews", userData.user.id] });
+		await cacheService.invalidatePattern(CACHE_KEYS.reviews.tour(data.tour_id) + ":*");
+		await cacheService.invalidatePattern(CACHE_KEYS.reviews.tour(data.tour_id) + ":*");
+		await cacheService.invalidate(CACHE_KEYS.reviews.home());
+		await cacheService.invalidatePattern(CACHE_KEYS.reviews.my_reviews(userData.user.id) + ":*");
 
 		return { success: true };
 	} catch (err: any) {

@@ -1,5 +1,6 @@
+import { cacheService } from "@workspace/shared/services/cache.service";
 import { CartService } from "@workspace/shared/services/cart.service";
-import { queryClient } from "@workspace/shared/utils/query-client";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 import { type ActionFunctionArgs } from "react-router";
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
@@ -13,7 +14,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 		const cartSvc = new CartService(request);
 		const data = await cartSvc.clearCart(user_id);
 
-		await queryClient.invalidateQueries({ queryKey: ["my_cart", user_id] });
+		await cacheService.invalidatePattern(CACHE_KEYS.cart.user_cart(user_id) + ":*");
 
 		return data;
 	} catch (err: any) {

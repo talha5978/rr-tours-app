@@ -9,10 +9,11 @@ import {
 	UpdateTagActionSchema,
 	type UpdateTagInput,
 } from "@workspace/shared/schemas/tag.schema";
+import { cacheService } from "@workspace/shared/services/cache.service";
 import { HeroSectionsService } from "@workspace/shared/services/hero-sections.service";
 import { ActionResponse } from "@workspace/shared/types/action-data";
 import { ApiError } from "@workspace/shared/utils/ApiError";
-import { queryClient } from "@workspace/shared/utils/query-client";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 import { Info, Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -76,8 +77,10 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 	// return;
 	try {
 		await svc.updateHeroSection(Number(id), parseResult.data);
-		await queryClient.invalidateQueries({ queryKey: ["hero_sections"] });
-		await queryClient.invalidateQueries({ queryKey: ["hero_section", Number(id)] });
+
+		await cacheService.invalidate(CACHE_KEYS.heroSections.list("AD"));
+		await cacheService.invalidate(CACHE_KEYS.heroSections.list("FP"));
+		await cacheService.invalidate(CACHE_KEYS.heroSections.details(id));
 
 		return { success: true };
 	} catch (error: any) {
@@ -95,7 +98,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 		throw new Response("Hero Section ID is required", { status: 400 });
 	}
 
-	const response = await queryClient.fetchQuery(heroSectionQuery({ request, id: Number(id) }));
+	const response = await heroSectionQuery({ request, id: Number(id) });
 	return response;
 };
 

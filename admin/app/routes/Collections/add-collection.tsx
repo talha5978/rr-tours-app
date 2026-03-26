@@ -3,10 +3,11 @@ import {
 	addCollectionSchema,
 	type AddCollectionSchemaType,
 } from "@workspace/shared/schemas/collection.schema";
+import { cacheService } from "@workspace/shared/services/cache.service";
 import { CollectionsService } from "@workspace/shared/services/collections.service";
 import type { ActionResponse } from "@workspace/shared/types/action-data";
 import { ApiError } from "@workspace/shared/utils/ApiError";
-import { queryClient } from "@workspace/shared/utils/query-client";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 import { Loader2, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { type Control, useForm } from "react-hook-form";
@@ -70,7 +71,8 @@ export const action = async ({ request }: LoaderFunctionArgs) => {
 			};
 		}
 
-		await queryClient.invalidateQueries({ queryKey: ["highLvlCollections"] });
+		await cacheService.invalidatePattern(CACHE_KEYS.collections.highLevelAD() + `:*`);
+		cacheService.invalidatePattern(CACHE_KEYS.collections.listFP() + `:*`);
 
 		return { success: true };
 	} catch (error: any) {
@@ -82,9 +84,9 @@ export const action = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-	const cities = await queryClient.fetchQuery(citiesListQuery({ request }));
+	const cities = await citiesListQuery({ request });
 	const { q, pageIndex, pageSize } = getPaginationQueryPayload({ request });
-	const tours = await queryClient.fetchQuery(toursListQuery({ request, q, pageIndex, pageSize }));
+	const tours = await toursListQuery({ request, q, pageIndex, pageSize });
 
 	return { cities, tours };
 };

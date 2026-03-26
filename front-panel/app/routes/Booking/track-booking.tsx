@@ -4,7 +4,6 @@ import { Input } from "~/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Separator } from "~/components/ui/separator";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { bookingByRefQuery } from "~/queries/bookings.q";
 import { format } from "date-fns";
 import { Badge } from "~/components/ui/badge";
@@ -17,7 +16,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 	let booking: FPBookingByRefDetail | null = null;
 
 	if (ref && ref !== "") {
-		booking = await queryClient.fetchQuery(bookingByRefQuery({ request, ref }));
+		booking = await bookingByRefQuery({ request, ref });
 	}
 
 	return { booking };

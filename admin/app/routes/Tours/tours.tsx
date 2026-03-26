@@ -12,7 +12,6 @@ import {
 	SUPABASE_IMAGE_BUCKET_PATH,
 } from "@workspace/shared/constants/constants";
 import type { HighLevelTour } from "@workspace/shared/types/tours";
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { formatDistanceToNow } from "date-fns";
 import {
 	ArrowDownWideNarrow,
@@ -108,20 +107,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 	const tourFilters: TourFilters = getToursFiltersPayload({ request });
 
-	const data = await queryClient.fetchQuery(
-		highLevelToursQuery({
-			request,
-			q,
-			pageIndex,
-			pageSize,
-			filters: tourFilters,
-		}),
-	);
+	const data = await highLevelToursQuery({
+		request,
+		q,
+		pageIndex,
+		pageSize,
+		filters: tourFilters,
+	});
 
-	const categories = await queryClient.fetchQuery(categoryListQuery({ request }));
-	const cities = await queryClient.fetchQuery(citiesListQuery({ request }));
-	const providers = await queryClient.fetchQuery(allProvidersQuery({ request }));
-	const tags = await queryClient.fetchQuery(allTagsQuery({ request }));
+	const categories = await categoryListQuery({ request });
+	const cities = await citiesListQuery({ request });
+	const providers = await allProvidersQuery({ request });
+	const tags = await allTagsQuery({ request });
 
 	return {
 		data,

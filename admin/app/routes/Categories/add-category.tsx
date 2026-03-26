@@ -5,11 +5,11 @@ import {
 	type AddCategoryInput,
 	AddCategorySchema,
 } from "@workspace/shared/schemas/category.schema";
-import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
+import { cacheService } from "@workspace/shared/services/cache.service";
 import { CategoryService } from "@workspace/shared/services/categories.service";
 import type { ActionResponse } from "@workspace/shared/types/action-data";
 import { ApiError } from "@workspace/shared/utils/ApiError";
-import { queryClient } from "@workspace/shared/utils/query-client";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -61,15 +61,11 @@ export const action = async ({ request }: { request: Request }) => {
 	// return;
 	try {
 		await svc.addCategory(parseResult.data);
-		await queryClient.invalidateQueries({ queryKey: ["highLvlCategories"] });
-		await queryClient.invalidateQueries({ queryKey: ["categoryList"] });
-		await queryClient.invalidateQueries({ queryKey: ["dashboard_main_stats"] });
 
-		const cacheSvc = new CacheInvalidationService(request);
-		await cacheSvc.pushCacheInvalidationEvent({
-			target: "front",
-			keys: ["FP_highLvlCategories"],
-		});
+		await cacheService.invalidatePattern(CACHE_KEYS.categories.highLevelAD() + `:*`);
+		await cacheService.invalidate(CACHE_KEYS.categories.list());
+		await cacheService.invalidate(CACHE_KEYS.stats.dashboardMainStats());
+		await cacheService.invalidate(CACHE_KEYS.categories.highLevelFP());
 
 		return { success: true };
 	} catch (error: any) {

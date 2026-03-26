@@ -1,21 +1,20 @@
-import { queryOptions } from "@tanstack/react-query";
 import { ToursService } from "@workspace/shared/services/tours.service";
 import type { FPTourFilters } from "@workspace/shared/schemas/fp-tours-filter.schema";
-import type { GetTourDetails } from "@workspace/shared/types/tours";
-import type { GetFPHighLevelToursResponse } from "@workspace/shared/types/fp-tours";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
+import { cacheService } from "@workspace/shared/services/cache.service";
 
-export const tourDetailsQuery = ({ request, tour_id }: { request: Request; tour_id: string }) => {
-	return queryOptions<GetTourDetails | null>({
-		queryKey: ["fp_tour_details", tour_id],
-		queryFn: async () => {
-			const svc = new ToursService(request);
-			const result = await svc.getFPTourDetails(tour_id);
-			return result;
-		},
-	});
+export const tourDetailsQuery = async ({ request, tour_id }: { request: Request; tour_id: string }) => {
+	const queryFn = async () => {
+		const svc = new ToursService(request);
+		const resp = await svc.getFPTourDetails(tour_id);
+		return resp;
+	};
+
+	const result = await cacheService.get(CACHE_KEYS.tours.details("FP", tour_id), queryFn);
+	return result;
 };
 
-export const toursQuery = ({
+export const toursQuery = async ({
 	request,
 	q,
 	pageIndex,
@@ -28,32 +27,36 @@ export const toursQuery = ({
 	pageSize?: number;
 	filters?: FPTourFilters;
 }) => {
-	return queryOptions<GetFPHighLevelToursResponse>({
-		queryKey: ["fp_tours", q, pageIndex, pageSize, filters],
-		queryFn: async () => {
-			const svc = new ToursService(request);
-			const result = await svc.getFPHighLevelTours(q, pageIndex, pageSize, filters);
-			return result;
-		},
-	});
+	const queryFn = async () => {
+		const svc = new ToursService(request);
+		const resp = await svc.getFPHighLevelTours(q, pageIndex, pageSize, filters);
+		return resp;
+	};
+
+	const result = await cacheService.get(
+		CACHE_KEYS.tours.highLevel("FP", q, pageIndex, pageSize, filters),
+		queryFn,
+	);
+	return result;
 };
 
-export const availabilityQuery = (request: Request, optionId: number | null, dateStr: string | null) => {
-	return queryOptions<
-		Promise<
-			{
-				id: number;
-				available_seats: number;
-			}[]
-		>
-	>({
-		queryKey: ["tour-availability", optionId, dateStr],
-		queryFn: async () => {
-			if (!optionId || !dateStr) return [];
-			const svc = new ToursService(request);
-			return svc.getTourTimeSlotAvailability(optionId, dateStr);
-		},
-		staleTime: 1000 * 60 * 5,
-		gcTime: 1000 * 60 * 10,
-	});
+export const availabilityQuery = async (
+	request: Request,
+	optionId: number | null,
+	dateStr: string | null,
+	tourId: string | null,
+) => {
+	if (!optionId || !dateStr || !tourId) return [];
+
+	const queryFn = async () => {
+		const svc = new ToursService(request);
+		const resp = await svc.getTourTimeSlotAvailability(optionId, dateStr);
+		return resp;
+	};
+
+	const result = await cacheService.get(
+		CACHE_KEYS.tours.slotAvailability(optionId, dateStr, tourId),
+		queryFn,
+	);
+	return result;
 };

@@ -6,11 +6,11 @@ import {
 	type UpdateTagInput,
 	UpdateTagSchema,
 } from "@workspace/shared/schemas/tag.schema";
-import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
+import { cacheService } from "@workspace/shared/services/cache.service";
 import { TourTagsService } from "@workspace/shared/services/tags.service";
 import { ActionResponse } from "@workspace/shared/types/action-data";
 import { ApiError } from "@workspace/shared/utils/ApiError";
-import { queryClient } from "@workspace/shared/utils/query-client";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 import { Info, Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -75,14 +75,11 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 	// return;
 	try {
 		await svc.updateTag(Number(id), parseResult.data);
-		await queryClient.invalidateQueries({ queryKey: ["tour_tags"] });
-		await queryClient.invalidateQueries({ queryKey: ["tour_tag", Number(id)] });
 
-		const cacheSvc = new CacheInvalidationService(request);
-		await cacheSvc.pushCacheInvalidationEvent({
-			keys: ["fp_tour_tags", `fp_city_tags||${id}`],
-			target: "front",
-		});
+		await cacheService.invalidate(CACHE_KEYS.tags.tags("AD"));
+		await cacheService.invalidate(CACHE_KEYS.tags.tag(id));
+		cacheService.invalidate(CACHE_KEYS.tags.tags("FP"));
+		cacheService.invalidate(CACHE_KEYS.tags.cityTags(id));
 
 		return { success: true };
 	} catch (error: any) {
@@ -99,7 +96,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 		throw new Response("Tag ID is required", { status: 400 });
 	}
 
-	const response = await queryClient.fetchQuery(tagQuery({ request, id: Number(id) }));
+	const response = await tagQuery({ request, id: Number(id) });
 	return response;
 };
 

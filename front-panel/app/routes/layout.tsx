@@ -9,14 +9,14 @@ import { myCartQuery } from "~/queries/cart.q";
 import { FPhighLevelCategoriesQuery } from "~/queries/categories.q";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-	const categoriesResp = await queryClient.fetchQuery(FPhighLevelCategoriesQuery({ request }));
+	const categoriesResp = await FPhighLevelCategoriesQuery({ request });
 	const { authId, headers } = genAuthSecurity(request);
 	const userData = await queryClient.fetchQuery(currentUserQuery({ request, authId, headers }));
 
 	let myCart = null;
 
 	if (userData && userData.user) {
-		myCart = await queryClient.fetchQuery(myCartQuery({ request, user_id: userData.user?.id }));
+		myCart = await myCartQuery({ request, user_id: userData.user?.id });
 	}
 
 	return { categoriesResp, myCart };

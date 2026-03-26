@@ -10,11 +10,11 @@ import {
 	type UpdateCityInput,
 	UpdateCitySchema,
 } from "@workspace/shared/schemas/city.schema";
-import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
+import { cacheService } from "@workspace/shared/services/cache.service";
 import { CityService } from "@workspace/shared/services/cities.service";
 import type { ActionResponse } from "@workspace/shared/types/action-data";
 import { ApiError } from "@workspace/shared/utils/ApiError";
-import { queryClient } from "@workspace/shared/utils/query-client";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 import { Info, Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -93,15 +93,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 	// return;
 	try {
 		await svc.updateCity(cityId, parseResult.data);
-		await queryClient.invalidateQueries({ queryKey: ["highLvlCities"] });
-		await queryClient.invalidateQueries({ queryKey: ["citiesList"] });
-		await queryClient.invalidateQueries({ queryKey: ["cityDetailsForUpdate", Number(cityId)] });
 
-		const cacheSvc = new CacheInvalidationService(request);
-		await cacheSvc.pushCacheInvalidationEvent({
-			target: "front",
-			keys: ["FP_highLvlCities", `FP_cityDetails||${cityId}`],
-		});
+		await cacheService.invalidatePattern(`${CACHE_KEYS.ROOT("AD")}:cities:*`);
+		cacheService.invalidatePattern(`${CACHE_KEYS.ROOT("FP")}:cities:*`);
 
 		return { success: true };
 	} catch (error: any) {
@@ -118,7 +112,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 		throw new Response("City ID is required", { status: 400 });
 	}
 
-	const response = await queryClient.fetchQuery(cityDetailsUpdateQuery(request, Number(cityId)));
+	const response = await cityDetailsUpdateQuery({ request, cityId: Number(cityId) });
 	return response;
 };
 

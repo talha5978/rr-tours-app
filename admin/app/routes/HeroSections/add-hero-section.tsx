@@ -4,10 +4,11 @@ import {
 	type AddHeroSectionInput,
 	AddHeroSectionSchema,
 } from "@workspace/shared/schemas/hero-section.schema";
+import { cacheService } from "@workspace/shared/services/cache.service";
 import { HeroSectionsService } from "@workspace/shared/services/hero-sections.service";
 import type { ActionResponse } from "@workspace/shared/types/action-data";
 import { ApiError } from "@workspace/shared/utils/ApiError";
-import { queryClient } from "@workspace/shared/utils/query-client";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 import { Info, Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -50,7 +51,8 @@ export const action = async ({ request }: { request: Request }) => {
 	// return;
 	try {
 		await svc.addHeroSection(parseResult.data);
-		await queryClient.invalidateQueries({ queryKey: ["hero_sections"] });
+		await cacheService.invalidate(CACHE_KEYS.heroSections.list("AD"));
+		await cacheService.invalidate(CACHE_KEYS.heroSections.list("FP"));
 
 		return { success: true };
 	} catch (error: any) {

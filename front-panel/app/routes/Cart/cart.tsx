@@ -30,7 +30,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 	let myCart = null;
 
 	if (userData && userData.user) {
-		myCart = await queryClient.fetchQuery(myCartQuery({ request, user_id: userData.user?.id, page }));
+		myCart = await myCartQuery({ request, user_id: userData.user?.id, page });
 	}
 
 	return { myCart, userData };

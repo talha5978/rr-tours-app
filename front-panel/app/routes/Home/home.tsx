@@ -1,4 +1,3 @@
-import { queryClient } from "@workspace/shared/utils/query-client";
 import type { Route } from "../Home/+types/home";
 import { toursQuery } from "~/queries/tours.q";
 import { FPhighLevelCitiesQuery } from "~/queries/cities.q";
@@ -8,7 +7,6 @@ import WhyUsSection from "~/components/Home/WhyUsSection";
 import { FPhighLevelCategoriesQuery } from "~/queries/categories.q";
 import CategoriesSection from "~/components/Home/CategoriesSection";
 import HeroSection from "~/components/Home/HeroSection";
-import { allHeroSectionsQuery } from "@workspace/shared/queries/hero-sections.q";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
 import { SUPABASE_IMAGE_BUCKET_PATH } from "@workspace/shared/constants/constants";
 import { InquiryBanner } from "~/components/Contact/InquirySection";
@@ -18,18 +16,21 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import { collectionsQuery } from "~/queries/collections.q";
 import CollectionsSection from "~/components/Collections/CollectionsSection";
+import { allHeroSectionsQuery } from "~/queries/hero-sections.q";
 
 export const loader = async ({ request }: Route.LoaderArgs) => {
-	const featuredToursResp = await queryClient.fetchQuery(
-		toursQuery({ request, filters: { isFeatured: true } }),
-	);
-	const citiesResp = await queryClient.fetchQuery(FPhighLevelCitiesQuery({ request }));
-	const categoriesResp = await queryClient.fetchQuery(FPhighLevelCategoriesQuery({ request }));
-	const heroSectionsResp = await queryClient.fetchQuery(allHeroSectionsQuery({ request }));
-	const reviewsResp = await queryClient.fetchQuery(homeTourReviewsQuery({ request }));
-	const featuredCollectionsResp = await queryClient.fetchQuery(
-		collectionsQuery({ request, isFeatured: true, cityId: null, pageIndex: 0, pageSize: 10 }),
-	);
+	const featuredToursResp = await toursQuery({ request, filters: { isFeatured: true } });
+	const citiesResp = await FPhighLevelCitiesQuery({ request });
+	const categoriesResp = await FPhighLevelCategoriesQuery({ request });
+	const heroSectionsResp = await allHeroSectionsQuery({ request });
+	const reviewsResp = await homeTourReviewsQuery({ request });
+	const featuredCollectionsResp = await collectionsQuery({
+		request,
+		isFeatured: true,
+		cityId: null,
+		pageIndex: 0,
+		pageSize: 10,
+	});
 
 	const errors = decodeURIComponent(new URLSearchParams(request.url.split("?")[1]).get("error") || "");
 	const success_msg = decodeURIComponent(

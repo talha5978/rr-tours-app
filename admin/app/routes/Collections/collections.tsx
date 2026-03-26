@@ -1,6 +1,5 @@
 import { type ColumnDef, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { type HighLevelCollection } from "@workspace/shared/types/collections";
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { Check, Loader2, MoreHorizontal, PlusCircle, Search, TriangleAlert } from "lucide-react";
 import { useEffect } from "react";
 import {
@@ -45,9 +44,7 @@ import { getPaginationQueryPayload } from "~/utils/getPaginationQueryPayload";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
 	const { q, pageIndex, pageSize } = getPaginationQueryPayload({ request });
-
-	const data = await queryClient.fetchQuery(highLevelCollectionsQuery({ request, q, pageIndex, pageSize }));
-
+	const data = await highLevelCollectionsQuery({ request, q, pageIndex, pageSize });
 	return { data, query: q, pageIndex, pageSize };
 };
 

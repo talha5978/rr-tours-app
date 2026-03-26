@@ -75,22 +75,20 @@ const REVIEWS_PAGE_SIZE = 10;
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 	if (!params.id || params.id === "") return null;
 
-	const data = await queryClient.fetchQuery(tourDetailsQuery({ request, tour_id: params.id }));
+	const data = await tourDetailsQuery({ request, tour_id: params.id });
 	let relatedToursByCity: FP_HighLevelTour[] = [];
 	let relatedToursByCategory: FP_HighLevelTour[] = [];
 
 	if (data?.city?.id) {
-		const relatedTours = await queryClient.fetchQuery(
-			toursQuery({ request, filters: { cities: [data.city.id.toString()] } }),
-		);
-
+		const relatedTours = await toursQuery({ request, filters: { cities: [data.city.id.toString()] } });
 		relatedToursByCity = relatedTours.tours;
 	}
 
 	if (data?.tour_category?.id) {
-		const relatedTours = await queryClient.fetchQuery(
-			toursQuery({ request, filters: { categories: [data.tour_category.id.toString()] } }),
-		);
+		const relatedTours = await toursQuery({
+			request,
+			filters: { categories: [data.tour_category.id.toString()] },
+		});
 
 		relatedToursByCategory = relatedTours.tours;
 	}
@@ -105,7 +103,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 	}[] = [];
 
 	if (optionId && dateStr) {
-		availability = await queryClient.fetchQuery(availabilityQuery(request, optionId, dateStr));
+		availability = await availabilityQuery(request, optionId, dateStr, params.id);
 	}
 
 	const review_page = Number(url.searchParams.get("reviews_page") ?? "1");
@@ -115,20 +113,18 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 	const sort_by = url.searchParams.get("sort_by") as "date" | "rating" | undefined;
 	const sort_order = url.searchParams.get("sort_order") as "asc" | "desc" | undefined;
 
-	const reviewsData = queryClient.fetchQuery(
-		tourReviewsQuery({
-			request,
-			tour_id: params.id,
-			options: {
-				limit: REVIEWS_PAGE_SIZE * review_page,
-				filters: {
-					min_rating,
-					sort_by,
-					sort_order,
-				},
+	const reviewsData = tourReviewsQuery({
+		request,
+		tour_id: params.id,
+		options: {
+			limit: REVIEWS_PAGE_SIZE * review_page,
+			filters: {
+				min_rating,
+				sort_by,
+				sort_order,
 			},
-		}),
-	);
+		},
+	});
 
 	const { headers, authId } = genAuthSecurity(request);
 

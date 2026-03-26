@@ -1,5 +1,4 @@
 import { SUPABASE_IMAGE_BUCKET_PATH } from "@workspace/shared/constants/constants";
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { MoreVertical, PlusCircle } from "lucide-react";
 import { Link, type LoaderFunctionArgs, Outlet, useLoaderData } from "react-router";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
@@ -13,7 +12,7 @@ import {
 import { allTagsQuery } from "~/queries/tags.q";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-	const tags = await queryClient.fetchQuery(allTagsQuery({ request }));
+	const tags = await allTagsQuery({ request });
 	return tags;
 };
 

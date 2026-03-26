@@ -1,10 +1,6 @@
-import { queryOptions } from "@tanstack/react-query";
+import { cacheService } from "@workspace/shared/services/cache.service";
 import { CategoryService } from "@workspace/shared/services/categories.service";
-import type {
-	GetCategoryDetailsForUpdateResponse,
-	GetCategoryList,
-	GetHighLevelCategoriesResponse,
-} from "@workspace/shared/types/categories";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 
 type HighLevelCategoryArgs = {
 	request: Request;
@@ -13,35 +9,44 @@ type HighLevelCategoryArgs = {
 	pageSize?: number;
 };
 
-export const highLevelCategoriesQuery = ({ request, q, pageIndex, pageSize }: HighLevelCategoryArgs) => {
-	return queryOptions<GetHighLevelCategoriesResponse>({
-		queryKey: ["highLvlCategories", q, pageIndex, pageSize],
-		queryFn: async () => {
-			const svc = new CategoryService(request);
-			const result = await svc.getHighLevelCategories(q, pageIndex, pageSize);
-			return result;
-		},
-	});
+export const highLevelCategoriesQuery = async ({
+	request,
+	q,
+	pageIndex,
+	pageSize,
+}: HighLevelCategoryArgs) => {
+	const queryFn = async () => {
+		const svc = new CategoryService(request);
+		const resp = await svc.getHighLevelCategories(q, pageIndex, pageSize);
+		return resp;
+	};
+
+	const result = await cacheService.get(
+		CACHE_KEYS.categories.highLevelAD(q, pageIndex, pageSize),
+		queryFn,
+		43200,
+	);
+	return result;
 };
 
-export const categoryDetailsUpdateQuery = (request: Request, categoryId: number) => {
-	return queryOptions<GetCategoryDetailsForUpdateResponse>({
-		queryKey: ["categoryDetailsForUpdate", categoryId],
-		queryFn: async () => {
-			const svc = new CategoryService(request);
-			const result = await svc.getCategoryDetails(categoryId);
-			return result;
-		},
-	});
+export const categoryDetailsUpdateQuery = async (request: Request, categoryId: number) => {
+	const queryFn = async () => {
+		const svc = new CategoryService(request);
+		const resp = await svc.getCategoryDetails(categoryId);
+		return resp;
+	};
+
+	const result = await cacheService.get(CACHE_KEYS.categories.details(categoryId), queryFn);
+	return result;
 };
 
-export const categoryListQuery = ({ request }: { request: Request }) => {
-	return queryOptions<GetCategoryList>({
-		queryKey: ["categoryList"],
-		queryFn: async () => {
-			const svc = new CategoryService(request);
-			const result = await svc.getCategoryList();
-			return result;
-		},
-	});
+export const categoryListQuery = async ({ request }: { request: Request }) => {
+	const queryFn = async () => {
+		const svc = new CategoryService(request);
+		const resp = await svc.getCategoryList();
+		return resp;
+	};
+
+	const result = await cacheService.get(CACHE_KEYS.categories.list(), queryFn, 43200);
+	return result;
 };

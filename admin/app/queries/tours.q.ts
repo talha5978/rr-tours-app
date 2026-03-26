@@ -1,40 +1,37 @@
-import { queryOptions } from "@tanstack/react-query";
 import { ToursService } from "@workspace/shared/services/tours.service";
-import type {
-	GetHighLevelToursResponse,
-	GetTourDetails,
-	GetTourDetailsForUpdate,
-	ToursListResp,
-} from "@workspace/shared/types/tours";
 import type { TourFilters } from "@workspace/shared/schemas/tours-filter.schema";
+import { cacheService } from "@workspace/shared/services/cache.service";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 
-export const tourDetailsQuery = ({ request, tour_id }: { request: Request; tour_id: string }) => {
-	return queryOptions<GetTourDetails | null>({
-		queryKey: ["tour_details", tour_id],
-		queryFn: async () => {
-			const svc = new ToursService(request);
-			const result = await svc.getTourDetails(tour_id);
-			return result;
-		},
-		staleTime: 10 * 60 * 1000,
-		gcTime: 20 * 60 * 1000,
-	});
+export const tourDetailsQuery = async ({ request, tour_id }: { request: Request; tour_id: string }) => {
+	const queryFn = async () => {
+		const svc = new ToursService(request);
+		const resp = await svc.getTourDetails(tour_id);
+		return resp;
+	};
+
+	const result = await cacheService.get(CACHE_KEYS.tours.details("AD", tour_id), queryFn);
+	return result;
 };
 
-export const tourDetailsForUpdateQuery = ({ request, tour_id }: { request: Request; tour_id: string }) => {
-	return queryOptions<GetTourDetailsForUpdate | null>({
-		queryKey: ["tour_details_update", tour_id],
-		queryFn: async () => {
-			const svc = new ToursService(request);
-			const result = await svc.getTourDetailsForUpdate(tour_id);
-			return result;
-		},
-		staleTime: 10 * 60 * 1000,
-		gcTime: 20 * 60 * 1000,
-	});
+export const tourDetailsForUpdateQuery = async ({
+	request,
+	tour_id,
+}: {
+	request: Request;
+	tour_id: string;
+}) => {
+	const queryFn = async () => {
+		const svc = new ToursService(request);
+		const resp = await svc.getTourDetailsForUpdate(tour_id);
+		return resp;
+	};
+
+	const result = await cacheService.get(CACHE_KEYS.tours.detailForUpdate(tour_id), queryFn);
+	return result;
 };
 
-export const highLevelToursQuery = ({
+export const highLevelToursQuery = async ({
 	request,
 	q,
 	pageIndex,
@@ -47,19 +44,21 @@ export const highLevelToursQuery = ({
 	pageSize?: number;
 	filters?: TourFilters;
 }) => {
-	return queryOptions<GetHighLevelToursResponse>({
-		queryKey: ["high_level_tours", q, pageIndex, pageSize, filters],
-		queryFn: async () => {
-			const svc = new ToursService(request);
-			const result = await svc.getHighLevelTours(q, pageIndex, pageSize, filters);
-			return result;
-		},
-		staleTime: 10 * 60 * 1000,
-		gcTime: 20 * 60 * 1000,
-	});
+	const queryFn = async () => {
+		const svc = new ToursService(request);
+		const resp = await svc.getHighLevelTours(q, pageIndex, pageSize, filters);
+		return resp;
+	};
+
+	const result = await cacheService.get(
+		CACHE_KEYS.tours.highLevel("AD", q, pageIndex, pageSize, filters),
+		queryFn,
+	);
+
+	return result;
 };
 
-export const toursListQuery = ({
+export const toursListQuery = async ({
 	request,
 	q,
 	pageIndex,
@@ -70,14 +69,12 @@ export const toursListQuery = ({
 	pageIndex?: number;
 	pageSize?: number;
 }) => {
-	return queryOptions<ToursListResp>({
-		queryKey: ["tours_list", q, pageIndex, pageSize],
-		queryFn: async () => {
-			const svc = new ToursService(request);
-			const result = await svc.getToursList(q, pageIndex, pageSize);
-			return result;
-		},
-		staleTime: 10 * 60 * 1000,
-		gcTime: 20 * 60 * 1000,
-	});
+	const queryFn = async () => {
+		const svc = new ToursService(request);
+		const resp = await svc.getToursList(q, pageIndex, pageSize);
+		return resp;
+	};
+
+	const result = await cacheService.get(CACHE_KEYS.tours.list("AD", q, pageIndex, pageSize), queryFn);
+	return result;
 };

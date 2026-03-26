@@ -46,9 +46,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 	const pageIndex = Math.max(0, currentPage - 1);
 
 	try {
-		const result = await queryClient.fetchQuery(
-			myReviewsQuery({ pageIndex, pageSize: PAGE_SIZE, request, userId }),
-		);
+		const result = await myReviewsQuery({ pageIndex, pageSize: PAGE_SIZE, request, userId });
 
 		return {
 			reviewsData: result,

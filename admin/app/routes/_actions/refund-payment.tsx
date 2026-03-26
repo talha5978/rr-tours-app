@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "react-router";
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { CheckoutService } from "@workspace/shared/services/checkout.service";
+import { cacheService } from "@workspace/shared/services/cache.service";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
 	const booking_id = params.booking_id as string;
@@ -36,9 +37,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 			note: refund_details,
 		});
 
-		await queryClient.invalidateQueries({ queryKey: ["high_level_bookings"] });
-		await queryClient.invalidateQueries({ queryKey: ["booking", booking_id] });
-		await queryClient.invalidateQueries({ queryKey: ["booking_for_confirmation", booking_id] });
+		await cacheService.invalidatePattern(CACHE_KEYS.bookings.highLevel() + ":*");
+		await cacheService.invalidate(CACHE_KEYS.bookings.details("AD", booking_id));
+		await cacheService.invalidate(CACHE_KEYS.bookings.forConfirmation(booking_id));
 
 		return new Response(JSON.stringify(res), {
 			status: 200,

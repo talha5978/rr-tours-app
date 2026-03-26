@@ -1,14 +1,14 @@
-import { queryOptions } from "@tanstack/react-query";
+import { cacheService } from "@workspace/shared/services/cache.service";
 import { CategoryService } from "@workspace/shared/services/categories.service";
-import type { GetFPHighLevelCategories } from "@workspace/shared/types/categories";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 
-export const FPhighLevelCategoriesQuery = ({ request }: { request: Request }) => {
-	return queryOptions<GetFPHighLevelCategories>({
-		queryKey: ["FP_highLvlCategories"],
-		queryFn: async () => {
-			const svc = new CategoryService(request);
-			const result = await svc.getFPHighLevelCategories();
-			return result;
-		},
-	});
+export const FPhighLevelCategoriesQuery = async ({ request }: { request: Request }) => {
+	const queryFn = async () => {
+		const svc = new CategoryService(request);
+		const resp = await svc.getFPHighLevelCategories();
+		return resp;
+	};
+
+	const result = await cacheService.get(CACHE_KEYS.categories.highLevelFP(), queryFn);
+	return result;
 };

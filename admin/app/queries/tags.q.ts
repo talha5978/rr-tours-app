@@ -1,25 +1,25 @@
-import { queryOptions } from "@tanstack/react-query";
+import { cacheService } from "@workspace/shared/services/cache.service";
 import { TourTagsService } from "@workspace/shared/services/tags.service";
-import type { GetAllTourTags, GetTag } from "@workspace/shared/types/tour-tags";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 
-export const allTagsQuery = ({ request }: { request: Request }) => {
-	return queryOptions<GetAllTourTags>({
-		queryKey: ["tour_tags"],
-		queryFn: async () => {
-			const svc = new TourTagsService(request);
-			const result = await svc.getAllTags();
-			return result;
-		},
-	});
+export const allTagsQuery = async ({ request }: { request: Request }) => {
+	const queryFn = async () => {
+		const svc = new TourTagsService(request);
+		const result = await svc.getAllTags();
+		return result;
+	};
+
+	const result = await cacheService.get(CACHE_KEYS.tags.tags("AD"), queryFn);
+	return result;
 };
 
-export const tagQuery = ({ request, id }: { request: Request; id: number }) => {
-	return queryOptions<GetTag>({
-		queryKey: ["tour_tag", id],
-		queryFn: async () => {
-			const svc = new TourTagsService(request);
-			const result = await svc.getTagById(id);
-			return result;
-		},
-	});
+export const tagQuery = async ({ request, id }: { request: Request; id: number }) => {
+	const queryFn = async () => {
+		const svc = new TourTagsService(request);
+		const result = await svc.getTagById(id);
+		return result;
+	};
+
+	const result = await cacheService.get(CACHE_KEYS.tags.tag(id), queryFn);
+	return result;
 };

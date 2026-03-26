@@ -1,4 +1,3 @@
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { toursQuery } from "~/queries/tours.q";
 import { FPhighLevelCitiesQuery } from "~/queries/cities.q";
 import { FPhighLevelCategoriesQuery } from "~/queries/categories.q";
@@ -74,14 +73,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 		filters.price = [minPrice, maxPrice];
 	}
 
-	const toursResp = await queryClient.fetchQuery(
-		toursQuery({ request, filters, pageIndex: page - 1, pageSize: PAGE_SIZE, q }),
-	);
+	const toursResp = await toursQuery({ request, filters, pageIndex: page - 1, pageSize: PAGE_SIZE, q });
 
-	const citiesResp = await queryClient.fetchQuery(FPhighLevelCitiesQuery({ request }));
-	const categoriesResp = await queryClient.fetchQuery(FPhighLevelCategoriesQuery({ request }));
-	const providersResp = await queryClient.fetchQuery(allProvidersQuery({ request }));
-	const tagsResp = await queryClient.fetchQuery(allTagsQuery({ request }));
+	const citiesResp = await FPhighLevelCitiesQuery({ request });
+	const categoriesResp = await FPhighLevelCategoriesQuery({ request });
+	const providersResp = await allProvidersQuery({ request });
+	const tagsResp = await allTagsQuery({ request });
 
 	return { toursResp, citiesResp, categoriesResp, providersResp, tagsResp };
 };

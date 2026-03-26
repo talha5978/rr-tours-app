@@ -1,24 +1,21 @@
-import { queryOptions } from "@tanstack/react-query";
 import { BookingService } from "@workspace/shared/services/booking.service";
-import type { FPBookingByRefDetail, FrontPanelBookings } from "@workspace/shared/types/booking";
+import { cacheService } from "@workspace/shared/services/cache.service";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 
-export const bookingByRefQuery = ({ request, ref }: { request: Request; ref: string }) => {
-	return queryOptions<FPBookingByRefDetail>({
-		queryKey: ["fp_booking", ref],
-		queryFn: async () => {
-			if (ref == null) return null;
+export const bookingByRefQuery = async ({ request, ref }: { request: Request; ref: string }) => {
+	if (ref == null) return null;
 
-			const svc = new BookingService(request);
-			const result = await svc.getBookingByRef(ref);
-			return result;
-		},
-		enabled: !!ref,
-		staleTime: 2 * 60 * 1000,
-		gcTime: 2 * 60 * 1000,
-	});
+	const queryFn = async () => {
+		const svc = new BookingService(request);
+		const resp = await svc.getBookingByRef(ref);
+		return resp;
+	};
+
+	const result = await cacheService.get(CACHE_KEYS.bookings.details("FP", ref), queryFn);
+	return result;
 };
 
-export const myBookingsQuery = ({
+export const myBookingsQuery = async ({
 	request,
 	userId,
 	pageIndex,
@@ -29,14 +26,15 @@ export const myBookingsQuery = ({
 	pageIndex: number;
 	pageSize: number;
 }) => {
-	return queryOptions<FrontPanelBookings>({
-		queryKey: ["my_bookings", pageIndex, pageSize, userId],
-		queryFn: async () => {
-			const svc = new BookingService(request);
-			const result = await svc.getMyBookings(userId, pageIndex, pageSize);
-			return result;
-		},
-		staleTime: 2 * 60 * 1000,
-		gcTime: 2 * 60 * 1000,
-	});
+	const queryFn = async () => {
+		const svc = new BookingService(request);
+		const resp = await svc.getMyBookings(userId, pageIndex, pageSize);
+		return resp;
+	};
+
+	const result = await cacheService.get(
+		CACHE_KEYS.bookings.user_bookings(userId, pageIndex, pageSize),
+		queryFn,
+	);
+	return result;
 };
