@@ -24,7 +24,6 @@ import {
 	customerBookingSchema,
 	CustomerInput,
 } from "@workspace/shared/schemas/booking.schema";
-import { CacheInvalidationService } from "@workspace/shared/services/cache-events.service";
 import { GoogleReCaptcha, verifyRecaptcha } from "~/components/ReCaptcha/GoogleReCaptcha";
 import { CheckoutService } from "@workspace/shared/services/checkout.service";
 import { queryClient } from "@workspace/shared/utils/query-client";
@@ -33,6 +32,7 @@ import { currentUserQuery } from "@workspace/shared/queries/auth.q";
 import { myCartQuery } from "~/queries/cart.q";
 import { cacheService } from "@workspace/shared/services/cache.service";
 import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
+import { CartService } from "@workspace/shared/services/cart.service";
 // import { emailService } from "@workspace/shared/services/emails.service";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -47,6 +47,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 		const captchaResult = await verifyRecaptcha(recaptchaToken);
 		if (!captchaResult.success) {
+			console.error(captchaResult.score, captchaResult.success);
 			return { success: false, error: "Captcha verification failed" };
 		}
 
@@ -65,11 +66,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 		await cacheService.invalidatePattern(CACHE_KEYS.bookings.user_bookings(rawBody.added_by!) + ":*");
 
-		const cacheSvc = new CacheInvalidationService(request);
-		await cacheSvc.pushCacheInvalidationEvent({
-			target: "admin",
-			keys: ["high_level_bookings", "dashboard_main_stats"],
-		});
+		// Clear Cart after successful booking
+		const { authId, headers } = genAuthSecurity(request);
+		const userData = await queryClient.fetchQuery(currentUserQuery({ request, authId, headers }));
+
+		if (userData && userData.user && userData.user.id) {
+			const cartSvc = new CartService(request, {
+				headers: checkoutSvc.headers,
+				supabase: checkoutSvc.supabase,
+			});
+
+			await cartSvc.clearCart(userData.user.id);
+			await cacheService.invalidatePattern(CACHE_KEYS.cart.user_cart(userData.user.id) + ":*");
+		}
 
 		// await emailService.sendSoftBookingCreationEmail({ ...rawBody, booking_ref });
 
@@ -99,7 +108,7 @@ export const loader = async ({ request }: { request: Request }) => {
 
 	let myCart = null;
 
-	if (userData && userData.user) {
+	if (userData && userData.user && userData.user.id) {
 		myCart = await myCartQuery({ request, user_id: userData.user?.id, page, limit: 30 });
 	}
 
