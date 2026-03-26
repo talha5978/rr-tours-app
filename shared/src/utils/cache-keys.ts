@@ -139,7 +139,7 @@ export const CACHE_KEYS = {
 		detailForUpdate: (id: string) => `${CACHE_KEYS.ROOT("AD")}:tours:detail-for-update:${id}`,
 		slotAvailability: (optionId?: number | string, dateStr?: string, tourId?: string) => {
 			return (
-				`${CACHE_KEYS.ROOT("AD")}:tours:slot-availability` +
+				`${CACHE_KEYS.ROOT("FP")}:tours:slot-availability` +
 				(tourId != null ? `:tourId=${tourId}` : "") +
 				(optionId != null ? `:optionId=${optionId}` : "") +
 				(dateStr != null ? `:dateStr=${dateStr}` : "")
