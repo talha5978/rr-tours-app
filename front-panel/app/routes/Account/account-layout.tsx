@@ -3,14 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Link } from "react-router";
 import { User, Calendar, Star } from "lucide-react";
 import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
-import { queryClient } from "@workspace/shared/utils/query-client";
-import { currentFullUserQuery } from "~/queries/auth.q";
+import { getCurrentUser } from "@workspace/shared/queries/auth.q";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
 	const { authId } = genAuthSecurity(request);
 
 	if (authId) {
-		const resp = await queryClient.fetchQuery(currentFullUserQuery({ request, authId }));
+		const resp = await getCurrentUser(request);
 		if (!resp?.user?.id) return redirect("/");
 	}
 

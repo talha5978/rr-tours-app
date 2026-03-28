@@ -12,17 +12,14 @@ import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Separator } from "~/components/ui/separator";
 import { Badge } from "~/components/ui/badge";
-import { currentUserQuery } from "@workspace/shared/queries/auth.q";
-import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { myCartQuery } from "~/queries/cart.q";
 import { format } from "date-fns";
 import { useState } from "react";
 import { toast } from "sonner";
+import { getCurrentUser } from "@workspace/shared/queries/auth.q";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-	const { authId, headers } = genAuthSecurity(request);
-	const userData = await queryClient.fetchQuery(currentUserQuery({ request, authId, headers }));
+	const userData = await getCurrentUser(request);
 
 	const url = new URL(request.url);
 	const page = Number(url.searchParams.get("page")) || 1;

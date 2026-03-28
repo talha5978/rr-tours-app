@@ -26,13 +26,11 @@ import {
 } from "@workspace/shared/schemas/booking.schema";
 import { GoogleReCaptcha, verifyRecaptcha } from "~/components/ReCaptcha/GoogleReCaptcha";
 import { CheckoutService } from "@workspace/shared/services/checkout.service";
-import { queryClient } from "@workspace/shared/utils/query-client";
-import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
-import { currentUserQuery } from "@workspace/shared/queries/auth.q";
 import { myCartQuery } from "~/queries/cart.q";
 import { cacheService } from "@workspace/shared/services/cache.service";
 import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 import { CartService } from "@workspace/shared/services/cart.service";
+import { getCurrentUser } from "@workspace/shared/queries/auth.q";
 // import { emailService } from "@workspace/shared/services/emails.service";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -67,8 +65,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 		await cacheService.invalidatePattern(CACHE_KEYS.bookings.user_bookings(rawBody.added_by!) + ":*");
 
 		// Clear Cart after successful booking
-		const { authId, headers } = genAuthSecurity(request);
-		const userData = await queryClient.fetchQuery(currentUserQuery({ request, authId, headers }));
+		const userData = await getCurrentUser(request);
 
 		if (userData && userData.user && userData.user.id) {
 			const cartSvc = new CartService(request, {
@@ -100,8 +97,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export const loader = async ({ request }: { request: Request }) => {
-	const { authId, headers } = genAuthSecurity(request);
-	const userData = await queryClient.fetchQuery(currentUserQuery({ request, authId, headers }));
+	const userData = await getCurrentUser(request);
 
 	const url = new URL(request.url);
 	const page = Number(url.searchParams.get("page")) || 1;

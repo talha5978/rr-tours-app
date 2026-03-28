@@ -5,10 +5,7 @@ import ErrorPage from "~/components/Error/ErrorPage";
 import { ThemeProvider } from "~/components/Theme/theme-provder";
 import { TopLoadingBar } from "~/components/Loaders/TopLoadingBar";
 import { Toaster } from "~/components/ui/sonner";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@workspace/shared/utils/query-client";
-import { GetCurrentUser } from "@workspace/shared/types/auth";
-import { currentUserQuery } from "@workspace/shared/queries/auth.q";
+import { getCurrentUser } from "@workspace/shared/queries/auth.q";
 
 export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -36,30 +33,26 @@ export async function loader({ request }: Route.LoaderArgs) {
 		if (authId) {
 			// console.log("authId in the root in first check::: " , authId);
 
-			const resp: GetCurrentUser = await queryClient.fetchQuery(currentUserQuery({ request, authId }));
+			const resp = await getCurrentUser(request, "AD");
 			if (resp?.user) return redirect("/");
 		}
 
 		return { user: null, error: null, headers };
 	}
 
-	const { genAuthSecurity } = await import("@workspace/shared/utils/auth-utils.server");
-	const { authId, headers } = genAuthSecurity(request);
-	// console.log("Auth id in root: ", authId);
-
-	const resp: GetCurrentUser = await queryClient.fetchQuery(currentUserQuery({ request, authId }));
+	const resp = await getCurrentUser(request, "AD");
 
 	const user = resp?.user ?? null;
 	const error = resp?.error ?? null;
 
 	if (!user || error) {
 		console.warn("❌ No admin, redirecting to /login");
-		return redirect("/login", { headers });
+		return redirect("/login", { headers: resp.headers });
 	}
 
 	console.log("✅ Admin found:", user?.email);
 
-	return { user, error, headers };
+	return { user, error, headers: resp.headers };
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -73,7 +66,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 				<Links />
 			</head>
 			<body>
-				<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+				{children}
 				<ScrollRestoration />
 				<Scripts />
 			</body>

@@ -2,7 +2,6 @@ import { HighLevelBooking } from "@workspace/shared/types/booking";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Separator } from "~/components/ui/separator";
 import { Badge } from "~/components/ui/badge";
-import { format } from "date-fns";
 import { Button } from "~/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
@@ -32,8 +31,15 @@ export const RecentBookingsCard = ({ recentBookings }: { recentBookings: HighLev
 										#{booking.booking_ref}
 									</span>
 									<div className="flex items-center gap-3">
-										<span className="font-medium text-sm truncate max-w-45">
-											{booking.tour_name || "Unknown Tour"}
+										<span className="font-medium text-sm">
+											{booking.tours.length <= 2 ? (
+												booking.tours.map((tour) => tour.tour_name).join(", ")
+											) : (
+												<>
+													<span>{booking.tours[0].tour_name}</span>
+													<span>and {booking.tours.length - 1} more</span>
+												</>
+											)}
 										</span>
 										<Badge
 											variant={
@@ -74,16 +80,6 @@ export const RecentBookingsCard = ({ recentBookings }: { recentBookings: HighLev
 									<div className="text-right space-y-1">
 										<div className="font-medium text-base">
 											{booking.total.toFixed(2)} AED
-										</div>
-										<div className="text-xs text-muted-foreground">
-											{booking.confirmed_date
-												? format(new Date(booking.confirmed_date), "MMMM dd, yyyy")
-												: booking.preffered_date
-													? format(
-															new Date(booking.preffered_date),
-															"MMMM dd, yyyy",
-														)
-													: format(new Date(booking.created_at), "MMMM dd, yyyy")}
 										</div>
 									</div>
 									<div>

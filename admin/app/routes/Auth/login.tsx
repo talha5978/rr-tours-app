@@ -22,17 +22,18 @@ import { type OtpFormData, OtpSchema } from "@workspace/shared/schemas/otp.schem
 import { ApiError } from "@workspace/shared/utils/ApiError";
 import type { ActionResponse } from "@workspace/shared/types/action-data";
 import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "~/components/ui/input-otp";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Mail } from "lucide-react";
 import { Badge } from "~/components/ui/badge";
-import { currentUserQuery } from "@workspace/shared/queries/auth.q";
+import { getCurrentUser } from "@workspace/shared/queries/auth.q";
 import { GoogleReCaptcha, verifyRecaptcha } from "~/components/ReCaptcha/GoogleReCaptcha";
 import { emailService } from "@workspace/shared/services/emails.service";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
+import { cacheService } from "@workspace/shared/services/cache.service";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 
 export async function action({ request }: ActionFunctionArgs) {
 	const formData = await request.formData();
@@ -40,7 +41,7 @@ export async function action({ request }: ActionFunctionArgs) {
 	async function clearUserCache() {
 		const { authId } = genAuthSecurity(request);
 		if (authId) {
-			await queryClient.invalidateQueries({ queryKey: ["current_user", authId] });
+			await cacheService.invalidate(CACHE_KEYS.auth.session("AD", authId));
 		}
 	}
 
@@ -146,10 +147,10 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
-	const { authId, headers } = genAuthSecurity(request);
+	const { authId } = genAuthSecurity(request);
 
 	if (authId) {
-		const resp = await queryClient.fetchQuery(currentUserQuery({ request, authId, headers }));
+		const resp = await getCurrentUser(request, "AD");
 		if (resp?.user?.id) return redirect("/");
 	}
 
@@ -199,7 +200,6 @@ function Login() {
 					setRecaptchaToken(null);
 				} else if (actionData.intent === "verify") {
 					toast.success("Logged in successfully");
-					queryClient.invalidateQueries({ queryKey: ["current_user"] });
 					navigate("/", { replace: true });
 				}
 			} else {

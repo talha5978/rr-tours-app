@@ -4,10 +4,7 @@ import "./app.css";
 import ErrorPage from "~/components/Error/ErrorPage";
 import { TopLoadingBar } from "~/components/Loaders/TopLoadingBar";
 import { Toaster } from "~/components/ui/sonner";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@workspace/shared/utils/query-client";
-import { GetFullCurrentUser } from "@workspace/shared/types/auth";
-import { currentFullUserQuery } from "~/queries/auth.q";
+import { getCurrentUser } from "@workspace/shared/queries/auth.q";
 
 export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -32,9 +29,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 		const { authId } = genAuthSecurity(request);
 
 		if (authId) {
-			const resp: GetFullCurrentUser = await queryClient.fetchQuery(
-				currentFullUserQuery({ request, authId }),
-			);
+			const resp = await getCurrentUser(request);
 			if (resp?.user) return redirect("/");
 		}
 
@@ -45,11 +40,8 @@ export async function loader({ request }: Route.LoaderArgs) {
 		};
 	}
 
-	const { headers, authId } = genAuthSecurity(request);
-
-	const resp: GetFullCurrentUser = await queryClient.fetchQuery(
-		currentFullUserQuery({ request, authId, headers }),
-	);
+	const resp = await getCurrentUser(request);
+	console.log(resp);
 
 	const user = resp?.user ?? null;
 	const current_user_error = resp?.error ?? null;
@@ -61,7 +53,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 	user && console.log(user?.email, " logged in");
 
 	return {
-		headers,
+		headers: resp.headers,
 		user: user,
 		current_user_error,
 	};
@@ -78,7 +70,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 				<Links />
 			</head>
 			<body>
-				<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+				{children}
 				<ScrollRestoration />
 				<Scripts />
 			</body>

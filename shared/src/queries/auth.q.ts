@@ -1,24 +1,24 @@
-import { queryOptions } from "@tanstack/react-query";
 import { AuthService } from "@workspace/shared/services/auth.service";
-import type { GetCurrentUser } from "@workspace/shared/types/auth.d";
+import { cacheService } from "@workspace/shared/services/cache.service";
+import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 
-type currentUserQueryArgs = {
-	request: Request;
-	authId: string;
-	isAdmin?: boolean;
-	headers?: Headers;
-};
+export const getCurrentUser = async (request: Request, app: "AD" | "FP" = "FP") => {
+	const { authId, headers: securityHeaders } = genAuthSecurity(request);
 
-export const currentUserQuery = ({ request, authId, isAdmin = true, headers }: currentUserQueryArgs) => {
-	const customStaleTime = 60 * 1000 * (process.env.VITE_ENV === "production" ? 10 : 25);
-
-	return queryOptions<GetCurrentUser>({
-		queryKey: ["current_user", authId],
-		queryFn: async () => {
-			const authSvc = new AuthService(request, { headers });
-			const result = await authSvc.getCurrentUser(isAdmin);
-			return result;
-		},
-		staleTime: customStaleTime,
+	const userSession = await cacheService.get(CACHE_KEYS.auth.session(app, authId), async () => {
+		const authSvc = new AuthService(request, { headers: securityHeaders });
+		if (app === "FP") {
+			return await authSvc.getFullCurrentUser();
+		} else {
+			return await authSvc.getCurrentUser();
+		}
 	});
+
+	return {
+		user: userSession?.user ?? null,
+		error: userSession?.error ?? null,
+		authId,
+		headers: securityHeaders,
+	};
 };

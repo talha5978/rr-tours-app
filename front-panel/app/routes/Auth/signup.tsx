@@ -22,12 +22,13 @@ import { ApiError } from "@workspace/shared/utils/ApiError";
 import type { ActionResponse } from "@workspace/shared/types/action-data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Separator } from "~/components/ui/separator";
-import { currentFullUserQuery } from "~/queries/auth.q";
+import { getCurrentUser } from "@workspace/shared/queries/auth.q";
 import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
 import { PhoneInput } from "~/components/Booking/phone-number-input";
 import { emailService } from "@workspace/shared/services/emails.service";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
+import { cacheService } from "@workspace/shared/services/cache.service";
 
 export async function action({ request }: ActionFunctionArgs) {
 	try {
@@ -86,7 +87,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
 		const { authId } = genAuthSecurity(request);
 		if (authId) {
-			await queryClient.invalidateQueries({ queryKey: ["full_current_user", authId] });
+			await cacheService.invalidate(CACHE_KEYS.auth.session("FP", authId));
 		}
 
 		return response;
@@ -97,12 +98,8 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
-	const { authId } = genAuthSecurity(request);
-
-	if (authId) {
-		const resp = await queryClient.fetchQuery(currentFullUserQuery({ request, authId }));
-		if (resp?.user?.id) return redirect("/");
-	}
+	const resp = await getCurrentUser(request);
+	if (resp?.user?.id) return redirect("/");
 
 	return { user: null };
 }

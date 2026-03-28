@@ -2,8 +2,9 @@ import { type LoaderFunctionArgs, redirect } from "react-router";
 import { AuthService } from "@workspace/shared/services/auth.service";
 import { Loader2 } from "lucide-react";
 import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { emailService } from "@workspace/shared/services/emails.service";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
+import { cacheService } from "@workspace/shared/services/cache.service";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
 	let authSvc = new AuthService(request, {
@@ -72,7 +73,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 	let { authId } = genAuthSecurity(request);
 	// console.log("Auth id being invalidated: ", authId);
 
-	await queryClient.invalidateQueries({ queryKey: ["full_current_user", authId] });
+	await cacheService.invalidate(CACHE_KEYS.auth.session("FP", authId));
 
 	return redirect("/" + decodeURIComponent("?success=Logged in successfully"), {
 		headers: exchangeHeaders,

@@ -178,4 +178,8 @@ export const CACHE_KEYS = {
 			);
 		},
 	},
+
+	auth: {
+		session: (ctx: CacheContext, authId: string) => `${CACHE_KEYS.ROOT(ctx)}:auth:session:${authId}`,
+	},
 };

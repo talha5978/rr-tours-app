@@ -1,11 +1,4 @@
-import {
-	useRouteLoaderData,
-	useActionData,
-	useSubmit,
-	useNavigation,
-	useLoaderData,
-	Await,
-} from "react-router";
+import { useRouteLoaderData, useActionData, useSubmit, useNavigation, useLoaderData } from "react-router";
 import { loader as rootLoader } from "~/root";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
@@ -15,24 +8,17 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { Suspense, useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { Loader2, Save } from "lucide-react";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
 import { PhoneInput } from "~/components/Booking/phone-number-input";
 import { countries } from "country-data-list";
-import {
-	Select,
-	SelectContent,
-	SelectGroup,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "~/components/ui/select";
 import { ProfileUpdateForm, profileUpdateSchema } from "@workspace/shared/schemas/profile-update.schema";
 import { AuthService } from "@workspace/shared/services/auth.service";
 import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
-import { queryClient } from "@workspace/shared/utils/query-client";
-import { currentFullUserQuery } from "~/queries/auth.q";
+import { getCurrentUser } from "@workspace/shared/queries/auth.q";
+import { cacheService } from "@workspace/shared/services/cache.service";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 
 export async function action({ request }: any) {
 	try {
@@ -42,12 +28,12 @@ export async function action({ request }: any) {
 		const phone_number = formData.get("phone_number")?.toString().trim() || null;
 		const country = formData.get("country")?.toString().trim() || null;
 
-		const { authId, headers } = genAuthSecurity(request);
+		const { authId } = genAuthSecurity(request);
 		if (!authId) {
 			return { success: false, error: "Unauthorized" };
 		}
 
-		const user = await queryClient.fetchQuery(currentFullUserQuery({ request, authId, headers }));
+		const user = await getCurrentUser(request);
 
 		if (user.error || user.user == null) {
 			return { success: false, error: "User not found" };
@@ -62,8 +48,7 @@ export async function action({ request }: any) {
 			user_id: user.user.id,
 		});
 
-		await queryClient.invalidateQueries({ queryKey: ["current_user", authId, headers] });
-		await queryClient.refetchQueries(currentFullUserQuery({ request, authId, headers }));
+		await cacheService.invalidate(CACHE_KEYS.auth.session("FP", authId));
 
 		return { success: true, error: null };
 	} catch (err: any) {
@@ -152,17 +137,17 @@ export default function AccountDetailsPage() {
 		}
 	}, [actionData]);
 
-	const filteredCountries = useMemo(
-		() =>
-			countries_list
-				.filter((x) => x.name)
-				.map((option, key: number) => (
-					<SelectItem key={key} value={option.alpha3 || option.alpha2}>
-						{option.emoji} {option.name}
-					</SelectItem>
-				)),
-		[countries_list],
-	);
+	// const filteredCountries = useMemo(
+	// 	() =>
+	// 		countries_list
+	// 			.filter((x) => x.name)
+	// 			.map((option, key: number) => (
+	// 				<SelectItem key={key} value={option.alpha3 || option.alpha2}>
+	// 					{option.emoji} {option.name}
+	// 				</SelectItem>
+	// 			)),
+	// 	[countries_list],
+	// );
 
 	return (
 		<>

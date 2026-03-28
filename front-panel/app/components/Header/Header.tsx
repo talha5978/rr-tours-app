@@ -149,26 +149,6 @@ export default function Header({
 				<div className="flex-1" />
 
 				<div className="flex gap-4 items-center">
-					<div className="hidden lg:flex gap-2">
-						<Link to={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">
-							<div>
-								<img
-									src="https://cdn.iconscout.com/icon/free/png-256/free-instagram-logo-icon-svg-download-png-1583142.png?f=webp&amp;w=128"
-									alt="Instagram"
-									className="w-8 h-8"
-								/>
-							</div>
-						</Link>
-						<Link to={FB_URL} target="_blank" rel="noopener noreferrer">
-							<div>
-								<img
-									src="https://cdn.iconscout.com/icon/free/png-256/free-facebook-logo-icon-svg-download-png-721949.png?f=webp&w=256"
-									alt="Facebook"
-									className="w-8 h-8 rounded-md"
-								/>
-							</div>
-						</Link>
-					</div>
 					<HeaderFavouriteButton />
 					<HeaderCartButton cart={cart} />
 					<UserAccountButton />

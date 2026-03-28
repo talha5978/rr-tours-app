@@ -22,48 +22,48 @@ export function extractAuthId(request: Request): string | null {
 
 	if (cookies.session) return `session:${cookies.session}`;
 
-	const candidates = [
-		`sb-${process.env.VITE_PROJECT_ID}-access-token`,
-		`sb-${process.env.VITE_PROJECT_ID}-refresh-token`,
-		`sb-${process.env.VITE_PROJECT_ID}-access-token.0`,
-		`sb-${process.env.VITE_PROJECT_ID}-refresh-token.0`,
-		`sb-${process.env.VITE_PROJECT_ID}-access-token.1`,
-		`sb-${process.env.VITE_PROJECT_ID}-refresh-token.1`,
-		`sb-${process.env.VITE_PROJECT_ID}-auth-token`,
-	];
+	const baseName = `sb-${process.env.VITE_PROJECT_ID}-auth-token`;
+	const accessTokenBase = `sb-${process.env.VITE_PROJECT_ID}-access-token`;
 
-	let rawToken = null;
-	for (const name of candidates) {
-		if (cookies[name]) {
-			rawToken = cookies[name];
-			break;
+	// Helper to find and join chunks (e.g. token.0, token.1)
+	const getReassembledToken = (name: string) => {
+		if (cookies[name]) return cookies[name];
+		let fullToken = "";
+		let i = 0;
+		while (cookies[`${name}.${i}`]) {
+			fullToken += cookies[`${name}.${i}`];
+			i++;
 		}
-	}
-	// console.log(request.headers);
+		return fullToken || null;
+	};
 
-	if (!rawToken) {
+	const rawToken = getReassembledToken(accessTokenBase) || getReassembledToken(baseName);
+
+	// 3. Fallback to Authorization Header
+	let finalToken = rawToken;
+	if (!finalToken) {
 		const authHeader = request.headers.get("authorization") ?? "";
 		if (authHeader.toLowerCase().startsWith("bearer ")) {
-			rawToken = authHeader.slice(7);
+			finalToken = authHeader.slice(7);
 		}
 	}
 
-	if (rawToken) {
-		const parts = rawToken.split(".");
-		if (parts.length === 3) {
-			try {
+	if (finalToken) {
+		try {
+			const parts = finalToken.split(".");
+			if (parts.length === 3) {
 				const payloadJson = Buffer.from(
-					parts[1].replace(/-/g, "+").replace(/_/g, "/"),
+					parts[1].replace(/-/g, "+").replace(/_/g, "/"), // Convert Base64URL to Base64
 					"base64",
-				).toString("utf8");
+				).toString("utf-8");
 				const payload = JSON.parse(payloadJson);
-				const userId = payload.sub ?? payload.user_id ?? payload.uid ?? null;
+				const userId = payload.sub ?? payload.user_id;
 				if (userId) return `user:${userId}`;
-			} catch (e) {}
+			}
+		} catch (e) {
+			// If JWT parsing fails but we have a token, hash it as a fallback ID
+			return `token:${sha256(finalToken).slice(0, 16)}`;
 		}
-
-		const tokenHash = sha256(rawToken);
-		return `token:${tokenHash}`;
 	}
 
 	return null;
@@ -76,6 +76,7 @@ export function genAuthSecurity(request: Request): {
 	let authId = extractAuthId(request);
 
 	const headers = new Headers();
+	console.log("AUTH ID OUTSIDE THE CHECK: ", authId);
 
 	if (!authId) {
 		const cookieHeader = request.headers.get("Cookie") ?? "";

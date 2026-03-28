@@ -2,9 +2,8 @@ import { cacheService } from "@workspace/shared/services/cache.service";
 import { ReviewsService } from "@workspace/shared/services/reviews.service";
 import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
 import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
-import { queryClient } from "@workspace/shared/utils/query-client";
 import type { ActionFunctionArgs } from "react-router";
-import { currentFullUserQuery } from "~/queries/auth.q";
+import { getCurrentUser } from "@workspace/shared/queries/auth.q";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
 	try {
@@ -16,7 +15,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 			booking_id: formData.get("booking_id") as string,
 		};
 
-		const { authId, headers } = genAuthSecurity(request);
+		const { authId } = genAuthSecurity(request);
 		if (!authId) {
 			return { error: "Unauthorized" };
 		}
@@ -25,7 +24,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 			return { error: "All fields are required." };
 		}
 
-		const userData = await queryClient.fetchQuery(currentFullUserQuery({ request, authId, headers }));
+		const userData = await getCurrentUser(request);
 		if (!userData || !userData.user) {
 			return { error: "Unauthorized" };
 		}

@@ -1,17 +1,14 @@
 import { CONTACT_NUMBER_1 } from "@workspace/shared/constants/constants";
-import { currentUserQuery } from "@workspace/shared/queries/auth.q";
-import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { Link, LoaderFunctionArgs, Outlet, useLoaderData } from "react-router";
 import Footer from "~/components/Footer/Footer";
 import Header from "~/components/Header/Header";
+import { getCurrentUser } from "@workspace/shared/queries/auth.q";
 import { myCartQuery } from "~/queries/cart.q";
 import { FPhighLevelCategoriesQuery } from "~/queries/categories.q";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
 	const categoriesResp = await FPhighLevelCategoriesQuery({ request });
-	const { authId, headers } = genAuthSecurity(request);
-	const userData = await queryClient.fetchQuery(currentUserQuery({ request, authId, headers }));
+	const userData = await getCurrentUser(request);
 
 	let myCart = null;
 

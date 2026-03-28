@@ -35,7 +35,6 @@ import { HTMLAttributes, type HtmlHTMLAttributes, memo, Suspense, useMemo, useSt
 import DatePicker from "~/components/Inputs/date-picker";
 import TourImageCarousel from "~/components/Tour/TourImageCarousel";
 import { Separator } from "~/components/ui/separator";
-import { queryClient } from "@workspace/shared/utils/query-client";
 import { availabilityQuery, tourDetailsQuery, toursQuery } from "~/queries/tours.q";
 import type { GetTourDetails, TourDetailOption } from "@workspace/shared/types/tours";
 import { cn, formatTourDurationHours } from "@workspace/shared/utils/ui";
@@ -59,8 +58,7 @@ import { Skeleton } from "~/components/ui/skeleton";
 import { tourReviewsQuery } from "~/queries/reviews.q";
 import TourReviews, { TourReviewsSkeleton } from "~/components/Tour/TourReviews";
 import { AddToCartPayload } from "@workspace/shared/types/cart";
-import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
-import { currentFullUserQuery } from "~/queries/auth.q";
+import { getCurrentUser } from "@workspace/shared/queries/auth.q";
 
 const participantSchema = z.object({
 	quantities: z.record(z.number().min(0).int()),
@@ -126,9 +124,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 		},
 	});
 
-	const { headers, authId } = genAuthSecurity(request);
-
-	const userData = await queryClient.fetchQuery(currentFullUserQuery({ request, authId, headers }));
+	const userData = await getCurrentUser(request);
 
 	return {
 		tour: data,

@@ -13,8 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "~/components/ui/dialog";
 import { ArrowRight, ChevronLeft, ChevronRight, Loader2, Plus, Star } from "lucide-react";
 import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
-import { currentFullUserQuery } from "~/queries/auth.q";
-import { queryClient } from "@workspace/shared/utils/query-client";
+import { getCurrentUser } from "@workspace/shared/queries/auth.q";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
 import { myReviewsQuery } from "~/queries/reviews.q";
 import AddReviewForm from "~/components/Tour/AddReviewForm";
@@ -26,11 +25,11 @@ import { toast } from "sonner";
 const PAGE_SIZE = 10;
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-	const { authId, headers } = genAuthSecurity(request);
+	const { authId } = genAuthSecurity(request);
 	let userId: string | null = null;
 
 	if (authId) {
-		const resp = await queryClient.fetchQuery(currentFullUserQuery({ request, authId, headers }));
+		const resp = await getCurrentUser(request);
 		userId = resp?.user?.id ?? null;
 		if (userId === null) {
 			return redirect("/login");

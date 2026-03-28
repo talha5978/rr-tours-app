@@ -3,9 +3,10 @@ import { redirect } from "react-router";
 import { AuthService } from "@workspace/shared/services/auth.service";
 import type { GetFullCurrentUser } from "@workspace/shared/types/auth";
 import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
-import { currentFullUserQuery } from "~/queries/auth.q";
-import { queryClient } from "@workspace/shared/utils/query-client";
+import { getCurrentUser } from "@workspace/shared/queries/auth.q";
 import { ApiError } from "@workspace/shared/utils/ApiError";
+import { cacheService } from "@workspace/shared/services/cache.service";
+import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 
 export async function action({ request }: ActionFunctionArgs) {
 	const { authId } = genAuthSecurity(request);
@@ -13,7 +14,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
 	let resp: GetFullCurrentUser | null = null;
 	if (authId) {
-		resp = await queryClient.fetchQuery(currentFullUserQuery({ request, authId }));
+		resp = await getCurrentUser(request);
 		if (!resp?.user?.id) {
 			console.error("User not found in /logout for authId:", authId);
 			return redirect("/?error=" + encodeURIComponent("User not found"));
@@ -30,7 +31,7 @@ export async function action({ request }: ActionFunctionArgs) {
 		return { error: new ApiError(error.message || "Failed to logout", 404, [headers]) };
 	}
 
-	await queryClient.invalidateQueries({ queryKey: ["full_current_user", authId] });
+	await cacheService.invalidate(CACHE_KEYS.auth.session("FP", authId));
 
 	return redirect("/" + decodeURIComponent("?success=Logged out successfully"), { headers });
 }
