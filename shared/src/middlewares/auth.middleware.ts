@@ -4,7 +4,7 @@ import { createServiceMiddleware } from "@workspace/shared/middlewares/utils";
 // import { getCurrentUser } from "@workspace/shared/queries/auth.q";
 // import { UserRole } from "@workspace/shared/types/user";
 
-export const verifyUser = createServiceMiddleware<ServiceBase>(async (ctx, next) => {
+export const verifyUser = createServiceMiddleware<ServiceBase>(async (_, next) => {
 	// try {
 	// 	const service = ctx.service;
 	// 	if (service.currentUser != null && service.currentUser.id) {

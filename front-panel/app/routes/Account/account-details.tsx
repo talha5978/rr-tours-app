@@ -19,6 +19,7 @@ import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
 import { getCurrentUser } from "@workspace/shared/queries/auth.q";
 import { cacheService } from "@workspace/shared/services/cache.service";
 import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
+import type { FullCurrentUser } from "@workspace/shared/types/user";
 
 export async function action({ request }: any) {
 	try {
@@ -83,7 +84,7 @@ export default function AccountDetailsPage() {
 	const submit = useSubmit();
 	const navigation = useNavigation();
 
-	const user = rootData?.user;
+	const user = rootData?.user as FullCurrentUser | null;
 
 	if (!user || user == null) return null;
 

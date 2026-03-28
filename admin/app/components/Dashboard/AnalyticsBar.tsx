@@ -1,4 +1,4 @@
-import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "~/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 
 const getTopAnalytics = (
 	total_revenue: string,

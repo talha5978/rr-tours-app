@@ -14,7 +14,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
 	let resp: GetFullCurrentUser | null = null;
 	if (authId) {
-		resp = await getCurrentUser(request);
+		resp = (await getCurrentUser(request)) as GetFullCurrentUser | null;
 		if (!resp?.user?.id) {
 			console.error("User not found in /logout for authId:", authId);
 			return redirect("/?error=" + encodeURIComponent("User not found"));

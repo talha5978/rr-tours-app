@@ -19,6 +19,7 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import type { GetCartResponse } from "@workspace/shared/types/cart";
+import type { FullCurrentUser } from "@workspace/shared/types/user";
 
 const NAV_LINKS = [
 	{ label: "Home", to: "/" },
@@ -204,7 +205,7 @@ function UserAccountButton() {
 	const rootLoaderData = useRouteLoaderData<typeof loader>("root");
 	const navigation = useNavigation();
 	const actionData = useActionData();
-	const user = rootLoaderData?.user;
+	const user = rootLoaderData?.user as FullCurrentUser | null;
 
 	const isLoggingOut =
 		navigation.state === "submitting" &&

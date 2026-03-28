@@ -1,5 +1,6 @@
 import { AuthService } from "@workspace/shared/services/auth.service";
 import { cacheService } from "@workspace/shared/services/cache.service";
+import type { AdminUser, FullCurrentUser } from "@workspace/shared/types/user";
 import { genAuthSecurity } from "@workspace/shared/utils/auth-utils.server";
 import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 
@@ -16,7 +17,7 @@ export const getCurrentUser = async (request: Request, app: "AD" | "FP" = "FP") 
 	});
 
 	return {
-		user: userSession?.user ?? null,
+		user: (userSession?.user as FullCurrentUser | AdminUser) ?? null,
 		error: userSession?.error ?? null,
 		authId,
 		headers: securityHeaders,
