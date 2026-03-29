@@ -1,13 +1,16 @@
-import { Link, useLoaderData } from "react-router";
+import { Form, Link, useLoaderData, useLocation, useNavigation, useSearchParams } from "react-router";
 import type { LoaderFunctionArgs } from "react-router";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Search } from "lucide-react";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
 import { Button } from "~/components/ui/button";
 import { CouponCard } from "~/components/Coupons/CouponCard";
 import { highLevelCouponsQuery } from "~/queries/coupons.q";
+import { Input } from "~/components/ui/input";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-	const couponsResp = await highLevelCouponsQuery({ request });
+	const url = new URL(request.url);
+	const q = url.searchParams.get("q")?.trim() ?? "";
+	const couponsResp = await highLevelCouponsQuery({ request, q });
 	return { couponsResp };
 }
 
@@ -16,42 +19,13 @@ export default function AdminCouponsPage() {
 		couponsResp: { coupons },
 	} = useLoaderData<typeof loader>();
 
-	// const coupons: AdminCoupon[] = [
-	// 	{
-	// 		code: "TLH423",
-	// 		id: 214,
-	// 		coupon_type: "MANUAL",
-	// 		created_at: "2026-03-22T09:15:00.000Z",
-	// 		updated_at: "2026-03-22T09:15:00.000Z",
-	// 		valid_from: "2026-03-22T09:15:00.000Z",
-	// 		valid_until: "2026-04-22T09:15:00.000Z",
-	// 		discount_type: "PERCENTAGE",
-	// 		discount_value: 20,
-	// 		is_active: true,
-	// 		min_subtotal: null,
-	// 		per_user_limit: 1,
-	// 		restricted_tour_options_count: 0,
-	// 		total_usage_limit: 20,
-	// 		usage_count: 2,
-	// 	},
-	//     {
-	// 		code: "EIDI26",
-	// 		id: 123,
-	// 		coupon_type: "AUTOMATIC",
-	// 		created_at: "2026-03-28T09:15:00.000Z",
-	// 		updated_at: "2026-03-28T09:15:00.000Z",
-	// 		valid_from: "2026-04-15T09:15:00.000Z",
-	// 		valid_until: "2026-04-22T09:15:00.000Z",
-	// 		discount_type: "FIXED_AMOUNT",
-	// 		discount_value: 150,
-	// 		is_active: true,
-	// 		min_subtotal: 250,
-	// 		per_user_limit: null,
-	// 		restricted_tour_options_count: 25,
-	// 		total_usage_limit: null,
-	// 		usage_count: 0,
-	// 	},
-	// ];
+	const [searchParams] = useSearchParams();
+	const currentQuery = searchParams.get("q") ?? "";
+	const navigation = useNavigation();
+	const location = useLocation();
+
+	const isFetchingThisRoute =
+		navigation.state === "loading" && navigation.location?.pathname === location.pathname;
 
 	return (
 		<>
@@ -68,6 +42,28 @@ export default function AdminCouponsPage() {
 							<span>Add Coupon</span>
 						</Button>
 					</Link>
+				</div>
+
+				<div>
+					<Form method="get" action="/coupons">
+						<div className="relative">
+							<Search
+								className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground"
+								width={18}
+							/>
+							<Input
+								placeholder="Search coupons by code"
+								name="q"
+								className="w-full pl-8 max-w-80"
+								id="search"
+								defaultValue={currentQuery}
+								disabled={isFetchingThisRoute}
+							/>
+						</div>
+						<button type="submit" className="hidden">
+							Search
+						</button>
+					</Form>
 				</div>
 
 				<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">

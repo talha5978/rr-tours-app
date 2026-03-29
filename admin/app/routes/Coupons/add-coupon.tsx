@@ -65,8 +65,7 @@ export const action = async ({ request }: LoaderFunctionArgs) => {
 
 	try {
 		await svc.addCoupon(parseResult.data);
-
-		await cacheService.invalidate(CACHE_KEYS.coupons.highLevelAD());
+		await cacheService.invalidatePattern(CACHE_KEYS.coupons.highLevelAD() + ":*");
 
 		return { success: true };
 	} catch (error: any) {

@@ -8,12 +8,18 @@ import { AddCouponSchemaType } from "@workspace/shared/schemas/coupon.schema";
 @UseClassMiddleware(loggerMiddleware)
 export class CouponsService extends Service {
 	/** Function to be used in the confirm checkout action function */
-	async fetchAdminCouponsList(): Promise<adminCouponsResp> {
+	async fetchAdminCouponsList(code?: string): Promise<adminCouponsResp> {
 		// Main query: fetch all coupons
-		const { data: coupons, error } = await this.supabase
+		let query = this.supabase
 			.from(this.COUPONS_TABLE)
 			.select("*")
 			.order("created_at", { ascending: false });
+
+		if (code) {
+			query = query.ilike("code", `%${code}%`);
+		}
+
+		const { data: coupons, error } = await query;
 
 		if (error) throw new ApiError(error.message, 500);
 		if (!coupons || coupons.length === 0) return { coupons: [] };
