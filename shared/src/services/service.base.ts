@@ -66,6 +66,10 @@ export class Service implements ServiceBase {
 	protected readonly CART_ITEMS_TABLE = "cart_items";
 	protected readonly CART_ITEMS_QUANTITIES_TABLE = "cart_items_quantities";
 
+	protected readonly COUPONS_TABLE = "coupons";
+	protected readonly COUPON_TOURS_TABLE = "coupon_tours";
+	protected readonly COUPON_USAGES_TABLE = "coupon_usages";
+
 	constructor(request: Request, opts?: { supabase?: SupabaseClient<Database>; headers?: Headers }) {
 		if (opts?.supabase && opts?.headers) {
 			this.supabase = opts.supabase;

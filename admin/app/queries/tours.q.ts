@@ -78,3 +78,27 @@ export const toursListQuery = async ({
 	const result = await cacheService.get(CACHE_KEYS.tours.list("AD", q, pageIndex, pageSize), queryFn);
 	return result;
 };
+
+export const tourOptionsListQuery = async ({
+	request,
+	q,
+	pageIndex,
+	pageSize,
+}: {
+	request: Request;
+	q?: string;
+	pageIndex?: number;
+	pageSize?: number;
+}) => {
+	const queryFn = async () => {
+		const svc = new ToursService(request);
+		const resp = await svc.getTourOptionsList(q, pageIndex, pageSize);
+		return resp;
+	};
+
+	const result = await cacheService.get(
+		CACHE_KEYS.tours.optionsList("AD", q, pageIndex, pageSize),
+		queryFn,
+	);
+	return result;
+};

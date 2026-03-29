@@ -423,6 +423,7 @@ export type Database = {
 				Row: {
 					added_by: string | null;
 					admin_note: string | null;
+					applied_coupon_id: number | null;
 					booking_ref: string;
 					booking_status: Database["public"]["Enums"]["booking_status_enum"];
 					cancelled_at: string | null;
@@ -441,6 +442,7 @@ export type Database = {
 				Insert: {
 					added_by?: string | null;
 					admin_note?: string | null;
+					applied_coupon_id?: number | null;
 					booking_ref: string;
 					booking_status?: Database["public"]["Enums"]["booking_status_enum"];
 					cancelled_at?: string | null;
@@ -459,6 +461,7 @@ export type Database = {
 				Update: {
 					added_by?: string | null;
 					admin_note?: string | null;
+					applied_coupon_id?: number | null;
 					booking_ref?: string;
 					booking_status?: Database["public"]["Enums"]["booking_status_enum"];
 					cancelled_at?: string | null;
@@ -481,6 +484,13 @@ export type Database = {
 						isOneToOne: false;
 						referencedRelation: "app_users";
 						referencedColumns: ["user_id"];
+					},
+					{
+						foreignKeyName: "bookings_new_applied_coupon_id_fkey";
+						columns: ["applied_coupon_id"];
+						isOneToOne: false;
+						referencedRelation: "coupons";
+						referencedColumns: ["id"];
 					},
 					{
 						foreignKeyName: "bookings_new_payment_id_fkey";
@@ -759,6 +769,133 @@ export type Database = {
 					id?: number;
 					isFeatured?: boolean;
 					name?: string;
+				};
+				Relationships: [];
+			};
+			coupon_tours: {
+				Row: {
+					coupon_id: number;
+					id: number;
+					tour_option_id: number;
+				};
+				Insert: {
+					coupon_id: number;
+					id?: number;
+					tour_option_id: number;
+				};
+				Update: {
+					coupon_id?: number;
+					id?: number;
+					tour_option_id?: number;
+				};
+				Relationships: [
+					{
+						foreignKeyName: "coupon_tours_coupon_id_fkey";
+						columns: ["coupon_id"];
+						isOneToOne: false;
+						referencedRelation: "coupons";
+						referencedColumns: ["id"];
+					},
+					{
+						foreignKeyName: "coupon_tours_tour_option_id_fkey";
+						columns: ["tour_option_id"];
+						isOneToOne: false;
+						referencedRelation: "tour_options";
+						referencedColumns: ["id"];
+					},
+				];
+			};
+			coupon_usages: {
+				Row: {
+					booking_id: string;
+					coupon_id: number;
+					id: number;
+					used_at: string | null;
+					user_id: string | null;
+				};
+				Insert: {
+					booking_id: string;
+					coupon_id: number;
+					id?: number;
+					used_at?: string | null;
+					user_id?: string | null;
+				};
+				Update: {
+					booking_id?: string;
+					coupon_id?: number;
+					id?: number;
+					used_at?: string | null;
+					user_id?: string | null;
+				};
+				Relationships: [
+					{
+						foreignKeyName: "coupon_usages_booking_id_fkey";
+						columns: ["booking_id"];
+						isOneToOne: false;
+						referencedRelation: "bookings_new";
+						referencedColumns: ["id"];
+					},
+					{
+						foreignKeyName: "coupon_usages_coupon_id_fkey";
+						columns: ["coupon_id"];
+						isOneToOne: false;
+						referencedRelation: "coupons";
+						referencedColumns: ["id"];
+					},
+					{
+						foreignKeyName: "coupon_usages_user_id_fkey";
+						columns: ["user_id"];
+						isOneToOne: false;
+						referencedRelation: "app_users";
+						referencedColumns: ["user_id"];
+					},
+				];
+			};
+			coupons: {
+				Row: {
+					code: string;
+					coupon_type: Database["public"]["Enums"]["coupon_type"];
+					created_at: string | null;
+					discount_type: Database["public"]["Enums"]["discount_type"];
+					discount_value: number;
+					id: number;
+					is_active: boolean | null;
+					min_subtotal: number | null;
+					per_user_limit: number | null;
+					total_usage_limit: number | null;
+					updated_at: string | null;
+					valid_from: string;
+					valid_until: string;
+				};
+				Insert: {
+					code: string;
+					coupon_type: Database["public"]["Enums"]["coupon_type"];
+					created_at?: string | null;
+					discount_type: Database["public"]["Enums"]["discount_type"];
+					discount_value: number;
+					id?: number;
+					is_active?: boolean | null;
+					min_subtotal?: number | null;
+					per_user_limit?: number | null;
+					total_usage_limit?: number | null;
+					updated_at?: string | null;
+					valid_from: string;
+					valid_until: string;
+				};
+				Update: {
+					code?: string;
+					coupon_type?: Database["public"]["Enums"]["coupon_type"];
+					created_at?: string | null;
+					discount_type?: Database["public"]["Enums"]["discount_type"];
+					discount_value?: number;
+					id?: number;
+					is_active?: boolean | null;
+					min_subtotal?: number | null;
+					per_user_limit?: number | null;
+					total_usage_limit?: number | null;
+					updated_at?: string | null;
+					valid_from?: string;
+					valid_until?: string;
 				};
 				Relationships: [];
 			};
@@ -1289,6 +1426,8 @@ export type Database = {
 			availability_override_type: "CLOSE" | "CAPACITY_CHANGE";
 			booking_status_enum: "PENDING" | "CONFIRMED" | "CANCELLED";
 			cache_invalidation_target: "front" | "admin" | "both";
+			coupon_type: "MANUAL" | "AUTOMATIC";
+			discount_type: "PERCENTAGE" | "FIXED_AMOUNT";
 			payment_status_enum: "PENDING" | "PARTIAL" | "PAID" | "REFUNDED" | "FAILED" | "CANCELLED";
 		};
 		CompositeTypes: {
@@ -1421,6 +1560,8 @@ export const Constants = {
 			availability_override_type: ["CLOSE", "CAPACITY_CHANGE"],
 			booking_status_enum: ["PENDING", "CONFIRMED", "CANCELLED"],
 			cache_invalidation_target: ["front", "admin", "both"],
+			coupon_type: ["MANUAL", "AUTOMATIC"],
+			discount_type: ["PERCENTAGE", "FIXED_AMOUNT"],
 			payment_status_enum: ["PENDING", "PARTIAL", "PAID", "REFUNDED", "FAILED", "CANCELLED"],
 		},
 	},

@@ -53,6 +53,11 @@ export default [
 			route(":id/delete", "./routes/_actions/delete-collection.tsx"),
 		]),
 
+		...prefix("coupons", [
+			index("./routes/Coupons/coupons.tsx"),
+			route("add", "./routes/Coupons/add-coupon.tsx"),
+		]),
+
 		route("*", "./routes/Error/404.tsx"),
 	]),
 ] satisfies RouteConfig;

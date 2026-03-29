@@ -10,6 +10,7 @@ import {
 	House,
 	MapPin,
 	RectangleHorizontal,
+	SquarePercent,
 	// Megaphone,
 	// RectangleHorizontal,
 	// Siren,
@@ -66,6 +67,16 @@ export const mainNavItems: NavItem[] = [
 				title: "Bookings",
 				url: "/bookings",
 				icon: <CalendarCheck2 />,
+			},
+		],
+	},
+	{
+		title: "Discounts",
+		items: [
+			{
+				title: "Coupons",
+				url: "/coupons",
+				icon: <SquarePercent />,
 			},
 		],
 	},

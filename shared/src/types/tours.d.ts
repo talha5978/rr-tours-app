@@ -89,3 +89,16 @@ export type ToursListResp = {
 	total: number;
 	error: ApiError | null;
 };
+
+export type TourOptionsListResp = {
+	tours: {
+		id: string;
+		name: string;
+		tour_options: {
+			id: number;
+			name: string;
+		}[];
+	}[];
+	total: number;
+	error: ApiError | null;
+};

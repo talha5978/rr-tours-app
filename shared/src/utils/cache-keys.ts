@@ -120,6 +120,14 @@ export const CACHE_KEYS = {
 				(pageSize != null ? `:ps=${pageSize}` : "")
 			);
 		},
+		optionsList: (ctx: CacheContext, q?: string, pageIndex?: number, pageSize?: number) => {
+			return (
+				`${CACHE_KEYS.ROOT(ctx)}:tour-options:list` +
+				(q && q.trim() !== "" ? `:q=${q.trim().toLowerCase()}` : "") +
+				(pageIndex != null ? `:pi=${pageIndex}` : "") +
+				(pageSize != null ? `:ps=${pageSize}` : "")
+			);
+		},
 		highLevel: (
 			ctx: CacheContext,
 			q?: string,
@@ -181,5 +189,9 @@ export const CACHE_KEYS = {
 
 	auth: {
 		session: (ctx: CacheContext, authId: string) => `${CACHE_KEYS.ROOT(ctx)}:auth:session:${authId}`,
+	},
+
+	coupons: {
+		highLevelAD: () => `${CACHE_KEYS.ROOT("AD")}:coupons:high-level`,
 	},
 };

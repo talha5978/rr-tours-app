@@ -76,7 +76,6 @@ export function genAuthSecurity(request: Request): {
 	let authId = extractAuthId(request);
 
 	const headers = new Headers();
-	console.log("AUTH ID OUTSIDE THE CHECK: ", authId);
 
 	if (!authId) {
 		const cookieHeader = request.headers.get("Cookie") ?? "";
