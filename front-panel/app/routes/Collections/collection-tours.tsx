@@ -1,5 +1,11 @@
 import { MetaDetails } from "~/components/SEO/MetaDetails";
-import { LoaderFunctionArgs, useLoaderData, useNavigate, useSearchParams } from "react-router";
+import {
+	LoaderFunctionArgs,
+	useLoaderData,
+	useNavigate,
+	useRouteLoaderData,
+	useSearchParams,
+} from "react-router";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -73,6 +79,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 
 export default function CollectionPage() {
 	const { collectionResp: collection, toursResp, categoriesResp } = useLoaderData<typeof loader>();
+	const rootLoaderData = useRouteLoaderData("root");
 
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
@@ -294,7 +301,7 @@ export default function CollectionPage() {
 				<ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
 					{toursResp.tours.map((tour) => (
 						<li key={tour.id}>
-							<TourCard tour={tour} />
+							<TourCard tour={tour} coupons={rootLoaderData.couponsResp.coupons ?? []} />
 						</li>
 					))}
 				</ul>

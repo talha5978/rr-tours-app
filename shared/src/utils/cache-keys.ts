@@ -195,5 +195,7 @@ export const CACHE_KEYS = {
 		highLevelAD: (q?: string) =>
 			`${CACHE_KEYS.ROOT("AD")}:coupons:high-level` +
 			(q && q.trim() !== "" ? `:q=${q.trim().toLowerCase()}` : ""),
+		allFP: (user_id?: string | number) =>
+			`${CACHE_KEYS.ROOT("FP")}:coupons:all` + (user_id != null ? `:uID=${user_id}` : ""),
 	},
 };

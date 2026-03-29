@@ -1,10 +1,11 @@
-import { Links, Meta, Outlet, redirect, Scripts, ScrollRestoration } from "react-router";
+import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 import type { Route } from "./+types/root";
 import "./app.css";
 import ErrorPage from "~/components/Error/ErrorPage";
 import { TopLoadingBar } from "~/components/Loaders/TopLoadingBar";
 import { Toaster } from "~/components/ui/sonner";
 import { getCurrentUser } from "@workspace/shared/queries/auth.q";
+import { allCouponsQuery } from "~/queries/coupons.q";
 
 export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -20,42 +21,20 @@ export const links: Route.LinksFunction = () => [
 ];
 
 export async function loader({ request }: Route.LoaderArgs) {
-	const url = new URL(request.url);
-	const pathname = url.pathname;
-
-	const { genAuthSecurity } = await import("@workspace/shared/utils/auth-utils.server");
-
-	if (pathname.startsWith("/login")) {
-		const { authId } = genAuthSecurity(request);
-
-		if (authId) {
-			const resp = await getCurrentUser(request);
-			if (resp?.user) return redirect("/");
-		}
-
-		return {
-			headers: null,
-			user: null,
-			current_user_error: null,
-		};
-	}
-
 	const resp = await getCurrentUser(request);
-	console.log(resp);
+	const couponsResp = await allCouponsQuery({ request, user_id: resp?.user?.id ?? null });
 
 	const user = resp?.user ?? null;
 	const current_user_error = resp?.error ?? null;
 
-	if (!user || current_user_error) {
-		console.warn("❌ No user found");
-	}
-
-	user && console.log(user?.email, " logged in");
+	if (!user || current_user_error) console.warn("❌ No user found");
+	else console.log(user?.email, " logged in");
 
 	return {
 		headers: resp.headers,
 		user: user,
 		current_user_error,
+		couponsResp,
 	};
 }
 

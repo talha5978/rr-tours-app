@@ -1,4 +1,4 @@
-import { useLoaderData, type LoaderFunctionArgs } from "react-router";
+import { useLoaderData, useRouteLoaderData, type LoaderFunctionArgs } from "react-router";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
 import { TourCard } from "~/components/Tour/TourCard";
 import { Button } from "~/components/ui/button";
@@ -12,6 +12,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function MyFavourites() {
 	const allTours = useLoaderData<typeof loader>();
+	const rootLoaderData = useRouteLoaderData("root");
 	const { favourites, clear } = useFavourites();
 	const favouriteTours = allTours.filter((t) => favourites.includes(t.id));
 
@@ -38,7 +39,11 @@ export default function MyFavourites() {
 						{favouriteTours.length > 0 &&
 							favouriteTours.map((tour) => (
 								<li key={tour.id}>
-									<TourCard tour={tour} className="h-full" />
+									<TourCard
+										tour={tour}
+										className="h-full"
+										coupons={rootLoaderData.couponsResp.coupons ?? []}
+									/>
 								</li>
 							))}
 					</ul>

@@ -2,8 +2,13 @@ import { Service } from "@workspace/shared/services/service.base";
 import { UseClassMiddleware } from "@workspace/shared/decorators/useClassMiddleware";
 import { loggerMiddleware } from "@workspace/shared/middlewares/logger.middleware";
 import { ApiError } from "@workspace/shared/utils/ApiError";
-import { AdminCoupon, adminCouponsResp } from "@workspace/shared/types/coupons";
-import { AddCouponSchemaType } from "@workspace/shared/schemas/coupon.schema";
+import type {
+	AdminCoupon,
+	adminCouponsResp,
+	FrontPanelCoupon,
+	FrontPanelCouponsResp,
+} from "@workspace/shared/types/coupons";
+import { type AddCouponSchemaType } from "@workspace/shared/schemas/coupon.schema";
 
 @UseClassMiddleware(loggerMiddleware)
 export class CouponsService extends Service {
@@ -98,5 +103,115 @@ export class CouponsService extends Service {
 		}
 
 		return { success: true };
+	}
+
+	/**
+	 * Fetches all active AUTOMATIC coupons that still have remaining uses,
+	 * including full coupon details + which tours/tour_options they apply to.
+	 * Respects total_usage_limit and per_user_limit.
+	 */
+	async getCouponsForFrontPanel(userId?: string | null): Promise<FrontPanelCouponsResp> {
+		const { data: coupons, error: couponError } = await this.supabase
+			.from(this.COUPONS_TABLE)
+			.select(
+				`
+				*,
+				${this.COUPON_TOURS_TABLE}(
+					tour_option_id,
+					${this.TOUR_OPTIONS_TABLE}!inner(tour_id)
+				)
+			`,
+			)
+			.eq("is_active", true)
+			.eq("coupon_type", "AUTOMATIC")
+			.order("created_at", { ascending: false })
+			.limit(100);
+
+		if (couponError) {
+			console.error("Error fetching automatic coupons:", couponError);
+			return { coupons: [] };
+		}
+
+		if (!coupons || coupons.length === 0) {
+			return { coupons: [] };
+		}
+
+		const couponIds = coupons.map((c) => c.id);
+
+		// Get usage counts for total_usage_limit check
+		const { data: usageData } = await this.supabase
+			.from(this.COUPON_USAGES_TABLE)
+			.select("coupon_id, count()")
+			.in("coupon_id", couponIds)
+			.limit(1000);
+
+		const totalUsageMap = new Map<number, number>();
+		usageData?.forEach((row) => {
+			totalUsageMap.set(row.coupon_id, Number(row.count) || 0);
+		});
+
+		//  If user is logged in, get per-user usage
+		const perUserUsageMap = new Map<number, number>();
+		if (userId) {
+			const { data: userUsageData } = await this.supabase
+				.from(this.COUPON_USAGES_TABLE)
+				.select("coupon_id, count()")
+				.eq("user_id", userId)
+				.in("coupon_id", couponIds)
+				.limit(500);
+
+			userUsageData?.forEach((row) => {
+				perUserUsageMap.set(row.coupon_id, Number(row.count) || 0);
+			});
+		}
+
+		// Filter coupons that still have remaining uses
+		const validCoupons = coupons.filter((coupon) => {
+			const usedTotal = totalUsageMap.get(coupon.id) || 0;
+			const usedByUser = perUserUsageMap.get(coupon.id) || 0;
+
+			// Check total usage limit
+			if (coupon.total_usage_limit !== null && usedTotal >= coupon.total_usage_limit) {
+				return false;
+			}
+
+			// Check per-user limit
+			if (coupon.per_user_limit !== null && usedByUser >= coupon.per_user_limit) {
+				return false;
+			}
+
+			return true;
+		});
+
+		//Build final response with tours mapping
+		const result: FrontPanelCoupon[] = validCoupons.map((coupon) => {
+			const tourMap = new Map<string, number[]>();
+
+			(coupon.coupon_tours || []).forEach((ct) => {
+				const tourId = ct.tour_options?.tour_id;
+				if (!tourId) return;
+
+				if (!tourMap.has(tourId)) {
+					tourMap.set(tourId, []);
+				}
+				tourMap.get(tourId)!.push(ct.tour_option_id);
+			});
+
+			const tours = Array.from(tourMap.entries()).map(([id, tour_options]) => ({
+				id,
+				tour_options: tour_options.map((optionId) => ({ id: optionId })),
+			}));
+
+			const { coupon_tours, ...cleanCoupon } = coupon;
+
+			return {
+				...cleanCoupon,
+				tours,
+			} as FrontPanelCoupon;
+		});
+
+		return {
+			coupons: result,
+		};
 	}
 }

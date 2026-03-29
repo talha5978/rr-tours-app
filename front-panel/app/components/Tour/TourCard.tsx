@@ -1,5 +1,6 @@
 import { SUPABASE_IMAGE_BUCKET_PATH } from "@workspace/shared/constants/constants";
 import type { FP_HighLevelTour } from "@workspace/shared/types/fp-tours";
+import type { FrontPanelCoupon } from "@workspace/shared/types/coupons";
 import { Heart, MapPin } from "lucide-react";
 import { memo } from "react";
 import { Link, type PrefetchBehavior } from "react-router";
@@ -10,16 +11,25 @@ import { useFavourites } from "~/utils/favourites.utils";
 export const TourCard = memo(
 	({
 		tour,
+		coupons = [],
 		className,
 		linkPrefetch = "intent",
 		...props
 	}: {
 		tour: FP_HighLevelTour;
+		coupons?: FrontPanelCoupon[];
 		className?: string;
 		linkPrefetch?: PrefetchBehavior;
 	}) => {
 		const { isFavourite, toggle } = useFavourites();
 		const active = isFavourite(tour.id);
+
+		const applicableCoupon = coupons.find((coupon) => {
+			if (coupon.tours.length === 0) return true;
+			return coupon.tours.some((t) => t.id === tour.id);
+		});
+
+		const hasDiscount = !!applicableCoupon;
 
 		return (
 			<div {...props} className="relative h-full">
@@ -44,13 +54,32 @@ export const TourCard = memo(
 									<p>{tour.city.name}</p>
 								</Badge>
 							</div>
+
+							{hasDiscount && applicableCoupon.discount_type === "PERCENTAGE" && (
+								<div className="absolute top-3 right-3 z-20">
+									<Badge
+										variant="destructive"
+										className="font-semibold text-xs px-2.5 py-1 shadow"
+									>
+										{applicableCoupon.discount_value}% OFF
+									</Badge>
+								</div>
+							)}
 						</div>
+
 						<div className="p-4">
 							<h3 className="font-bold text-lg line-clamp-2">{tour.name}</h3>
 							<div className="mt-2 flex flex-col gap-2 flex-1">
 								<Badge variant="outline">{tour.category.name}</Badge>
 								<div className="mt-auto">
+									{/* Price Display with Discount */}
 									<p className="font-bold text-md">From {tour.price} AED</p>
+									{hasDiscount && applicableCoupon.discount_type === "FIXED_AMOUNT" && (
+										<p className="text-xs text-muted-foreground mt-0.5">
+											Save {applicableCoupon.discount_value} AED
+										</p>
+									)}
+
 									<p className="text-xs text-muted-foreground">
 										Per {tour.hasGroupPrice ? "Group" : "Person"}
 									</p>

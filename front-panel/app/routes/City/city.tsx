@@ -12,6 +12,7 @@ import {
 	useLocation,
 	useNavigate,
 	useNavigation,
+	useRouteLoaderData,
 	useSearchParams,
 	type LoaderFunctionArgs,
 } from "react-router";
@@ -71,6 +72,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 
 export default function CityPage() {
 	const loaderData = useLoaderData<typeof loader>();
+	const rootLoaderData = useRouteLoaderData("root");
 	const { cityData, toursData, cityTags } = loaderData;
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
@@ -202,7 +204,12 @@ export default function CityPage() {
 						{toursData.tours.length > 0 &&
 							toursData.tours.map((tour) => (
 								<li key={tour.id}>
-									<TourCard linkPrefetch="viewport" tour={tour} className="h-full" />
+									<TourCard
+										linkPrefetch="viewport"
+										tour={tour}
+										className="h-full"
+										coupons={rootLoaderData.couponsResp.coupons ?? []}
+									/>
 								</li>
 							))}
 					</ul>

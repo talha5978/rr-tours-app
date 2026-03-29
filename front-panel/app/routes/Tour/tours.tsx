@@ -2,7 +2,13 @@ import { toursQuery } from "~/queries/tours.q";
 import { FPhighLevelCitiesQuery } from "~/queries/cities.q";
 import { FPhighLevelCategoriesQuery } from "~/queries/categories.q";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
-import { LoaderFunctionArgs, useLoaderData, useNavigate, useSearchParams } from "react-router";
+import {
+	LoaderFunctionArgs,
+	useLoaderData,
+	useNavigate,
+	useRouteLoaderData,
+	useSearchParams,
+} from "react-router";
 import { allProvidersQuery } from "~/queries/providers.q";
 import { allTagsQuery } from "~/queries/tags.q";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -85,6 +91,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function ToursPage() {
 	const { toursResp } = useLoaderData<typeof loader>();
+	const rootLoaderData = useRouteLoaderData("root");
 
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
@@ -159,7 +166,7 @@ export default function ToursPage() {
 					<ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 						{toursResp.tours.map((tour) => (
 							<li key={tour.id}>
-								<TourCard tour={tour} />
+								<TourCard tour={tour} coupons={rootLoaderData.couponsResp.coupons ?? []} />
 							</li>
 						))}
 					</ul>

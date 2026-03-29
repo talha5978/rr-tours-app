@@ -8,3 +8,14 @@ type AdminCoupon = Database["public"]["Tables"]["coupons"]["Row"] & {
 export type adminCouponsResp = {
 	coupons: AdminCoupon[];
 };
+
+export type FrontPanelCoupon = Database["public"]["Tables"]["coupons"]["Row"] & {
+	tours: {
+		id: string;
+		tour_options: { id: number }[];
+	}[];
+};
+
+export type FrontPanelCouponsResp = {
+	coupons: FrontPanelCoupon[];
+};

@@ -2,8 +2,9 @@ import type { FPCollection } from "@workspace/shared/types/collections";
 import { TourCard } from "~/components/Tour/TourCard";
 import { Carousel, CarouselContent, CarouselItem } from "~/components/ui/carousel";
 import Autoplay from "embla-carousel-autoplay";
-import { Link } from "react-router";
+import { Link, useRouteLoaderData } from "react-router";
 import { ArrowRight } from "lucide-react";
+import type { FrontPanelCoupon } from "@workspace/shared/types/coupons";
 
 export default function CollectionsSection({
 	collections,
@@ -15,6 +16,7 @@ export default function CollectionsSection({
 	isCity?: boolean;
 }) {
 	if (collections.length === 0) return null;
+	const rootLoaderData = useRouteLoaderData("root");
 
 	return (
 		<section className="py-12 bg-background">
@@ -29,7 +31,11 @@ export default function CollectionsSection({
 				</div>
 				<div className="space-y-14">
 					{collections.map((collection) => (
-						<CollectionCarousel key={collection.id} collection={collection} />
+						<CollectionCarousel
+							key={collection.id}
+							collection={collection}
+							coupons={rootLoaderData.couponsResp.coupons ?? []}
+						/>
 					))}
 				</div>
 			</div>
@@ -37,7 +43,14 @@ export default function CollectionsSection({
 	);
 }
 
-function CollectionCarousel({ collection, ...props }: { collection: FPCollection }) {
+function CollectionCarousel({
+	collection,
+	coupons,
+	...props
+}: {
+	collection: FPCollection;
+	coupons: FrontPanelCoupon[];
+}) {
 	const tours = collection.tours || [];
 
 	return (
@@ -74,7 +87,7 @@ function CollectionCarousel({ collection, ...props }: { collection: FPCollection
 							title={tour.name}
 							className="pl-4 min-[550px]:basis-1/2 md:basis-1/3 lg:basis-1/4"
 						>
-							<TourCard tour={tour} linkPrefetch="viewport" />
+							<TourCard tour={tour} linkPrefetch="viewport" coupons={coupons ?? []} />
 						</CarouselItem>
 					))}
 				</CarouselContent>
