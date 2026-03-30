@@ -56,9 +56,10 @@ export class Service implements ServiceBase {
 	protected readonly COLLECTION_TOURS_TABLE = "collection_tours";
 	protected readonly COLLECTION_CITIES_TABLE = "collection_cities";
 
-	protected readonly BOOKINGS_TABLE = "bookings";
-	protected readonly BOOKING_PARTICIPANTS_TABLE = "booking_participants";
+	protected readonly BOOKINGS_TABLE = "bookings_new";
+	protected readonly BOOKING_PARTICIPANTS_TABLE = "booking_participants_new";
 	protected readonly PAYMENTS_TABLE = "payments";
+	protected readonly BOOKING_ITEMS_TABLE = "booking_items";
 
 	protected readonly REVIEWS_TABLE = "tour_reviews";
 

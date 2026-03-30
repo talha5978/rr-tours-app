@@ -27,7 +27,7 @@ export class StatsService extends Service {
 
 		// Total bookings
 		const { count: total_bookings, error: bookingsError } = await this.supabase
-			.from("bookings_new")
+			.from(this.BOOKINGS_TABLE)
 			.select("*", { count: "exact", head: true })
 			.in("booking_status", ["CONFIRMED"]);
 
@@ -50,7 +50,7 @@ export class StatsService extends Service {
 
 		// Correct dot-notation syntax
 		const { data: revenueAgg, error: revenueAggError } = await this.supabase
-			.from("bookings_new")
+			.from(this.BOOKINGS_TABLE)
 			.select("total_revenue:total.sum()")
 			.in("booking_status", ["CONFIRMED"])
 			.single();

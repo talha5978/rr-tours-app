@@ -13,7 +13,7 @@ import { Input } from "~/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Separator } from "~/components/ui/separator";
 import { format } from "date-fns";
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/components/ui/form";
 import { AlertTriangle, Loader2 } from "lucide-react";
@@ -21,32 +21,33 @@ import { PhoneInput } from "~/components/Booking/phone-number-input";
 import { toast } from "sonner";
 import {
 	type CreateBookingFromCartInput,
+	createBookingFromCartSchema,
 	customerBookingSchema,
-	CustomerInput,
+	type CustomerInput,
 } from "@workspace/shared/schemas/booking.schema";
-import { GoogleReCaptcha, verifyRecaptcha } from "~/components/ReCaptcha/GoogleReCaptcha";
 import { CheckoutService } from "@workspace/shared/services/checkout.service";
 import { myCartQuery } from "~/queries/cart.q";
 import { cacheService } from "@workspace/shared/services/cache.service";
 import { CACHE_KEYS } from "@workspace/shared/utils/cache-keys";
 import { CartService } from "@workspace/shared/services/cart.service";
 import { getCurrentUser } from "@workspace/shared/queries/auth.q";
+import { allCouponsQuery } from "~/queries/coupons.q";
+import type { CartItemDetail } from "@workspace/shared/types/cart";
 // import { emailService } from "@workspace/shared/services/emails.service";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
 	try {
 		const rawBody = await request.json();
 
-		const recaptchaToken = rawBody["recaptchaToken"] as string;
-
-		if (!recaptchaToken) {
-			return { success: false, error: "Captcha identification failed" };
-		}
-
-		const captchaResult = await verifyRecaptcha(recaptchaToken);
-		if (!captchaResult.success) {
-			console.error(captchaResult.score, captchaResult.success);
-			return { success: false, error: "Captcha verification failed" };
+		const parseResult = createBookingFromCartSchema.safeParse(rawBody);
+		if (!parseResult.success) {
+			console.error("Validation errors:", parseResult.error.format());
+			return {
+				success: false,
+				booking_ref: null,
+				clientSecret: null,
+				validationErrors: parseResult.error.format(),
+			};
 		}
 
 		const checkoutSvc = new CheckoutService(request);
@@ -63,6 +64,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 		}
 
 		await cacheService.invalidatePattern(CACHE_KEYS.bookings.user_bookings(rawBody.added_by!) + ":*");
+		await cacheService.invalidatePattern(CACHE_KEYS.bookings.highLevel() + ":*");
 
 		// Clear Cart after successful booking
 		const userData = await getCurrentUser(request);
@@ -108,9 +110,9 @@ export const loader = async ({ request }: { request: Request }) => {
 		myCart = await myCartQuery({ request, user_id: userData.user?.id, page, limit: 30 });
 	}
 
-	// console.log(myCart);
+	const couponsResp = await allCouponsQuery({ request, user_id: userData?.user?.id ?? null });
 
-	return { myCart, userData };
+	return { myCart, userData, couponsResp };
 };
 
 async function getCheckoutSession(bookingRef: string, cartItems: any[], customer_email: string) {
@@ -146,6 +148,7 @@ export default function BookingPage() {
 	const {
 		myCart,
 		userData: { user },
+		couponsResp,
 	} = useLoaderData<typeof loader>();
 	const navigation = useNavigation();
 	const submit = useSubmit();
@@ -162,15 +165,67 @@ export default function BookingPage() {
 
 	const { handleSubmit, reset, control } = form;
 
-	const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
-	const recaptchaRef = useRef(null);
-
 	const subtotal =
 		myCart?.items?.reduce((sum, item) => {
 			return sum + item.quantities.reduce((acc, q) => acc + q.quantity * q.price, 0);
 		}, 0) ?? 0;
 
-	let discount = 0;
+	const getDiscountedUnitPrice = (item: CartItemDetail, participantPrice: number): number => {
+		const applicableCoupon = couponsResp?.coupons?.find((coupon) => {
+			// Global coupon (applies to all tours)
+			if (coupon.tours.length === 0) return true;
+
+			// Specific tour option targeting
+			return coupon.tours.some((t) => t.tour_options.some((opt) => opt.id === item.tour_option_id));
+		});
+
+		if (!applicableCoupon) return participantPrice;
+
+		if (applicableCoupon.discount_type === "PERCENTAGE") {
+			return participantPrice * (1 - applicableCoupon.discount_value / 100);
+		} else {
+			// Fixed amount discount - apply per unit
+			return Math.max(0, participantPrice - applicableCoupon.discount_value);
+		}
+	};
+
+	const calculateDiscount = (): number => {
+		let totalDiscount = 0;
+
+		myCart?.items?.forEach((item) => {
+			const itemSubtotal = item.quantities.reduce((sum, q) => sum + q.price * q.quantity, 0);
+
+			// Find if any automatic coupon applies to this tour_option_id
+			const applicableCoupon = couponsResp?.coupons?.find((coupon: any) => {
+				// Global coupon (applies to all tours)
+				if (coupon.tours.length === 0) return true;
+
+				// Specific tour option targeting
+				return coupon.tours.some((t: any) =>
+					t.tour_options.some((opt: any) => opt.id === item.tour_option_id),
+				);
+			});
+
+			if (applicableCoupon) {
+				if (applicableCoupon.discount_type === "PERCENTAGE") {
+					totalDiscount += itemSubtotal * (applicableCoupon.discount_value / 100);
+				} else {
+					totalDiscount += Math.min(applicableCoupon.discount_value, itemSubtotal);
+				}
+			}
+		});
+
+		return totalDiscount;
+	};
+
+	const calculateItemTotalWithDiscount = (item: CartItemDetail): number => {
+		return item.quantities.reduce((sum: number, q) => {
+			const discountedPrice = getDiscountedUnitPrice(item, q.price);
+			return sum + discountedPrice * q.quantity;
+		}, 0);
+	};
+
+	const discount = calculateDiscount();
 	let taxes = 0;
 
 	const total = subtotal - discount + taxes;
@@ -184,19 +239,12 @@ export default function BookingPage() {
 					description: "Initiating payment process.",
 				});
 
-				setRecaptchaToken(null);
-				reset();
-				if (recaptchaRef.current !== null) {
-					// @ts-ignore
-					recaptchaRef.current.reset();
-				}
-
 				const cartLineItems =
 					myCart?.items.flatMap((item) =>
 						item.quantities.map((q) => ({
 							tour_name: `${item.tour_name} - ${item.tour_option_name}`,
 							option_name: `${q.participant_type_name} × ${q.quantity}`,
-							price: q.price, // Unit price
+							price: getDiscountedUnitPrice(item, q.price), // Unit price
 							quantity: q.quantity, // Actual Number of Participants
 						})),
 					) ?? [];
@@ -204,12 +252,7 @@ export default function BookingPage() {
 				getCheckoutSession(actionData.booking_ref, cartLineItems, user?.email ?? "");
 			} else if (actionData.error) {
 				toast.error(actionData.error);
-				setRecaptchaToken(null);
 				reset();
-				if (recaptchaRef.current !== null) {
-					// @ts-ignore
-					recaptchaRef.current.reset();
-				}
 			} else if (actionData.validationErrors) {
 				toast.error("Invalid form data. Please check your inputs.");
 			}
@@ -241,11 +284,6 @@ export default function BookingPage() {
 			return;
 		}
 
-		if (!recaptchaToken) {
-			toast.error("Please complete the CAPTCHA verification.");
-			return;
-		}
-
 		if (!user) {
 			toast.error("Please sign in to complete your booking.");
 			return;
@@ -256,8 +294,8 @@ export default function BookingPage() {
 			customer_email: data.customer_email.trim(),
 			customer_phone: data.customer_phone.trim(),
 			cart_id: myCart.cart_id,
-			recaptchaToken: recaptchaToken,
 			added_by: user?.id ?? null,
+			discount: discount || 0,
 		};
 
 		submit(payload, {
@@ -372,14 +410,8 @@ export default function BookingPage() {
 										)}
 									/>
 
-									<GoogleReCaptcha
-										siteKey={process.env.VITE_RECAPTCHA_SITE_KEY as string}
-										onChange={(token) => setRecaptchaToken(token)}
-										ref={recaptchaRef}
-									/>
-
 									<div className="w-fit ml-auto mt-6">
-										<Button type="submit" disabled={isSubmitting || !recaptchaToken}>
+										<Button type="submit" disabled={isSubmitting}>
 											{isSubmitting && <Loader2 className="animate-spin" />}
 											{isSubmitting ? "Submitting" : "Confirm Booking"}
 										</Button>
@@ -401,52 +433,87 @@ export default function BookingPage() {
 						</CardHeader>
 						<Separator />
 						<CardContent className="space-y-2">
-							{myCart.items.map((item) => (
-								<div key={item.cart_item_id} className="border rounded-lg p-4">
-									<div className="font-semibold">{item.tour_name}</div>
-									<div className="text-sm text-muted-foreground">
-										{item.tour_option_name}
-									</div>
-									<div className="text-xs mt-1">
-										{format(new Date(item.preferred_date!), "PPPP")} •{" "}
-										{item.preferred_timeslot}
-									</div>
+							{myCart.items.map((item) => {
+								return (
+									<div key={item.cart_item_id} className="border rounded-lg p-4">
+										<div className="font-semibold">{item.tour_name}</div>
+										<div className="text-sm text-muted-foreground">
+											{item.tour_option_name}
+										</div>
+										<div className="text-xs mt-1">
+											{format(new Date(item.preferred_date!), "PPPP")} •{" "}
+											{item.preferred_timeslot}
+										</div>
 
-									<div className="mt-3 text-xs">
-										<table className="w-full text-center">
-											<tr className="*:bg-muted-foreground *:text-white *:border *:p-1">
-												<th>Participants</th>
-												<th>Quantity</th>
-												<th>Unit Price</th>
-												<th>Total Price</th>
-											</tr>
-
-											{item.quantities.map((q) => (
-												<tr key={q.participant_type_id} className="*:border *:p-1">
-													<td>
-														{q.participant_type_name} ({q.participant_age_group})
-													</td>
-													<td>{q.quantity}</td>
-													<td>AED {q.price.toFixed(2)}</td>
-													<td>AED {(q.price * q.quantity).toFixed(2)}</td>
+										<div className="mt-3 text-xs">
+											<table className="w-full text-center">
+												<tr className="*:bg-muted-foreground *:text-white *:border *:p-1">
+													<th>Participants</th>
+													<th>Quantity</th>
+													<th>Unit Price</th>
+													<th>Total Price</th>
 												</tr>
-											))}
-										</table>
-									</div>
 
-									<div className="mt-3 flex items-end">
-										<span className="w-fit font-lg ml-auto">
-											AED{" "}
-											{item.quantities
-												.reduce((acc, q) => acc + q.price * q.quantity, 0)
-												.toFixed(2)}
-										</span>
+												{item.quantities.map((q) => {
+													const discountedUnitPrice = getDiscountedUnitPrice(
+														item,
+														q.price,
+													);
+													const hasDiscount = discountedUnitPrice < q.price;
+
+													return (
+														<tr
+															key={q.participant_type_id}
+															className="*:border *:p-1"
+														>
+															<td>
+																{q.participant_type_name} (
+																{q.participant_age_group})
+															</td>
+															<td>{q.quantity}</td>
+															<td>
+																{hasDiscount ? (
+																	<>
+																		<span className="line-through text-destructive opacity-70">
+																			AED {q.price.toFixed(2)}
+																		</span>{" "}
+																		<span className="font-medium">
+																			AED{" "}
+																			{discountedUnitPrice.toFixed(2)}
+																		</span>
+																	</>
+																) : (
+																	`AED ${q.price.toFixed(2)}`
+																)}
+															</td>
+															<td>
+																AED{" "}
+																{(hasDiscount
+																	? discountedUnitPrice * q.quantity
+																	: q.price * q.quantity
+																).toFixed(2)}
+															</td>
+														</tr>
+													);
+												})}
+											</table>
+										</div>
+
+										<div className="mt-3 flex items-end">
+											<span className="w-fit font-lg ml-auto">
+												AED {calculateItemTotalWithDiscount(item).toFixed(2)}
+											</span>
+										</div>
 									</div>
-								</div>
-							))}
+								);
+							})}
 						</CardContent>
 						<Separator />
 						<CardContent className="space-y-2">
+							<div className="booking-page-row">
+								<h3>Subtotal</h3>
+								<span>{subtotal.toFixed(2)} AED</span>
+							</div>
 							<div className="booking-page-row">
 								<h3>Discount</h3>
 								<span>{discount.toFixed(2)} AED</span>
@@ -454,10 +521,6 @@ export default function BookingPage() {
 							<div className="booking-page-row">
 								<h3>Taxes/Fees</h3>
 								<span>{taxes.toFixed(2)} AED</span>
-							</div>
-							<div className="booking-page-row">
-								<h3>Subtotal</h3>
-								<span>{subtotal.toFixed(2)} AED</span>
 							</div>
 							<div className="booking-page-row font-semibold">
 								<h3>Total</h3>

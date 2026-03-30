@@ -19,6 +19,7 @@ import type {
 } from "@workspace/shared/types/booking";
 import { UseMiddleware } from "@workspace/shared/decorators/useMiddleware";
 import { verifyUser } from "@workspace/shared/middlewares/auth.middleware";
+import { CouponsService } from "@workspace/shared/services/coupons.service";
 
 @UseClassMiddleware(loggerMiddleware)
 export class BookingService extends Service {
@@ -39,7 +40,7 @@ export class BookingService extends Service {
 			ref = `${current_yr}${ref}`;
 
 			const { count } = await this.supabase
-				.from("bookings_new")
+				.from(this.BOOKINGS_TABLE)
 				.select("id", { count: "exact", head: true })
 				.eq("booking_ref", ref);
 
@@ -47,12 +48,6 @@ export class BookingService extends Service {
 				return ref;
 			}
 		}
-	}
-
-	private getDayOfWeek(dateStr: string): number {
-		const date = new Date(dateStr);
-		const day = date.getDay();
-		return day === 0 ? 7 : day;
 	}
 
 	/** Get booking by ref */
@@ -63,19 +58,19 @@ export class BookingService extends Service {
 			}
 
 			const { data, error } = await this.supabase
-				.from("bookings_new")
+				.from(this.BOOKINGS_TABLE)
 				.select(
 					`
 						*,
-						booking_items (
+						${this.BOOKING_ITEMS_TABLE} (
 							*,
 							tour_option:${this.TOUR_OPTIONS_TABLE}!inner (
 								name,
 								tour:${this.TOURS_TABLE}(name)
 							),
-							booking_participants_new (
+							${this.BOOKING_PARTICIPANTS_TABLE} (
 								*,
-								participant_types (
+								${this.PARTICIPANT_TYPES_TABLE} (
 									name,
 									age_min,
 									age_max
@@ -154,7 +149,7 @@ export class BookingService extends Service {
 
 		try {
 			let query = this.supabase
-				.from("bookings_new")
+				.from(this.BOOKINGS_TABLE)
 				.select(
 					`
 					id,
@@ -168,7 +163,7 @@ export class BookingService extends Service {
 					customer_phone,
 					customer_email,
 					total,
-					booking_items (
+					${this.BOOKING_ITEMS_TABLE} (
 						preffered_date,
 						preffered_timeslot,
 						confirmed_date,
@@ -240,13 +235,13 @@ export class BookingService extends Service {
 		}
 
 		const { data, error } = await this.supabase
-			.from("bookings_new")
+			.from(this.BOOKINGS_TABLE)
 			.select(
 				`
 				*,
-				booking_items (
+				${this.BOOKING_ITEMS_TABLE} (
 					*,
-					booking_participants_new (
+					${this.BOOKING_PARTICIPANTS_TABLE} (
 						*,
 						${this.PARTICIPANT_TYPES_TABLE} (*)
 					),
@@ -307,7 +302,7 @@ export class BookingService extends Service {
 		try {
 			// 1. Fetch current booking + items + payment
 			const { data: booking, error: fetchError } = await this.supabase
-				.from("bookings_new")
+				.from(this.BOOKINGS_TABLE)
 				.select(
 					`
 					id,
@@ -320,7 +315,7 @@ export class BookingService extends Service {
 					admin_note,
 					cancelled_at,
 					payment_id,
-					booking_items (
+					${this.BOOKING_ITEMS_TABLE} (
 						id,
 						preffered_date,
 						preffered_timeslot,
@@ -380,7 +375,7 @@ export class BookingService extends Service {
 					// Only update if there are changes
 					if (Object.keys(updateData).length > 0) {
 						const { error: itemErr } = await this.supabase
-							.from("booking_items")
+							.from(this.BOOKING_ITEMS_TABLE)
 							.update(updateData)
 							.eq("id", itemUpdate.booking_item_id)
 							.eq("booking_id", id);
@@ -402,7 +397,7 @@ export class BookingService extends Service {
 			if (input.participants_unit_prices && input.participants_unit_prices.length > 0) {
 				for (const p of input.participants_unit_prices) {
 					const { error: partErr } = await this.supabase
-						.from("booking_participants_new")
+						.from(this.BOOKING_PARTICIPANTS_TABLE)
 						.update({
 							quantity: p.quantity,
 							unit_price: p.unit_price,
@@ -416,7 +411,7 @@ export class BookingService extends Service {
 
 				// Recalculate subtotal from all participants
 				const { data: allParts } = await this.supabase
-					.from("booking_participants_new")
+					.from(this.BOOKING_PARTICIPANTS_TABLE)
 					.select("quantity, unit_price")
 					.in(
 						"booking_item_id",
@@ -436,7 +431,7 @@ export class BookingService extends Service {
 			// 7. Update bookings_new if anything changed
 			if (Object.keys(bookingPayload).length > 0) {
 				const { error: updateErr } = await this.supabase
-					.from("bookings_new")
+					.from(this.BOOKINGS_TABLE)
 					.update(bookingPayload)
 					.eq("id", id);
 
@@ -458,7 +453,7 @@ export class BookingService extends Service {
 		checkout_session_id: string,
 	): Promise<{ error: ApiError | null }> {
 		const { error, data } = await this.supabase
-			.from("bookings_new")
+			.from(this.BOOKINGS_TABLE)
 			.select("payment_id")
 			.eq("booking_ref", bookingRef)
 			.single();
@@ -493,7 +488,7 @@ export class BookingService extends Service {
 		}
 
 		const { data, error } = await this.supabase
-			.from("bookings_new")
+			.from(this.BOOKINGS_TABLE)
 			.select(
 				`
 				booking_ref,
@@ -504,7 +499,7 @@ export class BookingService extends Service {
 				subtotal_amount,
 				discount,
 				taxes,
-				booking_items (
+				${this.BOOKING_ITEMS_TABLE} (
 					preffered_date,
 					preffered_timeslot,
 					confirmed_date,
@@ -515,7 +510,7 @@ export class BookingService extends Service {
 							name
 						)
 					),
-					booking_participants_new (
+					${this.BOOKING_PARTICIPANTS_TABLE} (
 						quantity,
 						unit_price
 					)
@@ -588,7 +583,7 @@ export class BookingService extends Service {
 			}
 
 			const { data, error, count } = await this.supabase
-				.from("bookings_new")
+				.from(this.BOOKINGS_TABLE)
 				.select(
 					`
 						id,
@@ -600,7 +595,7 @@ export class BookingService extends Service {
 						total,
 						created_at,
 						customer_name,
-						booking_items (
+						${this.BOOKING_ITEMS_TABLE} (
 							preffered_date,
 							preffered_timeslot,
 							confirmed_date,
@@ -665,22 +660,23 @@ export class BookingService extends Service {
 		let bookingId: string | null = null;
 
 		try {
+			// 1. Fetch cart with all details
 			const { data: cartData, error: cartError } = await this.supabase
 				.from(this.CARTS_TABLE)
 				.select(
 					`
+					id,
+					${this.CART_ITEMS_TABLE} (
 						id,
-						${this.CART_ITEMS_TABLE} (
-							id,
-							tour_option_id,
-							preferred_date,
-							preferred_timeslot,
-							${this.CART_ITEMS_QUANTITIES_TABLE} (
-								participant_type_id,
-								quantity
-							)
+						tour_option_id,
+						preferred_date,
+						preferred_timeslot,
+						${this.CART_ITEMS_QUANTITIES_TABLE} (
+							participant_type_id,
+							quantity
 						)
-					`,
+					)
+				`,
 				)
 				.eq("id", input.cart_id!)
 				.single();
@@ -689,10 +685,16 @@ export class BookingService extends Service {
 				throw new ApiError("Cart is empty or not found", 404);
 			}
 
+			// 2. Fetch all active AUTOMATIC coupons (same as frontend)
+			const couponsSvc = await this.createSubService(CouponsService);
+			const couponsData = await couponsSvc.getCouponsForFrontPanel(input.added_by);
+
+			const coupons = couponsData.coupons || [];
+
 			bookingRef = await this.generateUniqueBookingRef();
 
 			const { data: booking, error: bookingError } = await this.supabase
-				.from("bookings_new")
+				.from(this.BOOKINGS_TABLE)
 				.insert({
 					booking_ref: bookingRef,
 					booking_status: "PENDING",
@@ -701,7 +703,7 @@ export class BookingService extends Service {
 					customer_phone: input.customer_phone,
 					added_by: input.added_by,
 					subtotal_amount: 0,
-					discount: 0,
+					discount: input.discount || 0,
 					taxes: 0,
 					total: 0,
 				})
@@ -719,83 +721,30 @@ export class BookingService extends Service {
 				const { tour_option_id, preferred_date, preferred_timeslot, cart_items_quantities } =
 					cartItem;
 
-				const totalRequested = cart_items_quantities.reduce((sum, p) => sum + p.quantity, 0);
+				// --- Find applicable coupon for this tour_option ---
+				const applicableCoupon = coupons.find((coupon) => {
+					if (coupon.tours.length === 0) return true;
+					return coupon.tours.some((t) => t.tour_options.some((opt) => opt.id === tour_option_id));
+				});
 
-				const { data: booked, error: bookedErr } = await this.supabase
-					.from("booking_items")
-					.select(
-						`booking_participants_new!inner(quantity), booking:bookings_new(id, booking_status)`,
-					)
-					.eq("tour_option_id", tour_option_id)
-					.eq("preffered_date", preferred_date as string)
-					.eq("preffered_timeslot", preferred_timeslot as string)
-					.in("booking.booking_status", ["PENDING", "CONFIRMED"]);
+				// --- Get real original prices ---
+				const { data: prices } = await this.supabase
+					.from(this.TOUR_OPTION_PRICES_TABLE)
+					.select("participant_type_id, price")
+					.eq("tour_option_id", tour_option_id);
 
-				if (bookedErr) throw new ApiError("Failed to check booked capacity", 500);
+				const priceMap = new Map(prices?.map((p) => [p.participant_type_id, p.price]) || []);
 
-				const alreadyBooked =
-					booked?.reduce(
-						(sum, b) =>
-							sum + (b.booking_participants_new?.reduce((s, p) => s + p.quantity, 0) ?? 0),
-						0,
-					) ?? 0;
-
-				const weekday = await this.getDayOfWeek(preferred_date as string);
-
-				const { data: capacityData, error: capErr } = await this.supabase
-					.from(this.AVAILABILITY_RULES_TABLE)
-					.select(
-						`
-						${this.TIMESLOTS_TABLE}!inner (
-							id,
-							label,
-							capacity
-						)
-					`,
-					)
-					.eq("tour_option_id", tour_option_id)
-					.lte("start_date", preferred_date as string)
-					.gte("end_date", preferred_date as string)
-					.contains("weekdays", [weekday])
-					.single();
-
-				if (capErr || !capacityData) {
-					console.error(capErr ?? "No api error");
-					throw new ApiError("No availability rule found for this date", 400);
-				}
-
-				const matchingSlot = capacityData.time_slots.find(
-					(slot) => slot.label === preferred_timeslot,
-				);
-
-				if (!matchingSlot) {
-					throw new ApiError(
-						`Time slot "${preferred_timeslot}" not available on ${preferred_date}`,
-						400,
-					);
-				}
-
-				const maxCapacity = matchingSlot.capacity ?? Infinity;
-
-				// console.log(alreadyBooked, totalRequested, maxCapacity);
-
-				if (alreadyBooked + totalRequested > maxCapacity) {
-					throw new ApiError(
-						`Not enough capacity available (Only ${maxCapacity - alreadyBooked} left)`,
-						409,
-						[],
-					);
-				}
-
+				// --- Insert booking item ---
 				const { data: bookingItem, error: itemError } = await this.supabase
-					.from("booking_items")
+					.from(this.BOOKING_ITEMS_TABLE)
 					.insert({
 						booking_id: bookingId,
 						tour_option_id,
 						preffered_date: preferred_date,
 						preffered_timeslot: preferred_timeslot,
 						price_overriden: false,
-						pricing_note: null,
+						pricing_note: applicableCoupon ? "Discount applied" : null,
 					})
 					.select("id")
 					.single();
@@ -804,42 +753,48 @@ export class BookingService extends Service {
 					throw new ApiError("Failed to create booking item", 500);
 				}
 
-				// --- Get real prices for this option ---
-				const { data: prices } = await this.supabase
-					.from(this.TOUR_OPTION_PRICES_TABLE)
-					.select("participant_type_id, price")
-					.eq("tour_option_id", tour_option_id);
+				// --- Insert participants with discounted price ---
+				const participantsData = cart_items_quantities.map((q) => {
+					const originalPrice = priceMap.get(q.participant_type_id) || 0;
+					let finalUnitPrice = originalPrice;
 
-				console.log("--> PRICES DATA:\n", prices);
+					if (applicableCoupon) {
+						if (applicableCoupon.discount_type === "PERCENTAGE") {
+							finalUnitPrice = originalPrice * (1 - applicableCoupon.discount_value / 100);
+						} else {
+							finalUnitPrice = Math.max(0, originalPrice - applicableCoupon.discount_value);
+						}
+					}
 
-				const priceMap = new Map(prices?.map((p) => [p.participant_type_id, p.price]) || []);
+					return {
+						booking_item_id: bookingItem.id,
+						participant_type_id: q.participant_type_id,
+						quantity: q.quantity,
+						unit_price: finalUnitPrice,
+					};
+				});
 
-				// --- Insert participants ---
-				const participantsData = cart_items_quantities.map((q) => ({
-					booking_item_id: bookingItem.id,
-					participant_type_id: q.participant_type_id,
-					quantity: q.quantity,
-					unit_price: priceMap.get(q.participant_type_id) || 0,
-				}));
+				subtotal += participantsData.reduce((sum, p) => {
+					const originalPrice = priceMap.get(p.participant_type_id) || 0;
+					return sum + originalPrice * p.quantity;
+				}, 0);
 
 				const { error: participantsError } = await this.supabase
-					.from("booking_participants_new")
+					.from(this.BOOKING_PARTICIPANTS_TABLE)
 					.insert(participantsData);
 
 				if (participantsError) {
-					console.error(participantsError);
 					throw new ApiError("Failed to insert participants", 500);
 				}
-
-				// Accumulate subtotal
-				subtotal += participantsData.reduce((sum, p) => sum + p.unit_price * p.quantity, 0);
 			}
 
+			// Final update with accurate numbers
 			await this.supabase
-				.from("bookings_new")
+				.from(this.BOOKINGS_TABLE)
 				.update({
 					subtotal_amount: subtotal,
-					total: subtotal,
+					discount: input.discount || 0,
+					total: subtotal - (input.discount || 0),
 				})
 				.eq("id", bookingId);
 
@@ -858,7 +813,7 @@ export class BookingService extends Service {
 
 			if (paymentInsert) {
 				await this.supabase
-					.from("bookings_new")
+					.from(this.BOOKINGS_TABLE)
 					.update({
 						payment_id: paymentInsert.id,
 					})
@@ -870,20 +825,20 @@ export class BookingService extends Service {
 			if (bookingId) {
 				console.warn(`[ROLLBACK] Deleting incomplete booking ${bookingId}`);
 				const { data: booking_item_ids } = await this.supabase
-					.from("booking_items")
+					.from(this.BOOKING_ITEMS_TABLE)
 					.delete()
 					.eq("booking_id", bookingId)
 					.select("id");
 				if (booking_item_ids) {
 					await this.supabase
-						.from("booking_participants_new")
+						.from(this.BOOKING_PARTICIPANTS_TABLE)
 						.delete()
 						.in(
 							"booking_item_id",
 							booking_item_ids.map((b) => b.id),
 						);
 				}
-				await this.supabase.from("bookings_new").delete().eq("id", bookingId);
+				await this.supabase.from(this.BOOKINGS_TABLE).delete().eq("id", bookingId);
 			}
 
 			throw error instanceof ApiError

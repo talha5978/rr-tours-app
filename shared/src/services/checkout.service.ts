@@ -61,7 +61,7 @@ export class CheckoutService extends Service {
 		try {
 			// 1. Fetch booking + related items
 			const { data: booking, error: fetchErr } = await this.supabase
-				.from("bookings_new")
+				.from(this.BOOKINGS_TABLE)
 				.select(
 					`
 					id,
@@ -74,7 +74,7 @@ export class CheckoutService extends Service {
 						payment_status,
 						checkout_session_id
 					),
-					booking_items (
+					${this.BOOKING_ITEMS_TABLE} (
 						tour_option_id,
 						${this.TOUR_OPTIONS_TABLE}!inner (
 							name,
@@ -83,7 +83,7 @@ export class CheckoutService extends Service {
 								cover_image
 							)
 						),
-						booking_participants_new (
+						${this.BOOKING_PARTICIPANTS_TABLE} (
 							quantity,
 							unit_price,
 							${this.PARTICIPANT_TYPES_TABLE}!inner (
@@ -212,7 +212,7 @@ export class CheckoutService extends Service {
 		try {
 			// 1. Fetch booking
 			const { data: booking, error: fetchErr } = await this.supabase
-				.from("bookings_new")
+				.from(this.BOOKINGS_TABLE)
 				.select(`total, payment:${this.PAYMENTS_TABLE}!inner(payment_status, id, payment_intent_id)`)
 				.eq("id", booking_id)
 				.single();
@@ -271,7 +271,7 @@ export class CheckoutService extends Service {
 			};
 
 			const { error: updateErr } = await this.supabase
-				.from("bookings_new")
+				.from(this.BOOKINGS_TABLE)
 				.update(bookingPayload)
 				.eq("id", booking_id);
 

@@ -1405,11 +1405,11 @@ export class ToursService extends Service {
 		const timeSlotLabels = allTimeSlots.map((s) => s.label);
 
 		const { data: bookedData, error: bookedErr } = await this.supabase
-			.from("booking_items")
+			.from(this.BOOKING_ITEMS_TABLE)
 			.select(
 				`
 				preffered_timeslot,
-				booking_participants_new (quantity),
+				${this.BOOKING_PARTICIPANTS_TABLE} (quantity),
 				booking:bookings_new!inner(booking_status)
 			`,
 			)

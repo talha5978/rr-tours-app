@@ -320,17 +320,8 @@ export default function CartPage() {
 								<CardTitle>Cart Summary</CardTitle>
 							</CardHeader>
 							<CardContent className="space-y-4">
-								<div className="flex justify-between text-sm">
-									<span>Tours ({myCart.total_items})</span>
-									<span>AED {subtotal.toFixed(2)}</span>
-								</div>
-								<div className="flex justify-between text-sm">
-									<span>Taxes & Fees</span>
-									<span>AED 0.00</span>
-								</div>
-								<Separator />
 								<div className="flex justify-between font-medium text-lg">
-									<span>Total</span>
+									<span>Sub Total</span>
 									<span>AED {subtotal.toFixed(2)}</span>
 								</div>
 
@@ -342,7 +333,7 @@ export default function CartPage() {
 								</Button>
 
 								<p className="text-xs text-center text-muted-foreground">
-									Prices are final at checkout. Taxes & fees may apply.
+									Prices and discounts are final at checkout and taxes may apply.
 								</p>
 							</CardContent>
 						</Card>

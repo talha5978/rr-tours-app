@@ -6,7 +6,6 @@ import {
 	useLocation,
 	useNavigate,
 	useNavigation,
-	useRevalidator,
 	useSearchParams,
 } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
@@ -59,6 +58,8 @@ import { tourReviewsQuery } from "~/queries/reviews.q";
 import TourReviews, { TourReviewsSkeleton } from "~/components/Tour/TourReviews";
 import { AddToCartPayload } from "@workspace/shared/types/cart";
 import { getCurrentUser } from "@workspace/shared/queries/auth.q";
+import { FrontPanelCoupon } from "@workspace/shared/types/coupons";
+import { allCouponsQuery } from "~/queries/coupons.q";
 
 const participantSchema = z.object({
 	quantities: z.record(z.number().min(0).int()),
@@ -125,6 +126,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 	});
 
 	const userData = await getCurrentUser(request);
+	const couponsResp = await allCouponsQuery({ request, user_id: userData?.user?.id ?? null });
 
 	return {
 		tour: data,
@@ -136,6 +138,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 		reviewsData,
 		currentReviewPage: review_page,
 		userData,
+		couponsResp,
 	};
 };
 
@@ -193,9 +196,9 @@ function getStructuredData(tour: GetTourDetails) {
 
 export default function TourDetailsPage() {
 	const loaderData = useLoaderData<typeof loader>();
+	const allAutomaticCoupons: FrontPanelCoupon[] = loaderData?.couponsResp?.coupons || [];
 	const tour = loaderData?.tour ?? null;
 	const isMobile = useIsMobile();
-	const revalidator = useRevalidator();
 	const navigation = useNavigation();
 	const location = useLocation();
 	const [_, setSearchParams] = useSearchParams();
@@ -232,7 +235,6 @@ export default function TourDetailsPage() {
 					state: { scrollPosition: window.scrollY },
 				},
 			);
-			revalidator.revalidate();
 		}
 	};
 
@@ -367,306 +369,342 @@ export default function TourDetailsPage() {
 									<h2 className="text-2xl font-semibold">Available Options</h2>
 									{tour.tour_options
 										.sort((a, b) => (a.sort_order ?? 1) - (b.sort_order ?? 1))
-										.map((option, idx) => (
-											<Card key={option.id} className="pt-0" id={"tour-option-" + idx}>
-												<CardHeader className="bg-accent pt-4 pb-3 rounded-t-xl">
-													<CardTitle className="sm:flex sm:flex-wrap gap-4 items-center justify-between">
-														<h3 className="text-lg">{option.name}</h3>
-														{option.isOpenDated && (
-															<div className="max-sm:hidden">
-																<Badge className="bg-warning py-1.5">
-																	Open Dated
-																</Badge>
-															</div>
-														)}
-													</CardTitle>
-												</CardHeader>
-												<CardContent className="space-y-4">
-													{option.inclusions ? (
-														<div className="[&>ul]:list-disc [&>ul]:space-y-2 [&>ul]:pl-4 [&>ul]:mt-1">
-															<h2 className="text-lg font-semibold">
-																Inclusions:
-															</h2>
-															<ul>
-																{option.inclusions
-																	?.split("\n")
-																	.filter((ln: string) => ln.trim())
-																	.slice(0, 2)
-																	.map((ln: string, index: number) => (
-																		<li key={index}>
-																			{ln}
-																			{option.inclusions &&
-																			option?.inclusions?.split("\n")
-																				.length > 2 &&
-																			index === 1
-																				? "...."
-																				: ""}
-																		</li>
-																	))}
-															</ul>
-														</div>
-													) : option.exclusions ? (
-														<div className="[&>ul]:list-disc [&>ul]:space-y-2 [&>ul]:pl-4 [&>ul]:mt-1">
-															<h2 className="text-lg font-semibold">
-																Exclusions:
-															</h2>
-															<ul>
-																{option.exclusions
-																	?.split("\n")
-																	.filter((ln: string) => ln.trim())
-																	.slice(0, 2)
-																	.map((ln: string, index: number) => (
-																		<li key={index}>
-																			{ln}
-																			{option.exclusions &&
-																			option?.exclusions?.split("\n")
-																				.length > 2 &&
-																			index === 1
-																				? "...."
-																				: ""}
-																		</li>
-																	))}
-															</ul>
-														</div>
-													) : null}
-												</CardContent>
-												<Separator />
-												<CardContent>
-													<div>
-														<p className="text-muted-foreground">
-															From {getMinPrice(option)} AED
-														</p>
-														{getUpcomingAvailableDates(option, 3).length == 0 &&
-															((option.availability_rules ?? []).every((a) =>
-																(a.time_slots ?? []).every(
-																	(s) =>
-																		availability.find(
-																			(a) => a.id === s.id,
-																		)?.available_seats,
-																),
-															) ||
-																option.availability_rules.length == 0) && (
-																<p className="text-destructive">
-																	Not Available
-																</p>
+										.map((option, idx) => {
+											const applicableCoupon = allAutomaticCoupons.find((coupon) => {
+												if (coupon.tours.length === 0) return true;
+												return coupon.tours.some((t) =>
+													t.tour_options.some((opt) => opt.id === option.id),
+												);
+											});
+
+											const hasDiscount = !!applicableCoupon;
+
+											const minPrice = getMinPrice(option);
+
+											const discountedPrice = hasDiscount
+												? applicableCoupon.discount_type === "PERCENTAGE"
+													? Math.round(
+															minPrice *
+																(1 - applicableCoupon.discount_value / 100),
+														)
+													: Math.max(0, minPrice - applicableCoupon.discount_value)
+												: minPrice;
+
+											return (
+												<Card
+													key={option.id}
+													className="pt-0"
+													id={"tour-option-" + idx}
+												>
+													<CardHeader className="bg-accent pt-4 pb-3 rounded-t-xl">
+														<CardTitle className="sm:flex sm:flex-wrap gap-4 items-center justify-between">
+															<h3 className="text-lg">{option.name}</h3>
+															{option.isOpenDated && (
+																<div className="max-sm:hidden">
+																	<Badge className="bg-warning py-1.5">
+																		Open Dated
+																	</Badge>
+																</div>
 															)}
+														</CardTitle>
+													</CardHeader>
+													<CardContent className="space-y-4">
+														{option.inclusions ? (
+															<div className="[&>ul]:list-disc [&>ul]:space-y-2 [&>ul]:pl-4 [&>ul]:mt-1">
+																<h2 className="text-lg font-semibold">
+																	Inclusions:
+																</h2>
+																<ul>
+																	{option.inclusions
+																		?.split("\n")
+																		.filter((ln: string) => ln.trim())
+																		.slice(0, 2)
+																		.map((ln: string, index: number) => (
+																			<li key={index}>
+																				{ln}
+																				{option.inclusions &&
+																				option?.inclusions?.split(
+																					"\n",
+																				).length > 2 &&
+																				index === 1
+																					? "...."
+																					: ""}
+																			</li>
+																		))}
+																</ul>
+															</div>
+														) : option.exclusions ? (
+															<div className="[&>ul]:list-disc [&>ul]:space-y-2 [&>ul]:pl-4 [&>ul]:mt-1">
+																<h2 className="text-lg font-semibold">
+																	Exclusions:
+																</h2>
+																<ul>
+																	{option.exclusions
+																		?.split("\n")
+																		.filter((ln: string) => ln.trim())
+																		.slice(0, 2)
+																		.map((ln: string, index: number) => (
+																			<li key={index}>
+																				{ln}
+																				{option.exclusions &&
+																				option?.exclusions?.split(
+																					"\n",
+																				).length > 2 &&
+																				index === 1
+																					? "...."
+																					: ""}
+																			</li>
+																		))}
+																</ul>
+															</div>
+														) : null}
 
-														{(() => {
-															const upcomingDates = getUpcomingAvailableDates(
-																option,
-																isMobile ? 3 : 6,
-															);
+														<div className="flex items-center justify-between mt-4">
+															<div>
+																{hasDiscount && (
+																	<div className="flex items-baseline gap-3">
+																		<p className="font-semibold text-sm text-destructive line-through">
+																			{minPrice} AED
+																		</p>
+																		<p className="font-bold text-xl">
+																			{discountedPrice} AED
+																		</p>
+																	</div>
+																)}
+															</div>
 
-															if (
-																upcomingDates.length === 0 ||
-																upcomingDates.length < 3 ||
-																tour.tour_options.every(
-																	(i) => i.isOpenDated === true,
-																)
-															) {
-																return <></>;
-															}
+															{hasDiscount && (
+																<Badge
+																	variant="destructive"
+																	className="font-semibold text-xs px-3 py-1"
+																>
+																	{applicableCoupon.discount_type ===
+																	"PERCENTAGE"
+																		? `${applicableCoupon.discount_value}% OFF`
+																		: `SAVE ${applicableCoupon.discount_value} AED`}
+																</Badge>
+															)}
+														</div>
+													</CardContent>
+													<Separator />
+													<CardContent>
+														<div>
+															{getUpcomingAvailableDates(option, 3).length ==
+																0 &&
+																((option.availability_rules ?? []).every(
+																	(a) =>
+																		(a.time_slots ?? []).every(
+																			(s) =>
+																				availability.find(
+																					(a) => a.id === s.id,
+																				)?.available_seats,
+																		),
+																) ||
+																	option.availability_rules.length ==
+																		0) && (
+																	<p className="text-destructive">
+																		Not Available
+																	</p>
+																)}
 
-															return (
-																<div className="mt-2 space-y-2">
-																	<h2 className="text-muted-foreground text-xs">
-																		Next Available Dates
-																	</h2>
-																	<div className="flex flex-wrap gap-2">
-																		{upcomingDates.map(
-																			({ date, formatted }) => (
+															{(() => {
+																const upcomingDates =
+																	getUpcomingAvailableDates(
+																		option,
+																		isMobile ? 3 : 6,
+																	);
+
+																if (
+																	upcomingDates.length === 0 ||
+																	upcomingDates.length < 3 ||
+																	tour.tour_options.every(
+																		(i) => i.isOpenDated === true,
+																	)
+																) {
+																	return <></>;
+																}
+
+																return (
+																	<div className="space-y-2">
+																		<h2 className="text-muted-foreground text-xs">
+																			Next Available Dates
+																		</h2>
+																		<div className="flex flex-wrap gap-2">
+																			{upcomingDates.map(
+																				({ date, formatted }) => (
+																					<div
+																						key={formatted}
+																						className="cursor-pointer hover:bg-primary/10 transition-colors py-4 px-5 flex flex-col gap-1 items-center justify-center bg-muted rounded-lg"
+																						onClick={() => {
+																							handleDateSelect(
+																								date,
+																							);
+																							handleButtonClick(
+																								option,
+																							);
+																						}}
+																					>
+																						<Calendar className="w-4 h-4 text-muted-foreground" />
+																						<div className="text-center">
+																							<p className="text-sm">
+																								{formatted.split(
+																									" ",
+																								)[0] +
+																									" " +
+																									formatted.split(
+																										" ",
+																									)[1]}
+																							</p>
+																							<p className="text-[0.7rem]">
+																								{
+																									formatted.split(
+																										" ",
+																									)[2]
+																								}
+																							</p>
+																						</div>
+																					</div>
+																				),
+																			)}
+																			{upcomingDates.length ===
+																				(isMobile ? 3 : 6) && (
 																				<div
-																					key={formatted}
-																					className="cursor-pointer hover:bg-primary/10 transition-colors py-4 px-5 flex flex-col gap-1 items-center justify-center bg-muted rounded-lg"
-																					onClick={() => {
-																						handleDateSelect(
-																							date,
-																						);
+																					className="cursor-pointer hover:bg-primary/10 transition-colors py-4 px-5 flex flex-col gap-1 items-center justify-center bg-muted rounded-lg text-sm"
+																					onClick={() =>
 																						handleButtonClick(
 																							option,
-																						);
-																					}}
+																						)
+																					}
 																				>
-																					<Calendar className="w-4 h-4 text-muted-foreground" />
-																					<div className="text-center">
-																						<p className="text-sm">
-																							{formatted.split(
-																								" ",
-																							)[0] +
-																								" " +
-																								formatted.split(
-																									" ",
-																								)[1]}
-																						</p>
-																						<p className="text-[0.7rem]">
-																							{
-																								formatted.split(
-																									" ",
-																								)[2]
-																							}
-																						</p>
-																					</div>
+																					<CalendarPlusIcon className="w-4 h-4 text-muted-foreground" />
+																					<p className="text-sm">
+																						More
+																					</p>
 																				</div>
-																			),
-																		)}
-																		{upcomingDates.length ===
-																			(isMobile ? 3 : 6) && (
-																			<div
-																				className="cursor-pointer hover:bg-primary/10 transition-colors py-4 px-5 flex flex-col gap-1 items-center justify-center bg-muted rounded-lg text-sm"
+																			)}
+																		</div>
+																	</div>
+																);
+															})()}
+														</div>
+													</CardContent>
+													{getUpcomingAvailableDates(option, 6).length > 3 &&
+														tour.tour_options.every(
+															(i) => i.isOpenDated === false,
+														) && <Separator />}
+													<CardContent>
+														<div className="flex gap-4 flex-wrap mt-6">
+															{/* View Details Dialog */}
+															<Dialog>
+																<DialogTrigger asChild>
+																	<Button variant={"outline"} size={"sm"}>
+																		View Details
+																	</Button>
+																</DialogTrigger>
+																<DialogContent className="max-w-xl max-h-[min(600px,80vh)] overflow-y-auto">
+																	<DialogHeader className="mb-2">
+																		<DialogTitle>
+																			Option Details
+																		</DialogTitle>
+																	</DialogHeader>
+																	<div className="bg-accent p-4 rounded-lg">
+																		<h3 className="font-semibold text-base">
+																			{tour.name}
+																		</h3>
+																		<p className="text-sm">
+																			{option.name}
+																		</p>
+																	</div>
+																	<div>
+																		<MainBodySection
+																			content={option.inclusions}
+																			title="Inclusions"
+																			titleClassName="text-lg"
+																			containerClassName="[&>ul]:mt-1"
+																		/>
+																		<MainBodySection
+																			content={option.exclusions}
+																			title="Exclusions"
+																			titleClassName="text-lg"
+																			containerClassName="[&>ul]:mt-1"
+																		/>
+																		<MainBodySection
+																			content={option.note}
+																			title="Special Note"
+																			titleClassName="text-lg"
+																			containerClassName="[&>ul]:mt-1"
+																		/>
+																		<div className="flex gap-2 justify-between items-center pt-6 pb-2 border-t mt-5">
+																			<p className="text-lg font-semibold">
+																				From {getMinPrice(option)} AED
+																			</p>
+																			<Button
+																				size={"icon"}
 																				onClick={() =>
 																					handleButtonClick(option)
 																				}
 																			>
-																				<CalendarPlusIcon className="w-4 h-4 text-muted-foreground" />
-																				<p className="text-sm">
-																					More
-																				</p>
-																			</div>
-																		)}
+																				<ArrowRight className="w-4 h-4" />
+																			</Button>
+																		</div>
 																	</div>
-																</div>
-															);
-														})()}
-													</div>
-												</CardContent>
-												{getUpcomingAvailableDates(option, 6).length > 3 &&
-													tour.tour_options.every(
-														(i) => i.isOpenDated === false,
-													) && <Separator />}
-												<CardContent>
-													<div className="flex gap-4 flex-wrap mt-6">
-														{/* View Details Dialog */}
-														<Dialog>
-															<DialogTrigger asChild>
-																<Button variant={"outline"} size={"sm"}>
-																	View Details
+																</DialogContent>
+															</Dialog>
+															<div className="w-fit ml-auto">
+																<Button
+																	onClick={() => handleButtonClick(option)}
+																	size={"sm"}
+																>
+																	Select
 																</Button>
-															</DialogTrigger>
-															<DialogContent className="max-w-xl max-h-[min(600px,80vh)] overflow-y-auto">
-																<DialogHeader className="mb-2">
-																	<DialogTitle>Option Details</DialogTitle>
-																</DialogHeader>
-																<div className="bg-accent p-4 rounded-lg">
-																	<h3 className="font-semibold text-base">
-																		{tour.name}
-																	</h3>
-																	<p className="text-sm">{option.name}</p>
-																</div>
-																<div>
-																	<MainBodySection
-																		content={option.inclusions}
-																		title="Inclusions"
-																		titleClassName="text-lg"
-																		containerClassName="[&>ul]:mt-1"
-																	/>
-																	<MainBodySection
-																		content={option.exclusions}
-																		title="Exclusions"
-																		titleClassName="text-lg"
-																		containerClassName="[&>ul]:mt-1"
-																	/>
-																	<MainBodySection
-																		content={option.note}
-																		title="Special Note"
-																		titleClassName="text-lg"
-																		containerClassName="[&>ul]:mt-1"
-																	/>
-																	<div className="flex gap-2 justify-between items-center pt-6 pb-2 border-t mt-5">
-																		<p className="text-lg font-semibold">
-																			From {getMinPrice(option)} AED
-																		</p>
-																		<Button
-																			size={"icon"}
-																			onClick={() =>
-																				handleButtonClick(option)
-																			}
-																		>
-																			<ArrowRight className="w-4 h-4" />
-																		</Button>
-																	</div>
-																</div>
-															</DialogContent>
-														</Dialog>
-														<div className="w-fit ml-auto">
-															<Button
-																onClick={() => handleButtonClick(option)}
-																size={"sm"}
+															</div>
+															<Dialog
+																onOpenChange={() => {
+																	setSelectedDate(undefined);
+																	setStepsDialogOpen(false);
+																	const newUrl = new URL(
+																		window.location.href,
+																	);
+																	newUrl.searchParams.delete("optionId");
+																	newUrl.searchParams.delete("date");
+																	window.history.replaceState(
+																		{},
+																		"",
+																		newUrl.toString(),
+																	);
+																}}
+																open={stepsDialogOpen}
 															>
-																Select
-															</Button>
-														</div>
-														<Dialog
-															onOpenChange={() => {
-																setSelectedDate(undefined);
-																setStepsDialogOpen(false);
-																const newUrl = new URL(window.location.href);
-																newUrl.searchParams.delete("optionId");
-																newUrl.searchParams.delete("date");
-																window.history.replaceState(
-																	{},
-																	"",
-																	newUrl.toString(),
-																);
-															}}
-															open={stepsDialogOpen}
-														>
-															<DialogContent className="max-w-lg">
-																<DialogHeader className="mb-2">
-																	<DialogTitle>
-																		Select your preferences
-																	</DialogTitle>
-																</DialogHeader>
-																{/* Secondary Header */}
-																<div className="bg-accent p-4 rounded-lg space-y-2">
-																	<h3 className="font-semibold text-base">
-																		{tour.name}
-																	</h3>
-																	<div className="space-y-1">
-																		{selectedOption && (
-																			<p className="text-sm">
-																				{selectedOption.name}
-																			</p>
-																		)}
-																		{step === "time" && selectedDate && (
-																			<div className="flex gap-2 items-center justify-between">
-																				<p className="text-sm mt-1">
-																					{format(
-																						selectedDate,
-																						"PPPP",
-																					)}
+																<DialogContent className="max-w-lg">
+																	<DialogHeader className="mb-2">
+																		<DialogTitle>
+																			Select your preferences
+																		</DialogTitle>
+																	</DialogHeader>
+																	{/* Secondary Header */}
+																	<div className="bg-accent p-4 rounded-lg space-y-2">
+																		<h3 className="font-semibold text-base">
+																			{tour.name}
+																		</h3>
+																		<div className="space-y-1">
+																			{selectedOption && (
+																				<p className="text-sm">
+																					{selectedOption.name}
 																				</p>
-																				<Button
-																					type="button"
-																					size={"sm"}
-																					variant={"ghost"}
-																					onClick={handleBack}
-																					className="cursor-pointer flex gap-2"
-																				>
-																					<Edit className="w-4 h-4 " />
-																					<span className="text-sm">
-																						Edit Date
-																					</span>
-																				</Button>
-																			</div>
-																		)}
-																		{step === "participants" &&
-																			selectedDate &&
-																			selectedTimeSlot && (
-																				<div className="space-y-1">
-																					<p className="text-sm">
-																						{format(
-																							selectedDate,
-																							"PPPP",
-																						)}
-																					</p>
+																			)}
+																			{step === "time" &&
+																				selectedDate && (
 																					<div className="flex gap-2 items-center justify-between">
-																						<p className="text-sm">
-																							{
-																								selectedTimeSlot.label
-																							}
+																						<p className="text-sm mt-1">
+																							{format(
+																								selectedDate,
+																								"PPPP",
+																							)}
 																						</p>
-																						<button
+																						<Button
 																							type="button"
+																							size={"sm"}
+																							variant={"ghost"}
 																							onClick={
 																								handleBack
 																							}
@@ -674,200 +712,242 @@ export default function TourDetailsPage() {
 																						>
 																							<Edit className="w-4 h-4 " />
 																							<span className="text-sm">
-																								Edit TimeSlot
+																								Edit Date
 																							</span>
-																						</button>
+																						</Button>
 																					</div>
-																					{availability.length >
-																						0 && (
+																				)}
+																			{step === "participants" &&
+																				selectedDate &&
+																				selectedTimeSlot && (
+																					<div className="space-y-1">
 																						<p className="text-sm">
-																							{
-																								availability.find(
-																									(a) =>
-																										a.id ===
-																										selectedTimeSlot.id,
-																								)
-																									?.available_seats
-																							}{" "}
-																							seat(s) available
+																							{format(
+																								selectedDate,
+																								"PPPP",
+																							)}
 																						</p>
-																					)}
-																				</div>
-																			)}
-																	</div>
-																</div>
-																{step === "date" && selectedOption && (
-																	<div className="space-y-4">
-																		<p>
-																			Select{" "}
-																			{selectedOption?.isOpenDated
-																				? "your preffered date"
-																				: "a date"}
-																		</p>
-																		{[
-																			{
-																				className:
-																					"max-[32rem]:hidden",
-																				months: 2,
-																				align: "center",
-																			},
-																			{
-																				className:
-																					"max-[32rem]:block hidden",
-																				months: 1,
-																				align: "start",
-																			},
-																		].map(
-																			(
-																				{ className, months, align },
-																				i,
-																			) => (
-																				<div
-																					className={className}
-																					key={i}
-																				>
-																					<DatePicker
-																						popover_align={
-																							align as any
-																						}
-																						numberOfMonths={
-																							months
-																						}
-																						value={selectedDate}
-																						onDateChange={
-																							handleDateSelect
-																						}
-																						defaultMonth={
-																							selectedDate ||
-																							new Date()
-																						}
-																						date_disabled={(
-																							date,
-																						) => {
-																							if (
-																								isBefore(
-																									date,
-																									startOfToday(),
-																								)
-																							)
-																								return true;
-
-																							return !isDateCoveredByAnyRule(
-																								date,
-																								selectedOption,
-																							);
-																						}}
-																					/>
-																				</div>
-																			),
-																		)}
-																		{selectedDate &&
-																			getTimeSlotsForDate(
-																				selectedDate,
-																				selectedOption,
-																			).length === 0 && (
-																				<p className="text-destructive">
-																					No available time slots
-																					for this date.
-																				</p>
-																			)}
-																		<div className="w-fit ml-auto">
-																			<Button
-																				size={"sm"}
-																				onClick={handleDateNextClick}
-																				disabled={
-																					(selectedDate &&
-																						getTimeSlotsForDate(
-																							selectedDate,
-																							selectedOption,
-																						).length === 0) ||
-																					!selectedDate
-																				}
-																			>
-																				Next
-																			</Button>
+																						<div className="flex gap-2 items-center justify-between">
+																							<p className="text-sm">
+																								{
+																									selectedTimeSlot.label
+																								}
+																							</p>
+																							<button
+																								type="button"
+																								onClick={
+																									handleBack
+																								}
+																								className="cursor-pointer flex gap-2"
+																							>
+																								<Edit className="w-4 h-4 " />
+																								<span className="text-sm">
+																									Edit
+																									TimeSlot
+																								</span>
+																							</button>
+																						</div>
+																						{availability.length >
+																							0 && (
+																							<p className="text-sm">
+																								{
+																									availability.find(
+																										(a) =>
+																											a.id ===
+																											selectedTimeSlot.id,
+																									)
+																										?.available_seats
+																								}{" "}
+																								seat(s)
+																								available
+																							</p>
+																						)}
+																					</div>
+																				)}
 																		</div>
 																	</div>
-																)}
-																{step === "time" &&
-																	selectedDate &&
-																	selectedOption && (
+																	{step === "date" && selectedOption && (
 																		<div className="space-y-4">
 																			<p>
 																				Select{" "}
 																				{selectedOption?.isOpenDated
-																					? "your preffered timeslot"
-																					: "a timeslot"}
+																					? "your preffered date"
+																					: "a date"}
 																			</p>
-																			<div className="flex gap-2 flex-wrap">
-																				{isLoadingSlots ? (
-																					<>
-																						<Skeleton className="h-10 w-28 rounded-md" />
-																						<Skeleton className="h-10 w-28 rounded-md" />
-																						<Skeleton className="h-10 w-28 rounded-md" />
-																					</>
-																				) : (
-																					updatedTimeSlots.map(
-																						(slot) => {
-																							const seats =
-																								slot.capacity;
-																							const disabled =
-																								seats <= 0 ||
-																								!slot.is_active;
+																			{[
+																				{
+																					className:
+																						"max-[32rem]:hidden",
+																					months: 2,
+																					align: "center",
+																				},
+																				{
+																					className:
+																						"max-[32rem]:block hidden",
+																					months: 1,
+																					align: "start",
+																				},
+																			].map(
+																				(
+																					{
+																						className,
+																						months,
+																						align,
+																					},
+																					i,
+																				) => (
+																					<div
+																						className={className}
+																						key={i}
+																					>
+																						<DatePicker
+																							popover_align={
+																								align as any
+																							}
+																							numberOfMonths={
+																								months
+																							}
+																							value={
+																								selectedDate
+																							}
+																							onDateChange={
+																								handleDateSelect
+																							}
+																							defaultMonth={
+																								selectedDate ||
+																								new Date()
+																							}
+																							date_disabled={(
+																								date,
+																							) => {
+																								if (
+																									isBefore(
+																										date,
+																										startOfToday(),
+																									)
+																								)
+																									return true;
 
-																							return (
-																								<Button
-																									key={
-																										slot.id
-																									}
-																									variant="secondary"
-																									className={cn(
-																										"w-fit min-w-25",
-																										disabled
-																											? "opacity-60 cursor-not-allowed pointer-events-none"
-																											: "border-2 border-primary hover:bg-primary/10",
-																									)}
-																									onClick={() =>
-																										handleTimeSelect(
-																											slot,
-																										)
-																									}
-																									disabled={
-																										disabled
-																									}
-																								>
-																									{
-																										slot.label
-																									}
-																									{` (${seats})`}
-																								</Button>
-																							);
-																						},
-																					)
+																								return !isDateCoveredByAnyRule(
+																									date,
+																									selectedOption,
+																								);
+																							}}
+																						/>
+																					</div>
+																				),
+																			)}
+																			{selectedDate &&
+																				getTimeSlotsForDate(
+																					selectedDate,
+																					selectedOption,
+																				).length === 0 && (
+																					<p className="text-destructive">
+																						No available time
+																						slots for this date.
+																					</p>
 																				)}
+																			<div className="w-fit ml-auto">
+																				<Button
+																					size={"sm"}
+																					onClick={
+																						handleDateNextClick
+																					}
+																					disabled={
+																						(selectedDate &&
+																							getTimeSlotsForDate(
+																								selectedDate,
+																								selectedOption,
+																							).length === 0) ||
+																						!selectedDate
+																					}
+																				>
+																					Next
+																				</Button>
 																			</div>
 																		</div>
 																	)}
-																{step === "participants" &&
-																	selectedOption &&
-																	selectedTimeSlot &&
-																	selectedDate && (
-																		<ParticipantFormComponent
-																			option={selectedOption}
-																			selectedTimeSlot={{
-																				...selectedTimeSlot,
-																				capacity:
-																					selectedTimeSlot.capacity,
-																			}}
-																			selectedDate={selectedDate}
-																		/>
-																	)}
-															</DialogContent>
-														</Dialog>
-													</div>
-												</CardContent>
-											</Card>
-										))}
+																	{step === "time" &&
+																		selectedDate &&
+																		selectedOption && (
+																			<div className="space-y-4">
+																				<p>
+																					Select{" "}
+																					{selectedOption?.isOpenDated
+																						? "your preffered timeslot"
+																						: "a timeslot"}
+																				</p>
+																				<div className="flex gap-2 flex-wrap">
+																					{isLoadingSlots ? (
+																						<>
+																							<Skeleton className="h-10 w-28 rounded-md" />
+																							<Skeleton className="h-10 w-28 rounded-md" />
+																							<Skeleton className="h-10 w-28 rounded-md" />
+																						</>
+																					) : (
+																						updatedTimeSlots.map(
+																							(slot) => {
+																								const seats =
+																									slot.capacity;
+																								const disabled =
+																									seats <=
+																										0 ||
+																									!slot.is_active;
+
+																								return (
+																									<Button
+																										key={
+																											slot.id
+																										}
+																										variant="secondary"
+																										className={cn(
+																											"w-fit min-w-25",
+																											disabled
+																												? "opacity-60 cursor-not-allowed pointer-events-none"
+																												: "border-2 border-primary hover:bg-primary/10",
+																										)}
+																										onClick={() =>
+																											handleTimeSelect(
+																												slot,
+																											)
+																										}
+																										disabled={
+																											disabled
+																										}
+																									>
+																										{
+																											slot.label
+																										}
+																										{` (${seats})`}
+																									</Button>
+																								);
+																							},
+																						)
+																					)}
+																				</div>
+																			</div>
+																		)}
+																	{step === "participants" &&
+																		selectedOption &&
+																		selectedTimeSlot &&
+																		selectedDate && (
+																			<ParticipantFormComponent
+																				option={selectedOption}
+																				selectedTimeSlot={{
+																					...selectedTimeSlot,
+																					capacity:
+																						selectedTimeSlot.capacity,
+																				}}
+																				selectedDate={selectedDate}
+																			/>
+																		)}
+																</DialogContent>
+															</Dialog>
+														</div>
+													</CardContent>
+												</Card>
+											);
+										})}
 								</div>
 								{/* Sections */}
 								<section>
@@ -1192,7 +1272,7 @@ const ParticipantFormComponent = memo(
 					)}
 				<p className="font-semibold text-base mt-8">Total: {totalPrice.toFixed(2)} AED</p>
 
-				<div className="flex gap-3 justify-end">
+				<div className="flex justify-end">
 					<Button
 						type="button"
 						variant="outline"
@@ -1206,8 +1286,6 @@ const ParticipantFormComponent = memo(
 						)}
 						<p className="my-auto">Add to Cart</p>
 					</Button>
-
-					<Button type="submit">Book Now</Button>
 				</div>
 			</form>
 		);

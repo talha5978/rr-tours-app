@@ -224,7 +224,7 @@ export class ReviewsService extends Service {
 
 		try {
 			let query = this.supabase
-				.from("bookings_new")
+				.from(this.BOOKINGS_TABLE)
 				.select(
 					`
 					id,
@@ -233,7 +233,7 @@ export class ReviewsService extends Service {
 					payment:${this.PAYMENTS_TABLE}(payment_status),
 					created_at,
 					customer_name,
-					booking_items (
+					${this.BOOKING_ITEMS_TABLE} (
 						id,
 						preffered_date,
 						preffered_timeslot,
