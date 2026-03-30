@@ -5,10 +5,12 @@ import { ApiError } from "@workspace/shared/utils/ApiError";
 import type {
 	AdminCoupon,
 	adminCouponsResp,
+	CouponDetailsForUpdate,
 	FrontPanelCoupon,
 	FrontPanelCouponsResp,
 } from "@workspace/shared/types/coupons";
 import { type AddCouponSchemaType } from "@workspace/shared/schemas/coupon.schema";
+import { TablesUpdate } from "@workspace/shared/types/supabase";
 
 @UseClassMiddleware(loggerMiddleware)
 export class CouponsService extends Service {
@@ -213,5 +215,88 @@ export class CouponsService extends Service {
 		return {
 			coupons: result,
 		};
+	}
+
+	async getCouponById(couponId: number): Promise<CouponDetailsForUpdate> {
+		const { data: coupon, error: couponError } = await this.supabase
+			.from(this.COUPONS_TABLE)
+			.select(
+				`
+				*,
+				${this.COUPON_TOURS_TABLE}(
+					tour_option_id,
+					${this.TOUR_OPTIONS_TABLE}(name, tour_id, ${this.TOURS_TABLE}(name))
+				)
+			`,
+			)
+			.eq("id", couponId)
+			.limit(1)
+			.single();
+
+		if (couponError || !coupon) {
+			console.error("Error fetching automatic coupon:", couponError);
+			return { data: null };
+		}
+
+		return {
+			data: {
+				...coupon,
+				tours: (coupon.coupon_tours || []).map((ct) => ({
+					id: ct.tour_options?.tour_id || "",
+					name: ct.tour_options?.name || "",
+					tour_options: [{ id: ct.tour_option_id, name: ct.tour_options?.name || "" }],
+				})),
+			},
+		};
+	}
+
+	/** Update coupon basic details and tour restrictions */
+	async updateCoupon(couponId: number, payload: FormData) {
+		const updateData: TablesUpdate<"coupons"> = {};
+
+		if (payload.has("code")) updateData.code = payload.get("code") as string;
+		if (payload.has("valid_from")) updateData.valid_from = payload.get("valid_from") as string;
+		if (payload.has("valid_until")) updateData.valid_until = payload.get("valid_until") as string;
+		if (payload.has("is_active")) updateData.is_active = payload.get("is_active") === "Y";
+		console.log(updateData);
+
+		// Update main coupon record if anything changed
+		if (Object.keys(updateData).length > 0) {
+			const { error } = await this.supabase
+				.from(this.COUPONS_TABLE)
+				.update(updateData)
+				.eq("id", couponId);
+
+			if (error) throw new ApiError(error.message, 500);
+		}
+
+		// Handle tour option restrictions (add + remove)
+		const added = payload.getAll("added_tour_option_ids[]").map(Number);
+		const removed = payload.getAll("removed_tour_option_ids[]").map(Number);
+
+		// Remove old restrictions
+		if (removed.length > 0) {
+			const { error } = await this.supabase
+				.from(this.COUPON_TOURS_TABLE)
+				.delete()
+				.eq("coupon_id", couponId)
+				.in("tour_option_id", removed);
+
+			if (error) throw new ApiError(error.message, 500);
+		}
+
+		// Add new restrictions
+		if (added.length > 0) {
+			const inserts = added.map((tourOptionId) => ({
+				coupon_id: Number(couponId),
+				tour_option_id: tourOptionId,
+			}));
+
+			const { error } = await this.supabase.from(this.COUPON_TOURS_TABLE).insert(inserts);
+
+			if (error) throw new ApiError(error.message, 500);
+		}
+
+		return { success: true };
 	}
 }

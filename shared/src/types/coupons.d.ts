@@ -19,3 +19,15 @@ export type FrontPanelCoupon = Database["public"]["Tables"]["coupons"]["Row"] & 
 export type FrontPanelCouponsResp = {
 	coupons: FrontPanelCoupon[];
 };
+
+export type CouponDetailsForUpdate = {
+	data:
+		| (Database["public"]["Tables"]["coupons"]["Row"] & {
+				tours: {
+					id: string;
+					name: string;
+					tour_options: { id: number; name: string }[];
+				}[];
+		  })
+		| null;
+};

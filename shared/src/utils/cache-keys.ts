@@ -197,5 +197,7 @@ export const CACHE_KEYS = {
 			(q && q.trim() !== "" ? `:q=${q.trim().toLowerCase()}` : ""),
 		allFP: (user_id?: string | number) =>
 			`${CACHE_KEYS.ROOT("FP")}:coupons:all` + (user_id != null ? `:uID=${user_id}` : ""),
+		details: (ctx: CacheContext, couponId: number | string) =>
+			`${CACHE_KEYS.ROOT(ctx)}:coupons:details:${couponId}`,
 	},
 };

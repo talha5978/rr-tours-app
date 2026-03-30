@@ -1,9 +1,11 @@
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
-import { Calendar, Tag, Users, MapPin, CircleDot, Clock3 } from "lucide-react";
+import { Calendar, Tag, Users, MapPin, CircleDot, Clock3, Edit } from "lucide-react";
 import type { AdminCoupon } from "@workspace/shared/types/coupons";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { Button } from "~/components/ui/button";
+import { Link } from "react-router";
 
 function formatCurrency(value: number) {
 	return new Intl.NumberFormat("en-US", {
@@ -211,6 +213,15 @@ export function CouponCard({ coupon }: { coupon: AdminCoupon }) {
 					<span>Created at {formatDateTime(coupon.created_at)}</span>
 					<span>Last updated at {formatDateTime(coupon.updated_at)}</span>
 				</div>
+				<Link to={`/coupons/${coupon.id}/update`} viewTransition prefetch="intent">
+					<Button
+						size="icon"
+						variant="outline"
+						className="h-8 px-3 text-xs group hover:border-primary"
+					>
+						<Edit className="group-hover:text-primary transition ease-in-out duration-75" />
+					</Button>
+				</Link>
 			</CardFooter>
 		</Card>
 	);
