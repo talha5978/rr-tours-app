@@ -74,7 +74,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 		await cacheService.invalidatePattern(CACHE_KEYS.bookings.highLevel() + ":*");
 		await cacheService.invalidate(CACHE_KEYS.bookings.details("AD", id));
 		await cacheService.invalidate(CACHE_KEYS.bookings.forConfirmation(id));
-		await cacheService.invalidate(CACHE_KEYS.stats.dashboardMainStats());
+		await cacheService.invalidate(CACHE_KEYS.dashboard.mainStats());
+		await cacheService.invalidate(CACHE_KEYS.dashboard.mainChartData());
 		await cacheService.invalidate(CACHE_KEYS.bookings.details("FP", ref));
 
 		return { success: true };

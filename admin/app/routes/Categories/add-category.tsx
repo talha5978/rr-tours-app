@@ -64,7 +64,7 @@ export const action = async ({ request }: { request: Request }) => {
 
 		await cacheService.invalidatePattern(CACHE_KEYS.categories.highLevelAD() + `:*`);
 		await cacheService.invalidate(CACHE_KEYS.categories.list());
-		await cacheService.invalidate(CACHE_KEYS.stats.dashboardMainStats());
+		await cacheService.invalidate(CACHE_KEYS.dashboard.mainStats());
 		await cacheService.invalidate(CACHE_KEYS.categories.highLevelFP());
 
 		return { success: true };

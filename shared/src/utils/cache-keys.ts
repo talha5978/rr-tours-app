@@ -35,8 +35,9 @@ export const CACHE_KEYS = {
 		list: () => `${CACHE_KEYS.ROOT("AD")}:categories:list`,
 	},
 
-	stats: {
-		dashboardMainStats: () => `${CACHE_KEYS.ROOT("AD")}:stats:dashboard-main-stats`,
+	dashboard: {
+		mainStats: () => `${CACHE_KEYS.ROOT("AD")}:stats:dashboard-main-stats`,
+		mainChartData: () => `${CACHE_KEYS.ROOT("AD")}:dashboard:main-chart-data`,
 	},
 
 	participantTypes: {

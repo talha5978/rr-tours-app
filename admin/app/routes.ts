@@ -7,6 +7,8 @@ export default [
 	layout("./routes/layout.tsx", [
 		index("routes/dashboard.tsx"),
 
+		route("get-export-bookings-data", "./routes/_actions/get-export-bookings-data.tsx"),
+
 		...prefix("categories", [
 			index("./routes/Categories/categories.tsx"),
 			route("add", "./routes/Categories/add-category.tsx"),

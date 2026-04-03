@@ -65,6 +65,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 		await cacheService.invalidatePattern(CACHE_KEYS.bookings.user_bookings(rawBody.added_by!) + ":*");
 		await cacheService.invalidatePattern(CACHE_KEYS.bookings.highLevel() + ":*");
+		await cacheService.invalidate(CACHE_KEYS.dashboard.mainChartData());
 
 		// Clear Cart after successful booking
 		const userData = await getCurrentUser(request);

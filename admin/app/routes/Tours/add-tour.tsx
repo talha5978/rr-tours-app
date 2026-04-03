@@ -96,7 +96,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 		await cacheService.invalidatePattern(CACHE_KEYS.categories.highLevelAD() + `:*`);
 		await cacheService.invalidatePattern(CACHE_KEYS.tours.list("AD") + `:*`);
 		await cacheService.invalidatePattern(CACHE_KEYS.tours.highLevel("AD") + `:*`);
-		await cacheService.invalidate(CACHE_KEYS.stats.dashboardMainStats());
+		await cacheService.invalidate(CACHE_KEYS.dashboard.mainStats());
 		await cacheService.invalidatePattern(CACHE_KEYS.tours.highLevel("FP") + `:*`);
 
 		return { success: true, tour_id };

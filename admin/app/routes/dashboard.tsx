@@ -1,19 +1,21 @@
 import { useLoaderData, type LoaderFunctionArgs } from "react-router";
 import { TopAnalyticsBar } from "~/components/Dashboard/AnalyticsBar";
+import { DashboardMainChart } from "~/components/Dashboard/Charts";
 import { RecentBookingsCard } from "~/components/Dashboard/RecentBookings";
 import { MetaDetails } from "~/components/SEO/MetaDetails";
 import { highLevelBookingsQuery } from "~/queries/bookings.q";
-import { dashboardMainstatsQuery } from "~/queries/stats.q";
+import { bookingsChartDataQuery, dashboardMainstatsQuery } from "~/queries/stats.q";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
 	const dashboardMainStats = await dashboardMainstatsQuery({ request });
 	const recentBookings = await highLevelBookingsQuery({ request, pageSize: 5 });
+	const chartData = await bookingsChartDataQuery({ request });
 
-	return { dashboardMainStats, recentBookings };
+	return { dashboardMainStats, recentBookings, chartData };
 };
 
 export default function Home() {
-	const { dashboardMainStats, recentBookings } = useLoaderData<typeof loader>();
+	const { dashboardMainStats, recentBookings, chartData } = useLoaderData<typeof loader>();
 
 	return (
 		<>
@@ -28,6 +30,7 @@ export default function Home() {
 					total_tours={dashboardMainStats.total_tours.toString()}
 					total_categories={dashboardMainStats.total_categories.toString()}
 				/>
+				<DashboardMainChart chartData={chartData.data} />
 				<RecentBookingsCard recentBookings={recentBookings.bookings ?? []} />
 			</section>
 		</>
