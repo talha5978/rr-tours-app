@@ -4,6 +4,8 @@ export default [
 	route("robots.txt", "./routes/robots.txt.ts"),
 	route("sitemap.xml", "./routes/sitemap.xml.ts"),
 
+	route("health", "./routes/health.ts"),
+
 	route("/logout", "./routes/_actions/logout.tsx"),
 	route("/login/google", "./routes/_actions/google-login.tsx"),
 	route("/auth/callback", "./routes/Auth/google-login-callback.tsx"),
