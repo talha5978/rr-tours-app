@@ -35,7 +35,7 @@
 
 ## About
 
-This application is a two-panel (customer-facing front-panel and admin panel) tour agency project implemented as a single monorepo. The codebase uses React Router v7 Framework and Supabase for auth, db and storage. To boost the application performance `tanstack-query` is also used for caching. This repo is structured as a workspace monorepo.
+This application is a two-panel (customer-facing front-panel and admin panel) tour agency project implemented as a single monorepo. The codebase uses React Router v7 Framework and Supabase for auth, db and storage. To boost the application performance `redis` is also used for caching through `redis-cloud`. This repo is structured as a workspace monorepo.
 
 ---
 
@@ -81,7 +81,7 @@ This application is a two-panel (customer-facing front-panel and admin panel) to
 
 - Main: React 19, React Router v7 Framework Mode
 - Database / Auth / Storage: Supabase (migrations folder present). 
-- State / data fetching: @tanstack/react-query.
+- Data Caching: Redis Cloud.
 - Styling & UI: Shadcn-ui & Tailwind (and Lucide icons used across apps).
 - Emails: Resend
 - Prettier for consistent formatting
