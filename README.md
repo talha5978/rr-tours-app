@@ -1,4 +1,4 @@
-# Tours App — Web + Admin panel
+# WanderNest - Tour Tickets Booking App
 
 <p align="center">
   <!-- Logo (small) -->
@@ -88,36 +88,44 @@ This application is a two-panel (customer-facing front-panel and admin panel) to
 ---
 
 ## Repository layout
+```
 (root)
-├─ admin/ #Admin app (react-router)
-├─ front-panel/ # Public front-end (react-router)
+├─ admin/ #Admin app (react-router-framework)
+├─ front-panel/ # Public front-end (react-router-framework)
 ├─ shared/ # Shared functionality (e.g. Supabase functions)
 ├─ supabase/ # Migrations / config for DB
 ├─ .env.sample
 ├─ .tsconfig.base.json
 ├─ package.json # npm workspaces + scripts
-
+```
 Root `package.json` uses npm workspaces and defines convenience scripts: `dev:admin`, `dev:front`, `dev` (both), and build scripts for each workspace. Use these for local development. 
 
 ## Environment variables
 ```dotenv
 VITE_ENV=<production or development>
+NODE_ENV=<production or development>
 VITE_PROJECT_ID=<ADD_YOUR_PROJECT_ID>
 VITE_SUPABASE_URL=<ADD_YOUR_SUPABASE_URL>
 SUPABASE_SERVICE_ROLE_KEY=<ADD_YOUR_SUPABASE_SERVICE_ROLE_KEY>
 VITE_SUPABASE_ANON_KEY=<ADD_YOUR_SUPABASE_ANON_KEY>
+
 VITE_RECAPTCHA_SITE_KEY=<RECAPTCHA_SITE_KEY>
 RECAPTCHA_SECRET_KEY=<RECAPTCHA_SECRET_KEY>
+
 VITE_MAIN_APP_URL=<https://www.xyz.com OR http://localhost:PORT>
+
 RESEND_API_KEY=<ADD_RESEND_API_KEY>
+
 VITE_STRIPE_PUBLISHABLE_KEY=<ADD_KEY>
 STRIPE_SECRET_KEY=<ADD_KEY>
+
+REDIS_URL=redis://<USERNAME>:<PASSWORD>@<REDIS_DB_LINK>
 ```
-<i>You can also download sample env file from the root .env.sample</i>
+<i>You can also see sample env file from the root .env.sample</i>
 
 ## Local development
 
-**Prereqs:** Node 18+, npm.
+**Prereqs:** Node 22+, npm.
 
 **Clone and install:**
 
@@ -126,7 +134,6 @@ git clone https://github.com/talha5978/rr-tours-app.git
 cd rr-tours-app
 npm install
 ```
-Create .env files for admin and front-panel if needed. You can put root .env and each app will read VITE_ variables in the client side when you add them in vite.config.ts file and run dev.
 
 **Run both apps for development:**
 ```bash
@@ -150,11 +157,9 @@ npm run build:admin
 npm run build:front
 # or
 npm run build:all
-# e.g for admin-panel
-npm run start
 ```
 
-Or use docker (RUN FROM REPO ROOT)
+Or use docker <b>(RUN FROM REPO ROOT)</b>
 ```bash
 export $(cat .env | xargs)
 
@@ -217,7 +222,7 @@ Vercel handles monorepos and React Router well, but the cleanest split is usuall
 
 Use the Render setup shown above — this keeps your service role key 100% server-side.
 
-### Alternative: Both on Vercel (advanced)
+### Alternative: Both on Vercel
 
 - **Two separate projects** (easiest):
     - Project 1 → Root: `/front-panel`
@@ -225,4 +230,4 @@ Use the Render setup shown above — this keeps your service role key 100% serve
 
 - **Single project + rewrites** → requires `vercel.json` configuration
 
-<u><i>Created by Talha — open an issue or contact at muhammadtalha13457@gmail.com.<i><u>
+<u><i>Developed by Talha — open an issue or contact at muhammadtalha13457@gmail.com.<i><u>
