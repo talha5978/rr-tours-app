@@ -501,30 +501,6 @@ export type Database = {
 					},
 				];
 			};
-			cache_invalidation_events: {
-				Row: {
-					created_at: string;
-					id: string;
-					keys: string[];
-					processed: boolean;
-					target: Database["public"]["Enums"]["cache_invalidation_target"];
-				};
-				Insert: {
-					created_at?: string;
-					id?: string;
-					keys: string[];
-					processed?: boolean;
-					target: Database["public"]["Enums"]["cache_invalidation_target"];
-				};
-				Update: {
-					created_at?: string;
-					id?: string;
-					keys?: string[];
-					processed?: boolean;
-					target?: Database["public"]["Enums"]["cache_invalidation_target"];
-				};
-				Relationships: [];
-			};
 			cancellation_policies: {
 				Row: {
 					id: number;
@@ -1425,7 +1401,6 @@ export type Database = {
 		Enums: {
 			availability_override_type: "CLOSE" | "CAPACITY_CHANGE";
 			booking_status_enum: "PENDING" | "CONFIRMED" | "CANCELLED";
-			cache_invalidation_target: "front" | "admin" | "both";
 			coupon_type: "MANUAL" | "AUTOMATIC";
 			discount_type: "PERCENTAGE" | "FIXED_AMOUNT";
 			payment_status_enum: "PENDING" | "PARTIAL" | "PAID" | "REFUNDED" | "FAILED" | "CANCELLED";
@@ -1559,7 +1534,6 @@ export const Constants = {
 		Enums: {
 			availability_override_type: ["CLOSE", "CAPACITY_CHANGE"],
 			booking_status_enum: ["PENDING", "CONFIRMED", "CANCELLED"],
-			cache_invalidation_target: ["front", "admin", "both"],
 			coupon_type: ["MANUAL", "AUTOMATIC"],
 			discount_type: ["PERCENTAGE", "FIXED_AMOUNT"],
 			payment_status_enum: ["PENDING", "PARTIAL", "PAID", "REFUNDED", "FAILED", "CANCELLED"],
