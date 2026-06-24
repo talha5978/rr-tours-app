@@ -112,6 +112,7 @@ export default function Header({
 											className="w-8 h-8 rounded-md"
 										/>
 									</Link>
+									<HeaderFavouriteButton />
 								</div>
 							</SheetFooter>
 						</SheetContent>
@@ -150,7 +151,9 @@ export default function Header({
 				<div className="flex-1" />
 
 				<div className="flex gap-4 items-center">
-					<HeaderFavouriteButton />
+					<div className="lg:inline hidden">
+						<HeaderFavouriteButton />
+					</div>
 					<HeaderCartButton cart={cart} />
 					<UserAccountButton />
 				</div>
